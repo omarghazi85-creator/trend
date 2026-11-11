@@ -1,0 +1,11 @@
+"$schema" = "https://open-api.netlify.com/netlify.schema.json"
+
+[build]
+  publish = "public"
+  command = "npm run typecheck && npm test"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# No scheduled jobs. No automatic WordPress writes.

@@ -17,3 +17,16 @@ test('order independence when observations are duplicates',async()=>{
 });
 test('reject invalid dates',()=>assert.throws(()=>makeTrendSnapshot('sa','2026-02-30',[])));
 test('reject excessive input',()=>assert.throws(()=>makeTrendSnapshot('sa','2026-11-11',Array.from({length:2001},()=>({country:'sa',term:'x',source:'google',observedAt:'2026-11-11T01:00:00Z'})))));
+
+test('mixed Arabic spelling variants produce a stable digest regardless of input order',async()=>{
+ const a={country:'sa',term:'إعلام',source:'google',observedAt:'2026-11-11T08:00:00Z',score:18};
+ const b={country:'sa',term:'اعلام',source:'youtube',observedAt:'2026-11-11T09:00:00Z',score:20};
+ const first=makeTrendSnapshot('sa','2026-11-11',[a,b]);
+ const reverse=makeTrendSnapshot('sa','2026-11-11',[b,a]);
+ assert.equal(first.terms.length,1);
+ assert.equal(await snapshotDigest(first),await snapshotDigest(reverse));
+});
+test('malformed source entries do not abort the whole daily batch',()=>{
+ const rows=[{country:'sa',term:'أخبار',source:'google',observedAt:'2026-11-11T09:00:00Z'},null,{country:'sa',term:10,source:'google',observedAt:'2026-11-11T09:00:00Z'}];
+ assert.equal(makeTrendSnapshot('sa','2026-11-11',rows as any).terms.length,1);
+});

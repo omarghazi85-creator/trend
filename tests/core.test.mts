@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { validateCandidate, planCandidate, wordpressPayload } from '../src/core.mts';
+const base = { title: 'خبر تقني مؤكد ومراجع تحريرياً', slug: 'technology-2026-11-11', content: '<p>'+ 'المحتوى العربي المدقق '.repeat(12)+'</p>' };
+test('accepts validated item',()=>{const c=validateCandidate(base);assert.equal(c.slug,base.slug)});
+test('rejects malformed slug',()=>assert.throws(()=>validateCandidate({...base,slug:'../../wp-admin'})));
+test('rejects short content',()=>assert.throws(()=>validateCandidate({...base,content:'خبر قصير'})));
+test('existing slug never overwritten',()=>{const c=validateCandidate(base);assert.equal(planCandidate(c,[{id:44,slug:c.slug,status:'publish'}]).action,'skip_existing')});
+test('creates draft only for new slug',()=>{const c=validateCandidate(base);assert.equal(planCandidate(c,[]).action,'create_draft');assert.equal(wordpressPayload(c).status,'draft')});
+test('rejects bad category IDs',()=>assert.throws(()=>validateCandidate({...base,categoryIds:[1,-3]})));
+test('rejects duplicate client supplied slug content path',()=>assert.throws(()=>validateCandidate({...base,slug:'A B'})));
+test('rejects unsafe non-https source',()=>assert.throws(()=>validateCandidate({...base,sourceUrl:'http://example.com'})));

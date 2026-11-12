@@ -10,6 +10,18 @@ export interface Candidate {
 }
 export interface RemotePost { id:number; slug:string; status:string; }
 export type Plan = { action:'create_draft' | 'skip_existing'; slug:string; reason:string };
+/** Technology news must be substantive: at least 500 words of article body, excluding markup. */
+export const TECHNOLOGY_CATEGORY_ID = 101;
+export const TECHNOLOGY_MIN_WORDS = 500;
+export const TECHNOLOGY_TARGET_WORDS = {minimum: 550,maximum: 700} as const;
+export function countEditorialWords(html:string):number {
+ const text=html.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi,' ')
+ .replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi,' ')
+ .replace(/<[^>]+>/g,' ')
+ .replace(/&(?:nbsp|amp|lt|gt|quot|#\\d+|#x[0-9a-f]+);/gi,' ')
+ .normalize('NFKC').trim();
+ return text ? text.split(/\\s+/u).filter(Boolean).length : 0;
+}
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,178}[a-z0-9])?$/;
 export function normalizeText(s:string):string {
   return s.replace(/\r\n/g,'\n').replace(/[\t ]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
@@ -23,6 +35,7 @@ export function validateCandidate(input:unknown):Candidate {
   if(x.excerpt!==undefined && (typeof x.excerpt!=='string'||x.excerpt.length>500)) throw new Error('invalid_excerpt');
   if(x.sourceUrl!==undefined && (typeof x.sourceUrl!=='string'||!/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/i.test(x.sourceUrl))) throw new Error('invalid_source');
   if(x.categoryIds!==undefined && (!Array.isArray(x.categoryIds)||x.categoryIds.length>4||!x.categoryIds.every(v=>Number.isSafeInteger(v)&&v>0))) throw new Error('invalid_categories');
+  if(Array.isArray(x.categoryIds)&&x.categoryIds.includes(TECHNOLOGY_CATEGORY_ID)&&countEditorialWords(x.content as string)<TECHNOLOGY_MIN_WORDS) throw new Error('technology_article_below_500_words');
   if(x.featuredMediaId!==undefined && (!Number.isSafeInteger(x.featuredMediaId)||(x.featuredMediaId as number)<1)) throw new Error('invalid_media');
   return {title:normalizeText(x.title),slug:x.slug,content:normalizeText(x.content),...(x.excerpt!==undefined?{excerpt:normalizeText(x.excerpt as string)}:{}),...(x.sourceUrl!==undefined?{sourceUrl:x.sourceUrl as string}:{}),...(x.categoryIds!==undefined?{categoryIds:x.categoryIds as number[]}:{}),...(x.featuredMediaId!==undefined?{featuredMediaId:x.featuredMediaId as number}:{})};
 }

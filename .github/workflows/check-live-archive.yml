@@ -27,6 +27,8 @@ jobs:
             code=$(curl --silent --show-error --location --max-time 12 --connect-timeout 6 -o /dev/null -w '%{http_code}' --header 'Accept: application/json' "$diagnostic" || true)
             echo "Diagnostic response for $diagnostic : HTTP $code"
           done
+          curl --silent --show-error --location --max-time 18 -H 'Accept: application/json' 'https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/?type=page&number=3' -o /tmp/wpcom.json
+          jq -c '{found, keys:(keys), examples:(.posts[:3] | map({ID, title, URL, parent, type, status}))}' /tmp/wpcom.json
           status=$(curl --silent --show-error --location --max-time 18 --connect-timeout 8 --retry 1 --retry-delay 2 -o /tmp/archive.json -w '%{http_code}' --header 'Accept: application/json' "$url")
           echo "Custom archive API status: $status"
           echo "Content-Type: $(file --mime-type --brief /tmp/archive.json)"

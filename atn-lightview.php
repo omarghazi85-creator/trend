@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -36,7 +36,7 @@ add_shortcode('atn_lightview', function () {
                 'title' => $title,
                 'link' => get_permalink($p),
                 'date' => get_the_date('Y-m-d', $p),
-                'kind' => strpos($title,'سجل الرواج') !== false ? 'topic' : 'daily',
+                'kind' => strpos($title,'سجل الرواج') !== false ? 'topic' : (strpos($title,'الأغاني الأكثر تشغيلًا') !== false ? 'music' : (strpos($title,'حصيلة ترندات') !== false ? 'weekly' : 'search')),
             );
         }
         wp_reset_postdata();
@@ -54,7 +54,8 @@ add_shortcode('atn_lightview', function () {
         <div class="atn-lite-search">
           <label for="<?php echo esc_attr($uid); ?>-q">ابحث عن موضوع أو دولة</label>
           <input type="search" id="<?php echo esc_attr($uid); ?>-q" placeholder="اكتب كلمة مفتاحية للبحث في الحصائل المتاحة">
-          <details><summary>بحث تفصيلي</summary><label>نوع المادة <select class="atn-lite-type"><option value="">جميع المواد</option><option value="daily">حصيلة يومية</option><option value="topic">ملف موضوع</option></select></label></details>
+          <div class="atn-lite-platform-links" hidden><span>ابحث عن الكلمة على المنصات:</span> <a class="atn-lite-platform-google" target="_blank" rel="noopener noreferrer">Google</a> <a class="atn-lite-platform-x" target="_blank" rel="noopener noreferrer">X</a> <a class="atn-lite-platform-youtube" target="_blank" rel="noopener noreferrer">يوتيوب</a></div>
+          <details><summary>بحث تفصيلي</summary><label>نوع المادة <select class="atn-lite-type"><option value="">جميع المواد</option><option value="search">كلمات البحث</option><option value="music">الأغاني</option><option value="weekly">حصيلة أسبوعية</option><option value="topic">ملف موضوع</option></select></label></details>
         </div>
       </div>
       <div class="atn-lite-heading"><h3>الدول العربية</h3><span>اختر دولة لعرض حصائلها</span></div>
@@ -66,7 +67,7 @@ add_shortcode('atn_lightview', function () {
       <div class="atn-lite-grid">
       <?php foreach ($items as $item) : ?>
         <a class="atn-lite-card" href="<?php echo esc_url($item['link']); ?>" data-title="<?php echo esc_attr($item['title']); ?>" data-kind="<?php echo esc_attr($item['kind']); ?>">
-          <span class="atn-lite-kind"><?php echo $item['kind']==='topic' ? 'ملف موضوع' : 'حصيلة يومية'; ?></span>
+          <span class="atn-lite-kind"><?php echo $item['kind']==='topic' ? 'ملف موضوع' : ($item['kind']==='music' ? 'الأغاني الأكثر تشغيلًا' : ($item['kind']==='weekly' ? 'حصيلة أسبوعية' : 'كلمات البحث')); ?></span>
           <strong><?php echo esc_html($item['title']); ?></strong>
           <small><?php echo esc_html($item['date']); ?></small>
         </a>
@@ -85,6 +86,7 @@ add_shortcode('atn_lightview', function () {
     .atn-lite-search{background:#fff;color:#173531;padding:15px 18px;border-radius:13px;max-width:760px}
     .atn-lite-search label{font-size:13px;font-weight:700;display:block;margin-bottom:6px}
     .atn-lite-search input{padding:11px 14px;border:1px solid #d3e3df;border-radius:9px;width:100%;font:inherit;background:#fcfdfc;min-width:0;color:#173531}
+    .atn-lite-platform-links{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:12px}.atn-lite-platform-links[hidden]{display:none}.atn-lite-platform-links a{border:1px solid #d3e3df;border-radius:7px;padding:3px 9px;color:#1c685f;text-decoration:none;font-weight:700}
     .atn-lite-search details{margin-top:10px;font-size:13px}
     .atn-lite-search summary{cursor:pointer;color:#1c685f;font-weight:700}
     .atn-lite-search details label{margin-top:10px}
@@ -123,7 +125,9 @@ add_shortcode('atn_lightview', function () {
         count.textContent=match.length ? ('عدد المواد المطابقة في أحدث الحصائل المحفوظة: '+match.length) : 'لا توجد نتائج في أحدث الحصائل المتاحة؛ استخدم الأرشيف الكامل للبحث الأوسع';
       }
       Array.prototype.forEach.call(countries,function(btn){btn.addEventListener('click',function(){current=btn.getAttribute('data-country');shown=18;Array.prototype.forEach.call(countries,function(b){b.classList.remove('current');b.setAttribute('aria-pressed','false')});btn.classList.add('current');btn.setAttribute('aria-pressed','true');update()})});
-      input.addEventListener('input',function(){shown=18;update()});kind.addEventListener('change',function(){shown=18;update()});more.addEventListener('click',function(){shown+=18;update()});update();
+      var platforms=root.querySelector('.atn-lite-platform-links');
+      function platformLinks(){var q=(input.value||'').trim();platforms.hidden=!q;if(!q)return;var encoded=encodeURIComponent(q);root.querySelector('.atn-lite-platform-google').href='https://trends.google.com/trends/explore?q='+encoded;root.querySelector('.atn-lite-platform-x').href='https://x.com/search?q='+encoded;root.querySelector('.atn-lite-platform-youtube').href='https://www.youtube.com/results?search_query='+encoded;}
+      input.addEventListener('input',function(){shown=18;update();platformLinks()});kind.addEventListener('change',function(){shown=18;update()});more.addEventListener('click',function(){shown+=18;update()});update();platformLinks();
     })();
     </script>
     <?php

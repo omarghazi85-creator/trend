@@ -2,14 +2,14 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.7.0
+ * Version: 0.8.0
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
 if (!defined('ABSPATH')) { exit; }
 add_shortcode('atn_lightview', function () {
     // Existing archive index contains canonical, indexed child pages.
-    $key = 'atn_lightview_latest_v5';
+    $key = 'atn_lightview_latest_v8';
     $items = get_transient($key);
     $country_codes = array('sa'=>'السعودية','ae'=>'الإمارات','eg'=>'مصر','kw'=>'الكويت','qa'=>'قطر','bh'=>'البحرين','om'=>'عُمان','jo'=>'الأردن','lb'=>'لبنان','iq'=>'العراق','sy'=>'سوريا','ps'=>'فلسطين','ye'=>'اليمن','ly'=>'ليبيا','tn'=>'تونس','dz'=>'الجزائر','ma'=>'المغرب','mr'=>'موريتانيا');
     if (!is_array($items)) {
@@ -48,6 +48,12 @@ add_shortcode('atn_lightview', function () {
         set_transient($key, $items, 15 * MINUTE_IN_SECONDS);
     }
     $countries = array_values($country_codes);
+    $country_counts = array_fill_keys($countries, 0);
+    foreach ($items as $it) {
+        if (!empty($it['country']) && isset($country_counts[$it['country']])) {
+            $country_counts[$it['country']]++;
+        }
+    }
     $uid = 'atn-lite-' . wp_rand(10000, 99999);
     ob_start();
     ?>
@@ -66,7 +72,7 @@ add_shortcode('atn_lightview', function () {
       </div>
       <div class="atn-lite-heading"><h3>الدول العربية</h3><span>18 دولة ضمن أرشيف الرصد</span></div>
       <div class="atn-lite-countries"><button type="button" class="atn-lite-country current" data-country="" aria-pressed="true">جميع الدول</button>
-        <?php foreach ($countries as $c) : ?><button type="button" class="atn-lite-country" data-country="<?php echo esc_attr($c); ?>" aria-pressed="false"><?php echo esc_html($c); ?></button><?php endforeach; ?>
+        <?php foreach ($countries as $c) : ?><button type="button" class="atn-lite-country" data-country="<?php echo esc_attr($c); ?>" aria-pressed="false"><?php echo esc_html($c); ?> <span class="atn-lite-country-count" aria-label="عدد الحصائل ضمن آخر السجلات المحملة">(<?php echo intval($country_counts[$c]); ?>)</span></button><?php endforeach; ?>
       </div>
       <div class="atn-lite-heading"><h3>أحدث المواد المؤرشفة</h3><a href="<?php echo esc_url(home_url('/trend-archive/')); ?>">فتح الأرشيف الكامل</a></div>
       <p class="atn-lite-count" aria-live="polite"></p>
@@ -89,7 +95,7 @@ add_shortcode('atn_lightview', function () {
       <?php endforeach; ?>
       </div>
       <div class="atn-lite-more-wrap"><button type="button" class="atn-lite-more">عرض المزيد</button></div>
-      <p class="atn-lite-note">تعرض هذه الصفحة السجلات المؤرشفة المنشورة، ولا تدّعي تحديثًا لحظيًا أو أرقام رواج غير متاحة</p>
+      <p class="atn-lite-note">هذه واجهة لأحدث السجلات المحفوظة فقط، وليست بحثًا في الأرشيف كاملًا، ولا تعرض ترتيبًا لحظيًا أو أرقام رواج غير موثقة. ملفات الموضوعات غير المنسوبة لدولة تظهر عند اختيار جميع الدول.</p>
     </div>
     <style>
     .atn-lite{font-family:inherit;color:#173531;line-height:1.7;margin:18px 0;max-width:100%}
@@ -117,6 +123,7 @@ add_shortcode('atn_lightview', function () {
     .atn-lite-countries{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
     .atn-lite-country{font:inherit;min-height:47px;border:1px solid #dce6e1;border-radius:10px;background:#fff;color:#203c38;padding:9px 6px;cursor:pointer}
     .atn-lite-country.current{border-color:#21766b;background:#e7f3ef;font-weight:800}
+    .atn-lite-country-count{font-size:11px;color:#6a817a;white-space:nowrap;unicode-bidi:isolate}
     .atn-lite-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
     .atn-lite-card{padding:17px;background:#fff;border:1px solid #dce6e1;border-radius:12px;color:#173531;min-height:155px;display:flex;flex-direction:column;gap:10px;text-decoration:none!important}
     .atn-lite-card:hover{border-color:#28796e}

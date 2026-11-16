@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.3.0
+ * Version: 0.3.1
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -36,7 +36,7 @@ add_shortcode('atn_lightview', function () {
                 'title' => $title,
                 'link' => get_permalink($p),
                 'date' => get_the_date('Y-m-d', $p),
-                'date_iso' => get_the_date('Y-m-d', $p),
+                'date_iso' => get_the_date('c', $p),
                 'kind' => strpos($title,'سجل الرواج') !== false ? 'topic' : (strpos($title,'الأغاني الأكثر تشغيلًا') !== false ? 'music' : (strpos($title,'حصيلة ترندات') !== false ? 'weekly' : 'search')),
             );
         }
@@ -120,7 +120,7 @@ add_shortcode('atn_lightview', function () {
       var current='',shown=18;
       function update(){
         var term=(input.value||'').normalize('NFKC').toLowerCase().trim(),type=kind.value,match=[];var days=Number(range.value)||0;var cutoff=days?Date.now()-days*86400000:0;
-        cards.forEach(function(card){var text=card.getAttribute('data-title').normalize('NFKC').toLowerCase();var published=card.getAttribute('data-date')||'';var stamp=published?Date.parse(published+'T00:00:00Z'):0;if((!current||text.indexOf(current)!==-1)&&(!term||text.indexOf(term)!==-1)&&(!type||card.getAttribute('data-kind')===type)&&(!cutoff||(stamp&&stamp>=cutoff))){match.push(card)}card.hidden=true;card.style.display='none'});
+        cards.forEach(function(card){var text=card.getAttribute('data-title').normalize('NFKC').toLowerCase();var published=card.getAttribute('data-date')||'';var stamp=published?Date.parse(published):0;if((!current||text.indexOf(current)!==-1)&&(!term||text.indexOf(term)!==-1)&&(!type||card.getAttribute('data-kind')===type)&&(!cutoff||(stamp&&stamp>=cutoff))){match.push(card)}card.hidden=true;card.style.display='none'});
         match.slice(0,shown).forEach(function(card){card.hidden=false;card.style.display='flex'});
         more.style.display=match.length>shown?'inline-block':'none';
         count.textContent=match.length ? ('عدد المواد المطابقة في أحدث الحصائل المحفوظة: '+match.length) : 'لا توجد نتائج في أحدث الحصائل المتاحة؛ استخدم الأرشيف الكامل للبحث الأوسع';

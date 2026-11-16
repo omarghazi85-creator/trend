@@ -2,16 +2,22 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.8.0
+ * Version: 0.9.0
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
 if (!defined('ABSPATH')) { exit; }
-add_shortcode('atn_lightview', function () {
-    // Existing archive index contains canonical, indexed child pages.
-    $key = 'atn_lightview_latest_v8';
+/**
+ * Public archive snapshot. Read-only and shared by the page and REST API.
+ * The 15-minute transient prevents repeated 320-post queries on normal traffic.
+ */
+function atn_lightview_country_codes() {
+    return array('sa'=>'السعودية','ae'=>'الإمارات','eg'=>'مصر','kw'=>'الكويت','qa'=>'قطر','bh'=>'البحرين','om'=>'عُمان','jo'=>'الأردن','lb'=>'لبنان','iq'=>'العراق','sy'=>'سوريا','ps'=>'فلسطين','ye'=>'اليمن','ly'=>'ليبيا','tn'=>'تونس','dz'=>'الجزائر','ma'=>'المغرب','mr'=>'موريتانيا');
+}
+function atn_lightview_archive_items() {
+    $key = 'atn_lightview_latest_v9';
     $items = get_transient($key);
-    $country_codes = array('sa'=>'السعودية','ae'=>'الإمارات','eg'=>'مصر','kw'=>'الكويت','qa'=>'قطر','bh'=>'البحرين','om'=>'عُمان','jo'=>'الأردن','lb'=>'لبنان','iq'=>'العراق','sy'=>'سوريا','ps'=>'فلسطين','ye'=>'اليمن','ly'=>'ليبيا','tn'=>'تونس','dz'=>'الجزائر','ma'=>'المغرب','mr'=>'موريتانيا');
+    $country_codes = atn_lightview_country_codes();
     if (!is_array($items)) {
         $q = new WP_Query(array(
             'post_type' => 'page',
@@ -47,6 +53,41 @@ add_shortcode('atn_lightview', function () {
         wp_reset_postdata();
         set_transient($key, $items, 15 * MINUTE_IN_SECONDS);
     }
+    return $items;
+}
+add_action('rest_api_init', function () {
+    register_rest_route('atn-light/v1', '/archive', array(
+        'methods' => WP_REST_Server::READABLE,
+        'permission_callback' => '__return_true',
+        'callback' => function ($request) {
+            $items = atn_lightview_archive_items();
+            $limit = min(100, max(1, absint($request->get_param('limit') ?: 50)));
+            $country = sanitize_text_field((string) ($request->get_param('country') ?: ''));
+            $kind = sanitize_key((string) ($request->get_param('kind') ?: ''));
+            $allowed_kinds = array('search', 'music', 'weekly', 'topic');
+            if ($kind && !in_array($kind, $allowed_kinds, true)) {
+                return new WP_Error('invalid_kind', 'Invalid archive kind', array('status' => 400));
+            }
+            if ($country && !in_array($country, array_values(atn_lightview_country_codes()), true)) {
+                return new WP_Error('invalid_country', 'Invalid country', array('status' => 400));
+            }
+            $filtered = array_values(array_filter($items, function ($item) use ($country, $kind) {
+                return (!$country || $item['country'] === $country) &&
+                       (!$kind || $item['kind'] === $kind);
+            }));
+            $response = rest_ensure_response(array(
+                'scope' => 'latest_archived_pages_only',
+                'total_in_window' => count($filtered),
+                'items' => array_slice($filtered, 0, $limit)
+            ));
+            $response->header('Cache-Control', 'public, max-age=300');
+            return $response;
+        }
+    ));
+});
+add_shortcode('atn_lightview', function () {
+    $country_codes = atn_lightview_country_codes();
+    $items = atn_lightview_archive_items();
     $countries = array_values($country_codes);
     $country_counts = array_fill_keys($countries, 0);
     foreach ($items as $it) {

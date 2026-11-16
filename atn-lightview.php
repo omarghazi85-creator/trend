@@ -2,21 +2,21 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.2.0
+ * Version: 0.3.0
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
 if (!defined('ABSPATH')) { exit; }
 add_shortcode('atn_lightview', function () {
     // Existing archive index contains canonical, indexed child pages.
-    $key = 'atn_lightview_latest_v1';
+    $key = 'atn_lightview_latest_v3';
     $items = get_transient($key);
     if (!is_array($items)) {
         $q = new WP_Query(array(
             'post_type' => 'page',
             'post_status' => 'publish',
             'post_parent' => 61269,
-            'posts_per_page' => 150,
+            'posts_per_page' => 320,
             'orderby' => 'date',
             'order' => 'DESC',
             'no_found_rows' => true,
@@ -36,6 +36,7 @@ add_shortcode('atn_lightview', function () {
                 'title' => $title,
                 'link' => get_permalink($p),
                 'date' => get_the_date('Y-m-d', $p),
+                'date_iso' => get_the_date('Y-m-d', $p),
                 'kind' => strpos($title,'سجل الرواج') !== false ? 'topic' : (strpos($title,'الأغاني الأكثر تشغيلًا') !== false ? 'music' : (strpos($title,'حصيلة ترندات') !== false ? 'weekly' : 'search')),
             );
         }
@@ -55,7 +56,7 @@ add_shortcode('atn_lightview', function () {
           <label for="<?php echo esc_attr($uid); ?>-q">ابحث عن موضوع أو دولة</label>
           <input type="search" id="<?php echo esc_attr($uid); ?>-q" placeholder="اكتب كلمة مفتاحية للبحث في الحصائل المتاحة">
           <div class="atn-lite-platform-links" hidden><span>ابحث عن الكلمة على المنصات:</span> <a class="atn-lite-platform-google" target="_blank" rel="noopener noreferrer">Google</a> <a class="atn-lite-platform-x" target="_blank" rel="noopener noreferrer">X</a> <a class="atn-lite-platform-youtube" target="_blank" rel="noopener noreferrer">يوتيوب</a></div>
-          <details><summary>بحث تفصيلي</summary><label>نوع المادة <select class="atn-lite-type"><option value="">جميع المواد</option><option value="search">كلمات البحث</option><option value="music">الأغاني</option><option value="weekly">حصيلة أسبوعية</option><option value="topic">ملف موضوع</option></select></label></details>
+          <details><summary>بحث تفصيلي</summary><div class="atn-lite-filters"><label>نوع المادة <select class="atn-lite-type"><option value="">جميع المواد</option><option value="search">كلمات البحث</option><option value="music">الأغاني</option><option value="weekly">حصيلة أسبوعية</option><option value="topic">ملف موضوع</option></select></label><label>تاريخ النشر <select class="atn-lite-range"><option value="">جميع التواريخ المتاحة</option><option value="1">آخر 24 ساعة</option><option value="7">آخر 7 أيام</option><option value="30">آخر 30 يومًا</option></select></label></div></details>
         </div>
       </div>
       <div class="atn-lite-heading"><h3>الدول العربية</h3><span>اختر دولة لعرض حصائلها</span></div>
@@ -66,7 +67,7 @@ add_shortcode('atn_lightview', function () {
       <p class="atn-lite-count" aria-live="polite"></p>
       <div class="atn-lite-grid">
       <?php foreach ($items as $item) : ?>
-        <a class="atn-lite-card" href="<?php echo esc_url($item['link']); ?>" data-title="<?php echo esc_attr($item['title']); ?>" data-kind="<?php echo esc_attr($item['kind']); ?>">
+        <a class="atn-lite-card" href="<?php echo esc_url($item['link']); ?>" data-title="<?php echo esc_attr($item['title']); ?>" data-date="<?php echo esc_attr($item['date_iso']); ?>" data-kind="<?php echo esc_attr($item['kind']); ?>">
           <span class="atn-lite-kind"><?php echo $item['kind']==='topic' ? 'ملف موضوع' : ($item['kind']==='music' ? 'الأغاني الأكثر تشغيلًا' : ($item['kind']==='weekly' ? 'حصيلة أسبوعية' : 'كلمات البحث')); ?></span>
           <strong><?php echo esc_html($item['title']); ?></strong>
           <small><?php echo esc_html($item['date']); ?></small>
@@ -90,7 +91,7 @@ add_shortcode('atn_lightview', function () {
     .atn-lite-search details{margin-top:10px;font-size:13px}
     .atn-lite-search summary{cursor:pointer;color:#1c685f;font-weight:700}
     .atn-lite-search details label{margin-top:10px}
-    .atn-lite-type{display:block;max-width:270px;width:100%;padding:7px;border:1px solid #d3e3df;border-radius:8px}
+    .atn-lite-filters{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}.atn-lite-filters label{flex:1;min-width:180px}.atn-lite-type,.atn-lite-range{display:block;max-width:320px;width:100%;padding:7px;border:1px solid #d3e3df;border-radius:8px;background:#fff;color:#173531}
     .atn-lite-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:26px 0 12px}
     .atn-lite-heading h3{font-size:21px;margin:0;color:#173531}
     .atn-lite-heading span,.atn-lite-heading a{font-size:13px;color:#627975}
@@ -113,13 +114,13 @@ add_shortcode('atn_lightview', function () {
     <script>
     (function(){
       var root=document.getElementById(<?php echo wp_json_encode($uid); ?>);if(!root)return;
-      var input=root.querySelector('input[type=search]'),kind=root.querySelector('.atn-lite-type');
+      var input=root.querySelector('input[type=search]'),kind=root.querySelector('.atn-lite-type'),range=root.querySelector('.atn-lite-range');
       var cards=Array.prototype.slice.call(root.querySelectorAll('.atn-lite-card'));
       var countries=root.querySelectorAll('.atn-lite-country'),more=root.querySelector('.atn-lite-more'),count=root.querySelector('.atn-lite-count');
       var current='',shown=18;
       function update(){
-        var term=(input.value||'').normalize('NFKC').toLowerCase().trim(),type=kind.value,match=[];
-        cards.forEach(function(card){var text=card.getAttribute('data-title').normalize('NFKC').toLowerCase();if((!current||text.indexOf(current)!==-1)&&(!term||text.indexOf(term)!==-1)&&(!type||card.getAttribute('data-kind')===type)){match.push(card)}card.hidden=true;card.style.display='none'});
+        var term=(input.value||'').normalize('NFKC').toLowerCase().trim(),type=kind.value,match=[];var days=Number(range.value)||0;var cutoff=days?Date.now()-days*86400000:0;
+        cards.forEach(function(card){var text=card.getAttribute('data-title').normalize('NFKC').toLowerCase();var published=card.getAttribute('data-date')||'';var stamp=published?Date.parse(published+'T00:00:00Z'):0;if((!current||text.indexOf(current)!==-1)&&(!term||text.indexOf(term)!==-1)&&(!type||card.getAttribute('data-kind')===type)&&(!cutoff||(stamp&&stamp>=cutoff))){match.push(card)}card.hidden=true;card.style.display='none'});
         match.slice(0,shown).forEach(function(card){card.hidden=false;card.style.display='flex'});
         more.style.display=match.length>shown?'inline-block':'none';
         count.textContent=match.length ? ('عدد المواد المطابقة في أحدث الحصائل المحفوظة: '+match.length) : 'لا توجد نتائج في أحدث الحصائل المتاحة؛ استخدم الأرشيف الكامل للبحث الأوسع';
@@ -127,7 +128,7 @@ add_shortcode('atn_lightview', function () {
       Array.prototype.forEach.call(countries,function(btn){btn.addEventListener('click',function(){current=btn.getAttribute('data-country');shown=18;Array.prototype.forEach.call(countries,function(b){b.classList.remove('current');b.setAttribute('aria-pressed','false')});btn.classList.add('current');btn.setAttribute('aria-pressed','true');update()})});
       var platforms=root.querySelector('.atn-lite-platform-links');
       function platformLinks(){var q=(input.value||'').trim();platforms.hidden=!q;if(!q)return;var encoded=encodeURIComponent(q);root.querySelector('.atn-lite-platform-google').href='https://trends.google.com/trends/explore?q='+encoded;root.querySelector('.atn-lite-platform-x').href='https://x.com/search?q='+encoded;root.querySelector('.atn-lite-platform-youtube').href='https://www.youtube.com/results?search_query='+encoded;}
-      input.addEventListener('input',function(){shown=18;update();platformLinks()});kind.addEventListener('change',function(){shown=18;update()});more.addEventListener('click',function(){shown+=18;update()});update();platformLinks();
+      input.addEventListener('input',function(){shown=18;update();platformLinks()});kind.addEventListener('change',function(){shown=18;update()});range.addEventListener('change',function(){shown=18;update()});more.addEventListener('click',function(){shown+=18;update()});update();platformLinks();
     })();
     </script>
     <?php

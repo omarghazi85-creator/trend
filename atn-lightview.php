@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.10.0
+ * Version: 0.11.0
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -80,6 +80,7 @@ add_action('rest_api_init', function () {
             $response = rest_ensure_response(array(
                 'scope' => 'latest_archived_pages_only',
                 'total_in_window' => count($filtered),
+                'latest_archived_at' => isset($items[0]['date_iso']) ? $items[0]['date_iso'] : null,
                 'page' => $page,
                 'per_page' => $limit,
                 'total_pages' => (int) ceil(count($filtered) / $limit),
@@ -95,6 +96,9 @@ add_shortcode('atn_lightview', function () {
     $country_codes = atn_lightview_country_codes();
     $items = atn_lightview_archive_items();
     $countries = array_values($country_codes);
+    $latest_date = isset($items[0]['date_iso']) ? $items[0]['date_iso'] : '';
+    $latest_timestamp = $latest_date ? strtotime($latest_date) : false;
+    $is_stale = (!$latest_timestamp || (current_time('timestamp', true) - $latest_timestamp) > 36 * HOUR_IN_SECONDS);
     $country_counts = array_fill_keys($countries, 0);
     foreach ($items as $it) {
         if (!empty($it['country']) && isset($country_counts[$it['country']])) {
@@ -122,6 +126,7 @@ add_shortcode('atn_lightview', function () {
         <?php foreach ($countries as $c) : ?><button type="button" class="atn-lite-country" data-country="<?php echo esc_attr($c); ?>" aria-pressed="false"><?php echo esc_html($c); ?> <span class="atn-lite-country-count" aria-label="عدد الحصائل ضمن آخر السجلات المحملة">(<?php echo intval($country_counts[$c]); ?>)</span></button><?php endforeach; ?>
       </div>
       <div class="atn-lite-heading"><h3>أحدث المواد المؤرشفة</h3><a href="<?php echo esc_url(home_url('/trend-archive/')); ?>">فتح الأرشيف الكامل</a></div>
+      <p class="atn-lite-freshness<?php echo $is_stale ? ' atn-lite-stale' : ''; ?>" role="status"><?php if ($latest_timestamp) : ?>آخر حصيلة محفوظة ضمن البيانات المعروضة: <time datetime="<?php echo esc_attr(gmdate('c', $latest_timestamp)); ?>"><?php echo esc_html(wp_date('Y-m-d H:i', $latest_timestamp)); ?></time><?php else : ?>لا تتوفر حصائل محفوظة في نطاق العرض الحالي<?php endif; ?><?php if ($is_stale) : ?> — قد تكون بيانات العرض متأخرة عن آخر المستجدات<?php endif; ?></p>
       <p class="atn-lite-count" aria-live="polite"></p>
       <p class="atn-lite-archive-search"><a class="atn-lite-archive-search-link" href="<?php echo esc_url(home_url('/trend-archive/')); ?>">لم تجد النتيجة؟ تصفّح الأرشيف الكامل</a></p>
       <div class="atn-lite-grid">
@@ -184,6 +189,8 @@ add_shortcode('atn_lightview', function () {
     .atn-lite-card strong{font-size:15px;color:#173531;line-height:1.65}
     .atn-lite-card small{color:#6b807b;margin-top:auto}
     .atn-lite-count,.atn-lite-note{font-size:12px;color:#607974}
+    .atn-lite-freshness{font-size:13px;color:#40665f;margin:4px 0 12px}
+    .atn-lite-stale{color:#854b20;font-weight:700}
     .atn-lite-more-wrap{text-align:center;margin-top:18px}
     .atn-lite-more{font:inherit;background:#194941;color:#fff;padding:10px 24px;border:0;border-radius:9px;cursor:pointer}
     .atn-lite-note{margin:24px 0 0;text-align:center}

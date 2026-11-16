@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.6.0
+ * Version: 0.7.0
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -57,10 +57,10 @@ add_shortcode('atn_lightview', function () {
         <h2>نبض ما يبحث عنه العالم العربي</h2>
         <p>استكشف أحدث حصائل الرواج المحفوظة وملفات الموضوعات عبر الدول العربية، مع روابط مباشرة إلى المصادر المنشورة</p>
         <div class="atn-lite-search">
-          <label for="<?php echo esc_attr($uid); ?>-q">ابحث عن موضوع أو دولة</label>
+          <label for="<?php echo esc_attr($uid); ?>-q">ابحث في عناوين الحصائل المحفوظة</label>
           <input type="search" id="<?php echo esc_attr($uid); ?>-q" placeholder="اكتب كلمة مفتاحية للبحث في الحصائل المتاحة">
           <div class="atn-lite-platform-links" hidden><span>ابحث عن الكلمة على المنصات:</span> <a class="atn-lite-platform-google" target="_blank" rel="noopener noreferrer">Google</a> <a class="atn-lite-platform-x" target="_blank" rel="noopener noreferrer">X</a> <a class="atn-lite-platform-youtube" target="_blank" rel="noopener noreferrer">يوتيوب</a></div>
-          <div class="atn-lite-share"><button type="button" class="atn-lite-share-button">نسخ رابط البحث</button><span class="atn-lite-share-status" role="status" aria-live="polite"></span></div>
+          <div class="atn-lite-share"><button type="button" class="atn-lite-reset-button">مسح الفلاتر</button><button type="button" class="atn-lite-share-button">نسخ رابط البحث</button><span class="atn-lite-share-status" role="status" aria-live="polite"></span></div>
           <details><summary>بحث تفصيلي</summary><div class="atn-lite-filters"><label>نوع المادة <select class="atn-lite-type"><option value="">جميع المواد</option><option value="search">كلمات البحث</option><option value="music">الأغاني</option><option value="weekly">حصيلة أسبوعية</option><option value="topic">ملف موضوع</option></select></label><label>تاريخ النشر <select class="atn-lite-range"><option value="">جميع التواريخ المتاحة</option><option value="1">آخر 24 ساعة</option><option value="7">آخر 7 أيام</option><option value="30">آخر 30 يومًا</option></select></label></div></details>
         </div>
       </div>
@@ -70,6 +70,7 @@ add_shortcode('atn_lightview', function () {
       </div>
       <div class="atn-lite-heading"><h3>أحدث المواد المؤرشفة</h3><a href="<?php echo esc_url(home_url('/trend-archive/')); ?>">فتح الأرشيف الكامل</a></div>
       <p class="atn-lite-count" aria-live="polite"></p>
+      <p class="atn-lite-archive-search"><a class="atn-lite-archive-search-link" href="<?php echo esc_url(home_url('/trend-archive/')); ?>">لم تجد النتيجة؟ تصفّح الأرشيف الكامل</a></p>
       <div class="atn-lite-grid">
       <?php foreach ($items as $item) : ?>
         <article class="atn-lite-card" data-title="<?php echo esc_attr($item['title']); ?>" data-date="<?php echo esc_attr($item['date_iso']); ?>" data-kind="<?php echo esc_attr($item['kind']); ?>" data-country="<?php echo esc_attr($item['country']); ?>">
@@ -102,7 +103,9 @@ add_shortcode('atn_lightview', function () {
     .atn-lite-search input{padding:11px 14px;border:1px solid #d3e3df;border-radius:9px;width:100%;font:inherit;background:#fcfdfc;min-width:0;color:#173531}
     .atn-lite-platform-links{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:12px}.atn-lite-platform-links[hidden]{display:none}.atn-lite-platform-links a{border:1px solid #d3e3df;border-radius:7px;padding:3px 9px;color:#1c685f;text-decoration:none;font-weight:700}
     .atn-lite-share{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:12px}
-    .atn-lite-share-button{background:#e4f2ed;border:1px solid #bddbd0;border-radius:7px;padding:5px 11px;color:#19594f;font:inherit;font-weight:700;cursor:pointer}
+    .atn-lite-share-button,.atn-lite-reset-button{background:#e4f2ed;border:1px solid #bddbd0;border-radius:7px;padding:5px 11px;color:#19594f;font:inherit;font-weight:700;cursor:pointer}
+    .atn-lite-reset-button{background:#fff;color:#3c645d}
+    .atn-lite-archive-search{font-size:13px;margin:3px 0 16px}.atn-lite-archive-search a{color:#1e6a5f;text-decoration:underline}
     .atn-lite-share-status{color:#47746a}
     .atn-lite-search details{margin-top:10px;font-size:13px}
     .atn-lite-search summary{cursor:pointer;color:#1c685f;font-weight:700}
@@ -165,6 +168,11 @@ add_shortcode('atn_lightview', function () {
       if(['1','7','30'].indexOf(params.get('atn_days'))!==-1)range.value=params.get('atn_days');
       Array.prototype.forEach.call(countries,function(b){var selected=b.getAttribute('data-country')===current;b.classList.toggle('current',selected);b.setAttribute('aria-pressed',String(selected));});
       var share=root.querySelector('.atn-lite-share-button'),shareStatus=root.querySelector('.atn-lite-share-status');
+      root.querySelector('.atn-lite-reset-button').addEventListener('click',function(){
+        input.value='';kind.value='';range.value='';current='';shown=18;
+        Array.prototype.forEach.call(countries,function(b){var active=b.getAttribute('data-country')==='';b.classList.toggle('current',active);b.setAttribute('aria-pressed',String(active));});
+        shareStatus.textContent='';update();platformLinks();
+      });
       share.addEventListener('click',function(){syncUrl();var link=window.location.href;if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(link).then(function(){shareStatus.textContent='تم نسخ رابط البحث';},function(){shareStatus.textContent='انسخ الرابط من شريط العنوان';});}else{shareStatus.textContent='الرابط ظاهر في شريط العنوان ويمكن نسخه';}});
       input.addEventListener('input',function(){shown=18;update();platformLinks()});kind.addEventListener('change',function(){shown=18;update()});range.addEventListener('change',function(){shown=18;update()});more.addEventListener('click',function(){shown+=18;update()});update();platformLinks();
     })();

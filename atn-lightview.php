@@ -1,0 +1,131 @@
+<?php
+/**
+ * Plugin Name: ArabiaTrend Light View
+ * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
+ * Version: 0.1.0
+ * Requires PHP: 7.4
+ * Author: ArabiaTrend
+ */
+if (!defined('ABSPATH')) { exit; }
+add_shortcode('atn_lightview', function () {
+    // Existing archive index contains canonical, indexed child pages.
+    $key = 'atn_lightview_latest_v1';
+    $items = get_transient($key);
+    if (!is_array($items)) {
+        $q = new WP_Query(array(
+            'post_type' => 'page',
+            'post_status' => 'publish',
+            'post_parent' => 61269,
+            'posts_per_page' => 150,
+            'orderby' => 'date',
+            'order' => 'DESC',
+            'no_found_rows' => true,
+            'ignore_sticky_posts' => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+            'suppress_filters' => true
+        ));
+        $items = array();
+        foreach ($q->posts as $p) {
+            $title = wp_strip_all_tags(get_the_title($p));
+            if (strpos($title, 'كلمات البحث الرائجة') === false &&
+                strpos($title, 'الأغاني الأكثر تشغيلًا') === false &&
+                strpos($title, 'سجل الرواج') === false &&
+                strpos($title, 'حصيلة ترندات') === false) { continue; }
+            $items[] = array(
+                'title' => $title,
+                'link' => get_permalink($p),
+                'date' => get_the_date('Y-m-d', $p),
+                'kind' => strpos($title,'سجل الرواج') !== false ? 'topic' : 'daily',
+            );
+        }
+        wp_reset_postdata();
+        set_transient($key, $items, 15 * MINUTE_IN_SECONDS);
+    }
+    $countries = array('السعودية','الإمارات','مصر','الكويت','قطر','البحرين','عُمان','الأردن','لبنان','العراق','سوريا','فلسطين','اليمن','ليبيا','تونس','الجزائر','المغرب');
+    $uid = 'atn-lite-' . wp_rand(10000, 99999);
+    ob_start();
+    ?>
+    <div id="<?php echo esc_attr($uid); ?>" class="atn-lite" dir="rtl">
+      <div class="atn-lite-hero">
+        <div class="atn-lite-overline">الترند العربي الآن</div>
+        <h2>نبض ما يبحث عنه العالم العربي</h2>
+        <p>استكشف أحدث حصائل الرواج المحفوظة وملفات الموضوعات عبر الدول العربية، مع روابط مباشرة إلى المصادر المنشورة</p>
+        <div class="atn-lite-search">
+          <label for="<?php echo esc_attr($uid); ?>-q">ابحث عن موضوع أو دولة</label>
+          <input type="search" id="<?php echo esc_attr($uid); ?>-q" placeholder="اكتب كلمة مفتاحية للبحث في الحصائل المتاحة">
+          <details><summary>بحث تفصيلي</summary><label>نوع المادة <select class="atn-lite-type"><option value="">جميع المواد</option><option value="daily">حصيلة يومية</option><option value="topic">ملف موضوع</option></select></label></details>
+        </div>
+      </div>
+      <div class="atn-lite-heading"><h3>الدول العربية</h3><span>اختر دولة لعرض حصائلها</span></div>
+      <div class="atn-lite-countries"><button type="button" class="atn-lite-country current" data-country="" aria-pressed="true">جميع الدول</button>
+        <?php foreach ($countries as $c) : ?><button type="button" class="atn-lite-country" data-country="<?php echo esc_attr($c); ?>" aria-pressed="false"><?php echo esc_html($c); ?></button><?php endforeach; ?>
+      </div>
+      <div class="atn-lite-heading"><h3>أحدث المواد المؤرشفة</h3><a href="<?php echo esc_url(home_url('/trend-archive/')); ?>">فتح الأرشيف الكامل</a></div>
+      <p class="atn-lite-count" aria-live="polite"></p>
+      <div class="atn-lite-grid">
+      <?php foreach ($items as $item) : ?>
+        <a class="atn-lite-card" href="<?php echo esc_url($item['link']); ?>" data-title="<?php echo esc_attr($item['title']); ?>" data-kind="<?php echo esc_attr($item['kind']); ?>">
+          <span class="atn-lite-kind"><?php echo $item['kind']==='topic' ? 'ملف موضوع' : 'حصيلة يومية'; ?></span>
+          <strong><?php echo esc_html($item['title']); ?></strong>
+          <small><?php echo esc_html($item['date']); ?></small>
+        </a>
+      <?php endforeach; ?>
+      </div>
+      <div class="atn-lite-more-wrap"><button type="button" class="atn-lite-more">عرض المزيد</button></div>
+      <p class="atn-lite-note">تعرض هذه الصفحة السجلات المؤرشفة المنشورة، ولا تدّعي تحديثًا لحظيًا أو أرقام رواج غير متاحة</p>
+    </div>
+    <style>
+    .atn-lite{font-family:inherit;color:#173531;line-height:1.7;margin:18px 0;max-width:100%}
+    .atn-lite *{box-sizing:border-box}
+    .atn-lite-hero{background:linear-gradient(115deg,#103c38,#247266);border-radius:20px;color:white;padding:34px 30px;margin-bottom:28px}
+    .atn-lite-overline{color:#f4d9a8;font-size:13px;font-weight:800;margin-bottom:6px}
+    .atn-lite-hero h2{font-size:clamp(26px,4vw,42px);line-height:1.35;color:white;margin:0 0 12px}
+    .atn-lite-hero p{color:#e5f3ee;margin:0 0 18px;max-width:660px}
+    .atn-lite-search{background:#fff;color:#173531;padding:15px 18px;border-radius:13px;max-width:760px}
+    .atn-lite-search label{font-size:13px;font-weight:700;display:block;margin-bottom:6px}
+    .atn-lite-search input{padding:11px 14px;border:1px solid #d3e3df;border-radius:9px;width:100%;font:inherit;background:#fcfdfc;min-width:0;color:#173531}
+    .atn-lite-search details{margin-top:10px;font-size:13px}
+    .atn-lite-search summary{cursor:pointer;color:#1c685f;font-weight:700}
+    .atn-lite-search details label{margin-top:10px}
+    .atn-lite-type{display:block;max-width:270px;width:100%;padding:7px;border:1px solid #d3e3df;border-radius:8px}
+    .atn-lite-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:26px 0 12px}
+    .atn-lite-heading h3{font-size:21px;margin:0;color:#173531}
+    .atn-lite-heading span,.atn-lite-heading a{font-size:13px;color:#627975}
+    .atn-lite-countries{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
+    .atn-lite-country{font:inherit;min-height:47px;border:1px solid #dce6e1;border-radius:10px;background:#fff;color:#203c38;padding:9px 6px;cursor:pointer}
+    .atn-lite-country.current{border-color:#21766b;background:#e7f3ef;font-weight:800}
+    .atn-lite-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+    .atn-lite-card{padding:17px;background:#fff;border:1px solid #dce6e1;border-radius:12px;color:#173531;min-height:155px;display:flex;flex-direction:column;gap:10px;text-decoration:none!important}
+    .atn-lite-card:hover{border-color:#28796e}
+    .atn-lite-kind{font-size:12px;color:#227466;font-weight:800}
+    .atn-lite-card strong{font-size:15px;color:#173531;line-height:1.65}
+    .atn-lite-card small{color:#6b807b;margin-top:auto}
+    .atn-lite-count,.atn-lite-note{font-size:12px;color:#607974}
+    .atn-lite-more-wrap{text-align:center;margin-top:18px}
+    .atn-lite-more{font:inherit;background:#194941;color:#fff;padding:10px 24px;border:0;border-radius:9px;cursor:pointer}
+    .atn-lite-note{margin:24px 0 0;text-align:center}
+    @media(max-width:850px){.atn-lite-countries{grid-template-columns:repeat(4,minmax(0,1fr))}.atn-lite-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:600px){.atn-lite-hero{padding:24px 16px}.atn-lite-countries{grid-template-columns:repeat(2,minmax(0,1fr))}.atn-lite-grid{grid-template-columns:1fr}.atn-lite-heading h3{font-size:18px}.atn-lite-heading span{display:none}}
+    </style>
+    <script>
+    (function(){
+      var root=document.getElementById(<?php echo wp_json_encode($uid); ?>);if(!root)return;
+      var input=root.querySelector('input[type=search]'),kind=root.querySelector('.atn-lite-type');
+      var cards=Array.prototype.slice.call(root.querySelectorAll('.atn-lite-card'));
+      var countries=root.querySelectorAll('.atn-lite-country'),more=root.querySelector('.atn-lite-more'),count=root.querySelector('.atn-lite-count');
+      var current='',shown=18;
+      function update(){
+        var term=(input.value||'').normalize('NFKC').toLowerCase().trim(),type=kind.value,match=[];
+        cards.forEach(function(card){var text=card.getAttribute('data-title').normalize('NFKC').toLowerCase();if((!current||text.indexOf(current)!==-1)&&(!term||text.indexOf(term)!==-1)&&(!type||card.getAttribute('data-kind')===type)){match.push(card)}card.hidden=true;card.style.display='none'});
+        match.slice(0,shown).forEach(function(card){card.hidden=false;card.style.display='flex'});
+        more.style.display=match.length>shown?'inline-block':'none';
+        count.textContent=match.length ? ('عدد المواد المطابقة في أحدث الحصائل المحفوظة: '+match.length) : 'لا توجد نتائج في أحدث الحصائل المتاحة؛ استخدم الأرشيف الكامل للبحث الأوسع';
+      }
+      Array.prototype.forEach.call(countries,function(btn){btn.addEventListener('click',function(){current=btn.getAttribute('data-country');shown=18;Array.prototype.forEach.call(countries,function(b){b.classList.remove('current');b.setAttribute('aria-pressed','false')});btn.classList.add('current');btn.setAttribute('aria-pressed','true');update()})});
+      input.addEventListener('input',function(){shown=18;update()});kind.addEventListener('change',function(){shown=18;update()});more.addEventListener('click',function(){shown+=18;update()});update();
+    })();
+    </script>
+    <?php
+    return ob_get_clean();
+});

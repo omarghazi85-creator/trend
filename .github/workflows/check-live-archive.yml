@@ -1,0 +1,34 @@
+name: Verify live ArabiaTrend archive API
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/check-live-archive.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '23 3 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: live-archive-check
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify public read-only archive endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://arabiatrend.com/wp-json/atn-light/v1/archive?limit=2&page=1'
+          echo "Checking read-only archive endpoint (two entries at most)"
+          status=$(curl --silent --show-error --location --max-time 18 --connect-timeout 8 --retry 1 --retry-delay 2 -o /tmp/archive.json -w '%{http_code}' --header 'Accept: application/json' "$url")
+          echo "HTTP status: $status"
+          if [[ "$status" != '200' ]]; then
+            echo "::error::Archive API returned HTTP $status"
+            exit 1
+          fi
+          jq -e '.scope == "latest_archived_pages_only" and (.items | type == "array") and (.items | length <= 2) and (.total_in_window | type == "number") and (.page == 1) and (.per_page == 2)' /tmp/archive.json >/dev/null
+          jq -r '"Available in window: \(.total_in_window) | latest archived at: \(.latest_archived_at // "unknown")"' /tmp/archive.json
+          echo 'Archive API response schema verified'

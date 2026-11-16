@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.3.1
+ * Version: 0.4.0
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -67,11 +67,19 @@ add_shortcode('atn_lightview', function () {
       <p class="atn-lite-count" aria-live="polite"></p>
       <div class="atn-lite-grid">
       <?php foreach ($items as $item) : ?>
-        <a class="atn-lite-card" href="<?php echo esc_url($item['link']); ?>" data-title="<?php echo esc_attr($item['title']); ?>" data-date="<?php echo esc_attr($item['date_iso']); ?>" data-kind="<?php echo esc_attr($item['kind']); ?>">
+        <article class="atn-lite-card" data-title="<?php echo esc_attr($item['title']); ?>" data-date="<?php echo esc_attr($item['date_iso']); ?>" data-kind="<?php echo esc_attr($item['kind']); ?>">
           <span class="atn-lite-kind"><?php echo $item['kind']==='topic' ? 'ملف موضوع' : ($item['kind']==='music' ? 'الأغاني الأكثر تشغيلًا' : ($item['kind']==='weekly' ? 'حصيلة أسبوعية' : 'كلمات البحث')); ?></span>
-          <strong><?php echo esc_html($item['title']); ?></strong>
+          <a class="atn-lite-main-link" href="<?php echo esc_url($item['link']); ?>"><strong><?php echo esc_html($item['title']); ?></strong></a>
           <small><?php echo esc_html($item['date']); ?></small>
-        </a>
+          <?php if ($item['kind'] === 'topic') : $topic = trim(preg_replace('/\\s*\\|\\s*سجل الرواج\\s*$/u', '', $item['title'])); ?>
+          <div class="atn-lite-topic-search" aria-label="روابط البحث عن الموضوع على المنصات">
+            <span>بحث عن الموضوع:</span>
+            <a target="_blank" rel="noopener noreferrer" href="<?php echo esc_url('https://x.com/search?q=' . rawurlencode($topic)); ?>">X</a>
+            <a target="_blank" rel="noopener noreferrer" href="<?php echo esc_url('https://www.youtube.com/results?search_query=' . rawurlencode($topic)); ?>">يوتيوب</a>
+            <a target="_blank" rel="noopener noreferrer" href="<?php echo esc_url('https://trends.google.com/trends/explore?q=' . rawurlencode($topic)); ?>">Google Trends</a>
+          </div>
+          <?php endif; ?>
+        </article>
       <?php endforeach; ?>
       </div>
       <div class="atn-lite-more-wrap"><button type="button" class="atn-lite-more">عرض المزيد</button></div>
@@ -101,6 +109,12 @@ add_shortcode('atn_lightview', function () {
     .atn-lite-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
     .atn-lite-card{padding:17px;background:#fff;border:1px solid #dce6e1;border-radius:12px;color:#173531;min-height:155px;display:flex;flex-direction:column;gap:10px;text-decoration:none!important}
     .atn-lite-card:hover{border-color:#28796e}
+    .atn-lite-main-link{text-decoration:none!important;color:inherit}
+    .atn-lite-main-link:hover{text-decoration:underline!important}
+    .atn-lite-topic-search{border-top:1px solid #e3ebe7;padding-top:9px;display:flex;gap:7px;flex-wrap:wrap;align-items:center;font-size:11px}
+    .atn-lite-topic-search span{color:#69807a}
+    .atn-lite-topic-search a{background:#eaf4f0;border-radius:7px;padding:2px 8px;color:#1a5b53;text-decoration:none!important;font-weight:700}
+    .atn-lite-topic-search a:hover{background:#d7ebe4}
     .atn-lite-kind{font-size:12px;color:#227466;font-weight:800}
     .atn-lite-card strong{font-size:15px;color:#173531;line-height:1.65}
     .atn-lite-card small{color:#6b807b;margin-top:auto}

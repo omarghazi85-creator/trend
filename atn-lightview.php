@@ -2,15 +2,16 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.4.0
+ * Version: 0.5.0
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
 if (!defined('ABSPATH')) { exit; }
 add_shortcode('atn_lightview', function () {
     // Existing archive index contains canonical, indexed child pages.
-    $key = 'atn_lightview_latest_v3';
+    $key = 'atn_lightview_latest_v5';
     $items = get_transient($key);
+    $country_codes = array('sa'=>'السعودية','ae'=>'الإمارات','eg'=>'مصر','kw'=>'الكويت','qa'=>'قطر','bh'=>'البحرين','om'=>'عُمان','jo'=>'الأردن','lb'=>'لبنان','iq'=>'العراق','sy'=>'سوريا','ps'=>'فلسطين','ye'=>'اليمن','ly'=>'ليبيا','tn'=>'تونس','dz'=>'الجزائر','ma'=>'المغرب','mr'=>'موريتانيا');
     if (!is_array($items)) {
         $q = new WP_Query(array(
             'post_type' => 'page',
@@ -32,7 +33,10 @@ add_shortcode('atn_lightview', function () {
                 strpos($title, 'الأغاني الأكثر تشغيلًا') === false &&
                 strpos($title, 'سجل الرواج') === false &&
                 strpos($title, 'حصيلة ترندات') === false) { continue; }
+            $slug_prefix = explode('-', $p->post_name, 2)[0];
+            $item_country = isset($country_codes[$slug_prefix]) ? $country_codes[$slug_prefix] : '';
             $items[] = array(
+                'country' => $item_country,
                 'title' => $title,
                 'link' => get_permalink($p),
                 'date' => get_the_date('Y-m-d', $p),
@@ -43,7 +47,7 @@ add_shortcode('atn_lightview', function () {
         wp_reset_postdata();
         set_transient($key, $items, 15 * MINUTE_IN_SECONDS);
     }
-    $countries = array('السعودية','الإمارات','مصر','الكويت','قطر','البحرين','عُمان','الأردن','لبنان','العراق','سوريا','فلسطين','اليمن','ليبيا','تونس','الجزائر','المغرب');
+    $countries = array_values($country_codes);
     $uid = 'atn-lite-' . wp_rand(10000, 99999);
     ob_start();
     ?>
@@ -59,7 +63,7 @@ add_shortcode('atn_lightview', function () {
           <details><summary>بحث تفصيلي</summary><div class="atn-lite-filters"><label>نوع المادة <select class="atn-lite-type"><option value="">جميع المواد</option><option value="search">كلمات البحث</option><option value="music">الأغاني</option><option value="weekly">حصيلة أسبوعية</option><option value="topic">ملف موضوع</option></select></label><label>تاريخ النشر <select class="atn-lite-range"><option value="">جميع التواريخ المتاحة</option><option value="1">آخر 24 ساعة</option><option value="7">آخر 7 أيام</option><option value="30">آخر 30 يومًا</option></select></label></div></details>
         </div>
       </div>
-      <div class="atn-lite-heading"><h3>الدول العربية</h3><span>اختر دولة لعرض حصائلها</span></div>
+      <div class="atn-lite-heading"><h3>الدول العربية</h3><span>18 دولة ضمن أرشيف الرصد</span></div>
       <div class="atn-lite-countries"><button type="button" class="atn-lite-country current" data-country="" aria-pressed="true">جميع الدول</button>
         <?php foreach ($countries as $c) : ?><button type="button" class="atn-lite-country" data-country="<?php echo esc_attr($c); ?>" aria-pressed="false"><?php echo esc_html($c); ?></button><?php endforeach; ?>
       </div>
@@ -67,7 +71,7 @@ add_shortcode('atn_lightview', function () {
       <p class="atn-lite-count" aria-live="polite"></p>
       <div class="atn-lite-grid">
       <?php foreach ($items as $item) : ?>
-        <article class="atn-lite-card" data-title="<?php echo esc_attr($item['title']); ?>" data-date="<?php echo esc_attr($item['date_iso']); ?>" data-kind="<?php echo esc_attr($item['kind']); ?>">
+        <article class="atn-lite-card" data-title="<?php echo esc_attr($item['title']); ?>" data-date="<?php echo esc_attr($item['date_iso']); ?>" data-kind="<?php echo esc_attr($item['kind']); ?>" data-country="<?php echo esc_attr($item['country']); ?>">
           <span class="atn-lite-kind"><?php echo $item['kind']==='topic' ? 'ملف موضوع' : ($item['kind']==='music' ? 'الأغاني الأكثر تشغيلًا' : ($item['kind']==='weekly' ? 'حصيلة أسبوعية' : 'كلمات البحث')); ?></span>
           <a class="atn-lite-main-link" href="<?php echo esc_url($item['link']); ?>"><strong><?php echo esc_html($item['title']); ?></strong></a>
           <small><?php echo esc_html($item['date']); ?></small>
@@ -134,7 +138,7 @@ add_shortcode('atn_lightview', function () {
       var current='',shown=18;
       function update(){
         var term=(input.value||'').normalize('NFKC').toLowerCase().trim(),type=kind.value,match=[];var days=Number(range.value)||0;var cutoff=days?Date.now()-days*86400000:0;
-        cards.forEach(function(card){var text=card.getAttribute('data-title').normalize('NFKC').toLowerCase();var published=card.getAttribute('data-date')||'';var stamp=published?Date.parse(published):0;if((!current||text.indexOf(current)!==-1)&&(!term||text.indexOf(term)!==-1)&&(!type||card.getAttribute('data-kind')===type)&&(!cutoff||(stamp&&stamp>=cutoff))){match.push(card)}card.hidden=true;card.style.display='none'});
+        cards.forEach(function(card){var text=card.getAttribute('data-title').normalize('NFKC').toLowerCase();var published=card.getAttribute('data-date')||'';var stamp=published?Date.parse(published):0;if((!current||card.getAttribute('data-country')===current)&&(!term||text.indexOf(term)!==-1)&&(!type||card.getAttribute('data-kind')===type)&&(!cutoff||(stamp&&stamp>=cutoff))){match.push(card)}card.hidden=true;card.style.display='none'});
         match.slice(0,shown).forEach(function(card){card.hidden=false;card.style.display='flex'});
         more.style.display=match.length>shown?'inline-block':'none';
         count.textContent=match.length ? ('عدد المواد المطابقة في أحدث الحصائل المحفوظة: '+match.length) : 'لا توجد نتائج في أحدث الحصائل المتاحة؛ استخدم الأرشيف الكامل للبحث الأوسع';

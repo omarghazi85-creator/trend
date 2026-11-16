@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.9.0
+ * Version: 0.10.0
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -62,6 +62,8 @@ add_action('rest_api_init', function () {
         'callback' => function ($request) {
             $items = atn_lightview_archive_items();
             $limit = min(100, max(1, absint($request->get_param('limit') ?: 50)));
+            $page = min(1000, max(1, absint($request->get_param('page') ?: 1)));
+            $offset = ($page - 1) * $limit;
             $country = sanitize_text_field((string) ($request->get_param('country') ?: ''));
             $kind = sanitize_key((string) ($request->get_param('kind') ?: ''));
             $allowed_kinds = array('search', 'music', 'weekly', 'topic');
@@ -78,7 +80,11 @@ add_action('rest_api_init', function () {
             $response = rest_ensure_response(array(
                 'scope' => 'latest_archived_pages_only',
                 'total_in_window' => count($filtered),
-                'items' => array_slice($filtered, 0, $limit)
+                'page' => $page,
+                'per_page' => $limit,
+                'total_pages' => (int) ceil(count($filtered) / $limit),
+                'has_more' => $offset + $limit < count($filtered),
+                'items' => array_slice($filtered, $offset, $limit)
             ));
             $response->header('Cache-Control', 'public, max-age=300');
             return $response;

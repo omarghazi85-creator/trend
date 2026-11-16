@@ -19,7 +19,7 @@ function classify(page:PublicPage){
  const slug=page.slug;
  const match=/^([a-z]{2})-(search|music|week)-/.exec(slug);
  let country='',kind='';
- if(match && COUNTRY[match[1]] && KINDS.has(match[2]]){
+ if(match && COUNTRY[match[1]] && KINDS.has(match[2]){
    country=COUNTRY[match[1]];kind=match[2]==='week'?'weekly':match[2];
  }else if(/^topic-[a-f0-9]+$/.test(slug)){kind='topic';}
  else return null;

@@ -23,7 +23,7 @@ jobs:
           set -euo pipefail
           url='https://arabiatrend.com/wp-json/atn-light/v1/archive?limit=2&page=1'
           echo "Checking read-only archive endpoint (two entries at most)"
-          for diagnostic in 'https://arabiatrend.com/' 'https://arabiatrend.com/wp-json/' 'https://arabiatrend.com/wp-json/wp/v2/search?search=trends&per_page=1'; do
+          for diagnostic in 'https://arabiatrend.com/' 'https://arabiatrend.com/wp-json/' 'https://arabiatrend.com/wp-json/wp/v2/search?search=trends&per_page=1' 'https://public-api.wordpress.com/rest/v1.1/sites/250183068' 'https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/?type=page&number=1'; do
             code=$(curl --silent --show-error --location --max-time 12 --connect-timeout 6 -o /dev/null -w '%{http_code}' --header 'Accept: application/json' "$diagnostic" || true)
             echo "Diagnostic response for $diagnostic : HTTP $code"
           done

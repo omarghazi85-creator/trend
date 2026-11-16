@@ -28,6 +28,6 @@ jobs:
             echo "::error::Official Jetpack public archive API returned HTTP $status"
             exit 1
           fi
-          jq -e '.found >= 1 and (.posts | type == "array") and ([.posts[] | select(.parent.ID == 61269 and .status == "publish" and (.URL | startswith("https://arabiatrend.com/trend-archive/")))] | length) >= 1' /tmp/archive.json >/dev/null
-          jq -r '"Archived results in sample: \([.posts[] | select(.parent.ID == 61269)] | length) | total public pages: \(.found)"' /tmp/archive.json
+          jq -e '.found >= 1 and (.posts | type == "array") and ([.posts[] | select((.parent | type == "object" and .ID == 61269) and .status == "publish" and (.URL | startswith("https://arabiatrend.com/trend-archive/")))] | length) >= 1' /tmp/archive.json >/dev/null
+          jq -r '"Archived results in sample: \([.posts[] | select((.parent | type == "object" and .ID == 61269))] | length) | total public pages: \(.found)"' /tmp/archive.json
           echo 'Official public archive response validated'

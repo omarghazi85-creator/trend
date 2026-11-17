@@ -81,3 +81,14 @@ test('invalid link is excluded and title search is case-normalized',async()=>{
   nodes.searchBtn.dispatch('click');
   assert.equal(nodes.results.children.length,0);
 });
+
+test('Arabic search ignores diacritics and common alef/ya variants',async()=>{
+  const {nodes}=setup([page(1,[item('eg-search','أخبار الرِياض ومُنتدى الهدى','مصر')],false)]);
+  await flush();
+  nodes.query.value='اخبار الرياض';
+  nodes.searchBtn.dispatch('click');
+  assert.equal(nodes.results.children.length,1);
+  nodes.query.value='الهدي';
+  nodes.searchBtn.dispatch('click');
+  assert.equal(nodes.results.children.length,1);
+});

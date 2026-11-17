@@ -21,6 +21,8 @@ test('uses official public WordPress.com API, one GET, exact archive parent, saf
   assert.equal(body.items[0].kind,'search');
   assert.equal(body.items[1].kind,'weekly');
   assert.equal(body.available_in_window,2);
+  assert.equal(body.page,1);
+  assert.equal(body.has_more,true);
   assert.deepEqual(calls,[upstream]);
  }finally{globalThis.fetch=original;}
 });
@@ -34,5 +36,29 @@ test('invalid upstream schema fails closed',async()=>{
   const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
   assert.equal(response.status,503);
   assert.deepEqual((await response.json()).items,[]);
+ }finally{globalThis.fetch=original;}
+});
+
+test('bounded pagination advances WordPress.com offset and retains filters',async()=>{
+ const original=globalThis.fetch;
+ let requested='';
+ globalThis.fetch=async(input:RequestInfo|URL)=>{requested=String(input);return Response.json({...payload,found:982});};
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive?page=2'));
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).page,2);
+  const u=new URL(requested);
+  assert.equal(u.searchParams.get('offset'),'100');
+  assert.equal(u.searchParams.get('number'),'100');
+ }finally{globalThis.fetch=original;}
+});
+test('invalid pagination fails before any upstream request',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async()=>{throw new Error('unexpected upstream call');};
+ try{
+  for(const page of ['0','-1','11','999','3.5','a']){
+   const response=await archive(new Request('https://preview.example/.netlify/functions/archive?page='+page));
+   assert.equal(response.status,400,page);
+  }
  }finally{globalThis.fetch=original;}
 });

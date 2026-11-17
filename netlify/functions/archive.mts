@@ -4,7 +4,9 @@
  * One bounded request; no WordPress writes, cron jobs or credentials.
  */
 const ORIGIN='https://arabiatrend.com';
-const API='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/?type=page&number=100&offset=0';
+const API='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/';
+const PAGE_SIZE=100;
+const MAX_PAGE=10;
 const COUNTRY:Record<string,string>={
  sa:'السعودية',ae:'الإمارات',eg:'مصر',kw:'الكويت',qa:'قطر',bh:'البحرين',
  om:'عُمان',jo:'الأردن',lb:'لبنان',iq:'العراق',sy:'سوريا',ps:'فلسطين',
@@ -29,17 +31,22 @@ function classify(page:PublicPage){
 }
 export default async(request:Request):Promise<Response>=>{
  if(request.method!=='GET')return new Response('method_not_allowed',{status:405});
+ const rawPage=new URL(request.url).searchParams.get('page') ?? '1';
+ if(!/^[1-9][0-9]{0,1}$/.test(rawPage)||Number(rawPage)>MAX_PAGE)return Response.json({error:'invalid_page'},{status:400,headers:{'cache-control':'no-store'}});
+ const page=Number(rawPage);
+ const u=new URL(API);u.searchParams.set('type','page');u.searchParams.set('number',String(PAGE_SIZE));u.searchParams.set('offset',String((page-1)*PAGE_SIZE));
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8500);
  try{
-   const response=await fetch(API,{method:'GET',signal:controller.signal,headers:{accept:'application/json'}});
+   const response=await fetch(u.toString(),{method:'GET',signal:controller.signal,headers:{accept:'application/json'}});
    if(!response.ok)throw new Error('upstream_unavailable');
    const payload:unknown=await response.json();
    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('bad_wpcom_payload');
    const record=payload as Record<string,unknown>;
-   if(!Array.isArray(record.posts))throw new Error('no_pages');
+   if(!Array.isArray(record.posts)||typeof record.found!=='number'||!Number.isFinite(record.found))throw new Error('no_pages');
    const items=record.posts.map(p=>p&&typeof p==='object'?classify(p as PublicPage):null).filter((p):p is NonNullable<typeof p>=>p!==null);
    return Response.json({scope:'latest_archived_pages_only',items,available_in_window:items.length,
-     source:'wordpress_com_public_jetpack',max_candidates:100},{
+     page,per_page:PAGE_SIZE,total_public_pages:record.found,has_more:page*PAGE_SIZE<record.found,
+     source:'wordpress_com_public_jetpack',max_candidates:PAGE_SIZE*MAX_PAGE},{
        headers:{'cache-control':'public, max-age=300, s-maxage=600','x-content-type-options':'nosniff'}
      });
  }catch{

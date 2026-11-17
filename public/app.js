@@ -6,7 +6,8 @@ const queryInput=document.getElementById('query');
 const resultBox=document.getElementById('results');
 const statusBox=document.getElementById('status');
 const typeSelect=document.getElementById('typeSelect');
-let country='',allItems=[],loaded=false;
+let country='',allItems=[],loaded=false,currentPage=0,hasMore=false,busy=false;
+const loadMoreButton=document.getElementById('loadMore');
 for(const name of COUNTRY_NAMES){
  const btn=document.createElement('button');btn.className='country';btn.textContent=name;btn.type='button';btn.setAttribute('aria-pressed','false');
  btn.addEventListener('click',()=>{country=country===name?'':name;countrySelect.value=country;updateSelection();render();});
@@ -31,20 +32,36 @@ function render(){
  if(!loaded)return;
  const phrase=queryInput.value.trim().normalize('NFKC').toLowerCase();
  const selected=allItems.filter(item=>(!country||item.country===country)&&(!phrase||item.title.normalize('NFKC').toLowerCase().includes(phrase))&&(!typeSelect.value||item.kind===typeSelect.value));
- for(const item of selected.slice(0,24))resultBox.append(itemNode(item));
+ for(const item of selected)resultBox.append(itemNode(item));
  statusBox.textContent=selected.length?'عدد الحصائل المطابقة ضمن أحدث البيانات المحمّلة: '+selected.length+'؛ افتح الأرشيف الأصلي لاستعراض المزيد.':'لا توجد نتائج مطابقة ضمن أحدث الحصائل المحمّلة. استخدم الأرشيف الأصلي للبحث الأوسع.';
 }
-async function load(){
- const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),8500);
+async function loadMore(){
+ if(busy||!hasMore && currentPage>0)return;
+ busy=true;loadMoreButton.disabled=true;loadMoreButton.textContent='جارٍ تحميل الحصائل...';
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8500);
  try{
-  const response=await fetch('/.netlify/functions/archive',{method:'GET',signal:controller.signal,headers:{accept:'application/json'}});
+  const nextPage=currentPage+1;
+  const response=await fetch('/.netlify/functions/archive?page='+nextPage,{
+    method:'GET',signal:controller.signal,headers:{accept:'application/json'}
+  });
   if(!response.ok)throw new Error('archive_proxy_unavailable');
   const payload=await response.json();
-  if(!payload || payload.scope!=='latest_archived_pages_only'||!Array.isArray(payload.items))throw new Error('archive_invalid_response');
-  allItems=payload.items.filter(item=>item&&typeof item.title==='string'&&typeof item.link==='string'&&typeof item.country==='string'&&typeof item.kind==='string'&&item.link.startsWith('https://arabiatrend.com/trend-archive/'));
+  if(!payload||payload.scope!=='latest_archived_pages_only'||!Array.isArray(payload.items)||payload.page!==nextPage)throw new Error('invalid_archive');
+  const valid=payload.items.filter(item=>item&&typeof item.title==='string'&&typeof item.link==='string'&&typeof item.country==='string'&&typeof item.kind==='string'&&item.link.startsWith('https://arabiatrend.com/trend-archive/'));
+  const seen=new Set(allItems.map(item=>item.link));
+  for(const item of valid){if(!seen.has(item.link)){seen.add(item.link);allItems.push(item);}}
+  currentPage=nextPage;
+  hasMore=Boolean(payload.has_more)&&currentPage<10;
   loaded=true;render();
  }catch{
-  loaded=true;allItems=[];statusBox.textContent='تعذر الاتصال مؤقتًا ببيانات الأرشيف. يمكن تصفح الأرشيف الأصلي من الرابط أدناه.';
- }finally{clearTimeout(timeout);}
+  if(currentPage===0){loaded=true;allItems=[];statusBox.textContent='تعذر تحميل أحدث بيانات الأرشيف. افتح الأرشيف الأصلي من الرابط أدناه.';}
+  else{statusBox.textContent='تعذر تحميل الدفعة التالية. يمكنك إعادة المحاولة أو تصفح الأرشيف الأصلي.';}
+ }finally{
+  clearTimeout(timeout);busy=false;loadMoreButton.disabled=false;
+  loadMoreButton.textContent='تحميل المزيد من الأرشيف';
+  loadMoreButton.hidden=!hasMore&&currentPage>0;
+ }
 }
-load();
+loadMoreButton.addEventListener('click',loadMore);
+hasMore=true;
+loadMore();

@@ -27,11 +27,16 @@ function itemNode(item){
  const date=document.createElement('div');date.className='date';date.textContent=item.date||'';
  card.append(meta,heading,date);return card;
 }
+function normalizeArabic(value){
+ return value.normalize('NFKC').toLowerCase()
+  .replace(/[\u064b-\u065f\u0670\u0640]/g,'')
+  .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي');
+}
 function render(){
  resultBox.replaceChildren();
  if(!loaded)return;
- const phrase=queryInput.value.trim().normalize('NFKC').toLowerCase();
- const selected=allItems.filter(item=>(!country||item.country===country)&&(!phrase||item.title.normalize('NFKC').toLowerCase().includes(phrase))&&(!typeSelect.value||item.kind===typeSelect.value));
+ const phrase=normalizeArabic(queryInput.value.trim());
+ const selected=allItems.filter(item=>(!country||item.country===country)&&(!phrase||normalizeArabic(item.title).includes(phrase))&&(!typeSelect.value||item.kind===typeSelect.value));
  for(const item of selected)resultBox.append(itemNode(item));
  statusBox.textContent=selected.length?'عدد الحصائل المطابقة ضمن أحدث البيانات المحمّلة: '+selected.length+'؛ افتح الأرشيف الأصلي لاستعراض المزيد.':'لا توجد نتائج مطابقة ضمن أحدث الحصائل المحمّلة. استخدم الأرشيف الأصلي للبحث الأوسع.';
 }

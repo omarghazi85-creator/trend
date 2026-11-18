@@ -30,4 +30,20 @@ jobs:
           fi
           jq -e '.found >= 1 and (.posts | type == "array") and ([.posts[] | select((.parent | type == "object" and .ID == 61269) and .status == "publish" and (.URL | startswith("https://arabiatrend.com/trend-archive/")))] | length) >= 1' /tmp/archive.json >/dev/null
           jq -r '"Archived results in sample: \([.posts[] | select((.parent | type == "object" and .ID == 61269))] | length) | total public pages: \(.found)"' /tmp/archive.json
-          echo 'Official public archive response validated'
+          latest=$(jq -r '[.posts[] | select((.parent | type == "object" and .ID == 61269) and .status == "publish") | .date | select(type == "string")] | max // empty' /tmp/archive.json)
+          if [[ -z "$latest" ]]; then
+            echo "::error::No dated archive pages in current public sample"
+            exit 1
+          fi
+          latest_epoch=$(date -u -d "$latest" +%s)
+          now_epoch=$(date -u +%s)
+          age_hours=$(( (now_epoch - latest_epoch) / 3600 ))
+          echo "Latest archived page: $latest | age in hours: $age_hours"
+          if (( age_hours > 48 )); then
+            echo "::warning::Latest archived page is older than 48h; inspect scheduled collection and publication"
+          fi
+          if (( age_hours > 96 )); then
+            echo "::error::Archive has no recent published material for more than 96h"
+            exit 1
+          fi
+          echo 'Official public archive response and freshness validated'

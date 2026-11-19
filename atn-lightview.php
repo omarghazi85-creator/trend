@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.11.0
+ * Version: 0.11.1
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -241,3 +241,48 @@ add_shortcode('atn_lightview', function () {
     <?php
     return ob_get_clean();
 });
+
+
+/**
+ * ArabiaTrend main page: hide the redundant, initial filter-summary chips.
+ * Preserve the canonical [arabiatrend_now] map, search panels and result cards.
+ * No extra API requests, database writes or scheduled work.
+ */
+add_action('wp_footer', function () {
+    if (!is_page(61258)) { return; }
+    ?>
+    <script id="atn-clean-duplicate-summary">
+    (function(){
+      'use strict';
+      var labels=['جميع الدول العربية','كل الأنواع','آخر 24 ساعة','مسح الفلاتر'];
+      function normalize(s){return String(s||'').replace(/\s+/g,' ').trim();}
+      function tidy(){
+        var root=document.querySelector('main')||document.querySelector('#content')||document.body;
+        if(!root)return;
+        var nodes=root.querySelectorAll('button,a,[role="button"],span,div,label');
+        labels.forEach(function(label){
+          for(var i=0;i<nodes.length;i++){
+            var el=nodes[i];
+            if(el.hasAttribute('data-atn-duplicate-hidden')||normalize(el.textContent)!==label)continue;
+            if(el.querySelector('input,select,textarea'))continue;
+            var target=el,steps=0;
+            while(target.parentElement&&steps<3){
+              var p=target.parentElement;
+              if(p===root||p.tagName==='MAIN'||p.tagName==='ARTICLE'||p.tagName==='SECTION'||p.tagName==='BODY')break;
+              if(normalize(p.textContent)!==label||p.children.length>3)break;
+              target=p;steps++;
+            }
+            target.setAttribute('data-atn-duplicate-hidden','1');
+            target.style.setProperty('display','none','important');
+            break;
+          }
+        });
+      }
+      if(document.readyState==='loading'){
+        document.addEventListener('DOMContentLoaded',tidy,{once:true});
+      }else{tidy();}
+      window.addEventListener('load',tidy,{once:true});
+    })();
+    </script>
+    <?php
+}, 99);

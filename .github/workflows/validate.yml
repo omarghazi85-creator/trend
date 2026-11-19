@@ -1,7 +1,7 @@
 name: Worker safety checks
 on:
   push:
-    branches: [main]
+    branches: [main, atn-lightview-plugin]
   pull_request:
     branches: [main]
 permissions:

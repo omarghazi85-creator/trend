@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { runInNewContext } from 'node:vm';
 
 const plugin = readFileSync(new URL('../atn-lightview.php', import.meta.url), 'utf8');
@@ -217,10 +218,52 @@ test('waits for the DOM when necessary without intercepting user navigation', ()
   assert.equal(titleOf(video).href, video.querySelector('.atni-follow')!.getAttribute('data-atni-url'));
 });
 
-test('retires URL-supplied snapshots through a temporary safe redirect, retaining no copied summary or source phrase', () => {
+test('retires URL-supplied snapshots with an encoded search value and no copied summary or source phrase', (t) => {
   assert.match(plugin, /add_filter\('do_shortcode_tag', 'atn_lightview_restore_native_titles', 100, 2\)/);
   assert.match(plugin, /wp_safe_redirect\(atn_lightview_legacy_detail_destination\(\), 302, 'ArabiaTrend'\)/);
-  assert.match(plugin, /'query' => \$title, 'atn_period' => '30'/);
+  assert.match(plugin, /'query' => rawurlencode\(\$title\), 'atn_period' => '30'/);
   assert.doesNotMatch(plugin, /atn_snapshot|فتح المحتوى الأصلي لدى المصدر الخارجي|window\.location\.assign|stopImmediatePropagation/);
+  const legacyFunction = plugin.match(/function atn_lightview_legacy_detail_destination\(\) \{[\s\S]*?\n\}/)?.[0];
+  assert.ok(legacyFunction);
+  // Execute the real PHP destination function when PHP is available (CI).
+  // For a query-free base and new string values, add_query_arg preserves
+  // already-encoded values; callers must encode query delimiters themselves.
+  const php = `
+    function wp_unslash($s) { return stripslashes($s); }
+    function sanitize_text_field($s) { return trim(strip_tags($s)); }
+    function wp_html_excerpt($s, $limit, $suffix) { return substr($s, 0, $limit); }
+    function home_url($path) { return 'https://arabiatrend.com' . $path; }
+    function add_query_arg($args, $base) {
+        $pairs = array();
+        foreach ($args as $key => $value) { $pairs[] = $key . '=' . $value; }
+        return $base . '?' . implode('&', $pairs);
+    }
+    ${legacyFunction}
+    $result = array();
+    foreach (json_decode(stream_get_contents(STDIN), true) as $title) {
+        $_GET = array('atn_title' => $title);
+        $result[] = atn_lightview_legacy_detail_destination();
+    }
+    echo json_encode($result);
+  `;
+  const samples = ['R&D', 'C++', '#topic', 'A & B + C #1'];
+  const result = spawnSync('php', ['-r', php], { input: JSON.stringify(samples), encoding: 'utf8' });
+  if (result.error && (result.error as NodeJS.ErrnoException).code === 'ENOENT') {
+    t.diagnostic('PHP CLI unavailable locally; source encoding guard passed. Runtime delimiter cases execute in CI with PHP.');
+    return;
+  }
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  const destinations = JSON.parse(result.stdout) as string[];
+  assert.equal(destinations.length, samples.length);
+  destinations.forEach((destination, index) => {
+    const url = new URL(destination);
+    assert.equal(url.origin, origin);
+    assert.equal(url.pathname, '/arab-trends-now/');
+    assert.equal(url.searchParams.get('query'), samples[index]);
+    assert.equal(url.searchParams.get('atn_period'), '30');
+    assert.deepEqual([...url.searchParams.keys()], ['query', 'atn_period']);
+    assert.equal(url.hash, '');
+  });
 });
 

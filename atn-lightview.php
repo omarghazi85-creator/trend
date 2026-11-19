@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.3
+ * Version: 0.12.4
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -369,7 +369,7 @@ add_filter('do_shortcode_tag', 'atn_lightview_restore_native_titles', 100, 2);
 function atn_lightview_legacy_detail_destination() {
     $title = isset($_GET['atn_title']) && is_string($_GET['atn_title'])
         ? wp_html_excerpt(sanitize_text_field(wp_unslash($_GET['atn_title'])), 150, '') : '';
-    return $title ? add_query_arg(array('query' => $title, 'atn_period' => '30'), home_url('/arab-trends-now/'))
+    return $title ? add_query_arg(array('query' => rawurlencode($title), 'atn_period' => '30'), home_url('/arab-trends-now/'))
                   : home_url('/arab-trends-now/');
 }
 add_action('template_redirect', function () {

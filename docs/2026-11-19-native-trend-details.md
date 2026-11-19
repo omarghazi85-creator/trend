@@ -1,6 +1,6 @@
 # Restore native trend details — 2026-11-19
 
-Release: ArabiaTrend Light View 0.12.4.
+Release: ArabiaTrend Light View 0.12.5 (section-wide follow-up to 0.12.4).
 
 ## Problem and correction
 
@@ -12,6 +12,10 @@ The initial shortcode output is repaired with `WP_HTML_Tag_Processor`; a narrowl
 
 ## Scope and verification
 
+- Shared scope now includes the current section and archive roots (61258/61269), their existing and future descendants, and pages using the known trend shortcodes. There is no date cutoff or individual-item allowlist.
+- Archive `.atna` typography and `.atna-grid` title enhancement now share the spacing/routing rules. Existing archived topic thumbnails and their standalone source link are normalized into one source section without rewriting saved content.
+- Historical tables and the native latest-observation enrichment remain intact. No extra source collection, related-article search, scheduled task, or post creation was added.
+- Where a historical summary has only a plain title and no saved native destination, it is left as text. Do not infer a 64-character topic key from an archived 24-character slug or invent missing topic pages.
 - Main page ID: 61258. Legacy snapshot page ID: 86386.
 - Native `arabiatrend-now` plugin, saved monitoring data, collection schedules, and page content remain unchanged.
 - Seven routing tests cover real search, audio and video card markup, appended cards, invalid destinations, DOM readiness, unchanged detail content, and the legacy redirect.

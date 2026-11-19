@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.2
+ * Version: 0.12.3
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -405,7 +405,7 @@ add_action('wp_head', function () {
     .atn-detail{line-height:1.85;overflow-wrap:anywhere}
     .atn-detail .atn-detail-head{margin-block:20px 24px;gap:12px}
     .atn-detail .atn-detail-head h1,.atn-detail .atn-detail-head h2{line-height:1.55;margin-block:0 20px}
-    .atn-detail h3{line-height:1.65;margin-block:0 18px}
+    .atn-detail h3,.atn-detail .atn-v1-sources h3,.atn-detail .atn-coverage h3{line-height:1.65;margin-block:0 18px}
     .atn-detail .atn-history,.atn-detail .atn-v1-sources,.atn-detail .atni-context,.atn-detail .atn-coverage{margin-block-start:30px}
     .atn-detail .atn-v1-sources li,.atn-detail .atn-coverage li{line-height:1.85;margin-block:0 14px}
     .atn-detail .atn-v1-sources a,.atn-detail .atn-coverage a{line-height:1.85;overflow-wrap:anywhere}
@@ -414,7 +414,7 @@ add_action('wp_head', function () {
     @media(max-width:600px){
       body.page-id-61258 #the-post .entry-header .entry-title{font-size:clamp(25px,6.5vw,34px);line-height:1.6;margin-block-end:22px}
       .atn-detail .atn-detail-head{gap:10px;margin-block-end:24px}
-      .atn-detail h3{font-size:20px;line-height:1.7;margin-block-end:18px}
+      .atn-detail h3,.atn-detail .atn-v1-sources h3,.atn-detail .atn-coverage h3{font-size:20px;line-height:1.7;margin-block-end:18px}
     }
     </style>
     <?php

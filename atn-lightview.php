@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.11.1
+ * Version: 0.12.1
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -286,3 +286,190 @@ add_action('wp_footer', function () {
     </script>
     <?php
 }, 99);
+
+
+/**
+ * Internal detail view for a clicked topic card.
+ * Snapshots are read-only presentation context: not an editorial article.
+ * These query-driven snapshots are intentionally excluded from indexing.
+ */
+add_action('send_headers', function () {
+    if (is_page(86386)) {
+        header('X-Robots-Tag: noindex, follow', true);
+    }
+});
+add_filter('wp_robots', function ($robots) {
+    if (is_page(86386)) {
+        $robots['noindex'] = true;
+        unset($robots['index']);
+    }
+    return $robots;
+});
+add_filter('rank_math/frontend/robots', function ($robots) {
+    if (is_page(86386) && is_array($robots)) {
+        $robots['index'] = 'noindex';
+        $robots['follow'] = 'follow';
+    }
+    return $robots;
+}, 100);
+add_shortcode('atn_trend_detail', function () {
+    $get = function ($key, $max) {
+        if (!isset($_GET[$key]) || !is_string($_GET[$key])) { return ''; }
+        return wp_html_excerpt(sanitize_textarea_field(wp_unslash($_GET[$key])), $max, '');
+    };
+    $title = $get('atn_title', 200);
+    $summary = $get('atn_snapshot', 1000);
+    $country = $get('atn_country', 55);
+    if (!in_array($country, array_values(atn_lightview_country_codes()), true)) { $country = ''; }
+    $kind = $get('atn_kind', 70);
+    $date = $get('atn_seen', 60);
+    $url = esc_url_raw($get('atn_source', 1500), array('https'));
+    $host = $url ? strtolower((string) wp_parse_url($url, PHP_URL_HOST)) : '';
+    // Only expose known media/search providers as source links.
+    $allowed = array('youtube.com','youtu.be','dailymotion.com','music.apple.com','apple.com','spotify.com','soundcloud.com','tiktok.com','instagram.com','facebook.com','x.com','twitter.com','google.com','vimeo.com');
+    $trusted = false;
+    foreach ($allowed as $suffix) {
+        if ($host === $suffix || substr($host, -strlen('.' . $suffix)) === '.' . $suffix) {
+            $trusted = true;
+            break;
+        }
+    }
+    ob_start();
+    ?>
+    <section class="atn-topic-detail" dir="rtl" style="max-width:950px;margin:25px auto 50px;padding:0 15px;line-height:1.85">
+      <?php if (!$title) : ?>
+        <h2>تفاصيل الترند</h2>
+        <p>اختر عنوان موضوع من <a href="<?php echo esc_url(home_url('/arab-trends-now/')); ?>">صفحة الترند العربي الآن</a> لعرض حصيلة الرصد الخاصة به.</p>
+      <?php else : ?>
+        <nav aria-label="مسار الصفحة" style="margin-bottom:20px;font-size:14px">
+          <a href="<?php echo esc_url(home_url('/')); ?>">الرئيسية</a> /
+          <a href="<?php echo esc_url(home_url('/arab-trends-now/')); ?>">الترند العربي الآن</a> /
+          <span>تفاصيل الترند</span>
+        </nav>
+        <h2 style="font-size:clamp(24px,4vw,39px);margin:0 0 15px"><?php echo esc_html($title); ?></h2>
+        <p style="color:#56736f;margin:0 0 22px">ملخص بيانات الرصد المتاحة عند فتح هذا الموضوع، وليس مادة صحفية مستقلة أو تحديثًا لحظيًا.</p>
+        <?php if ($country || $kind || $date) : ?>
+          <p style="background:#f1f6f3;border-radius:12px;padding:14px 18px">
+            <?php if ($country) : ?><strong>الدولة:</strong> <?php echo esc_html($country); ?> &nbsp; <?php endif; ?>
+            <?php if ($kind) : ?><strong>النوع:</strong> <?php echo esc_html($kind); ?> &nbsp; <?php endif; ?>
+            <?php if ($date) : ?><strong>آخر رصد مذكور:</strong> <?php echo esc_html($date); ?><?php endif; ?>
+          </p>
+        <?php endif; ?>
+        <?php if ($summary) : ?>
+          <h3>تفاصيل الرصد المتاحة</h3>
+          <div style="white-space:pre-line;background:#fff;border:1px solid #e1e9e6;border-radius:12px;padding:20px"><?php echo esc_html($summary); ?></div>
+        <?php endif; ?>
+        <?php if ($url && $trusted) : ?>
+          <p style="margin-top:24px"><a href="<?php echo esc_url($url); ?>" target="_blank" rel="noopener noreferrer nofollow">فتح المحتوى الأصلي لدى المصدر الخارجي ↗</a></p>
+        <?php endif; ?>
+        <p><a href="<?php echo esc_url(home_url('/arab-trends-now/')); ?>">العودة إلى نتائج الرصد</a></p>
+      <?php endif; ?>
+    </section>
+    <?php
+    return ob_get_clean();
+});
+
+/**
+ * Route the H3 TITLE only into the website's read-only detail view.
+ * Do not alter thumbnail anchors or any platform/media links.
+ */
+add_action('wp_footer', function () {
+    if (!is_page(61258)) { return; }
+    ?>
+    <script id="atn-title-internal-routing">
+    (function(){
+      'use strict';
+      function cardFor(h){
+        var p=h.parentElement,steps=0;
+        while(p && steps<9){
+          if(p.tagName==='MAIN'||p.tagName==='BODY')break;
+          var text=String(p.textContent||'');
+          if(text.indexOf('تفاصيل الرصد')!==-1 &&
+             text.indexOf('متابعة الموضوع')!==-1 &&
+             p.querySelectorAll('h3').length<=2 &&
+             text.length<3800){return p;}
+          p=p.parentElement;steps++;
+        }
+        return null;
+      }
+      function sourceHref(h,card){
+        var titleAnchor=h.querySelector('a[href]')||h.closest('a[href]');
+        if(titleAnchor){
+          var original=titleAnchor.getAttribute('data-atn-source-href')||titleAnchor.href;
+          if(original && /^https:\/\//i.test(original) &&
+             (new URL(original,location.href)).hostname!==location.hostname)return original;
+        }
+        var images=card.querySelectorAll('a[href] img');
+        for(var i=0;i<images.length;i++){
+          var a=images[i].closest('a[href]');
+          if(a&&/^https:\/\//i.test(a.href)&&new URL(a.href).hostname!==location.hostname)return a.href;
+        }
+        return '';
+      }
+      function destination(h,card){
+        var title=String(h.textContent||'').replace(/\s+/g,' ').trim();
+        if(title.length<2||title.length>200)return null;
+        var u=new URL('/trend-detail/',location.origin);
+        u.searchParams.set('atn_title',title);
+        var src=sourceHref(h,card);
+        if(src)u.searchParams.set('atn_source',src.slice(0,900));
+        var text=String(card.innerText||card.textContent||'').trim();
+        var countries=['السعودية','الإمارات','مصر','الكويت','قطر','البحرين','عُمان','الأردن','لبنان','العراق','سوريا','فلسطين','اليمن','ليبيا','تونس','الجزائر','المغرب','موريتانيا'];
+        for(var i=0;i<countries.length;i++){
+          if(text.indexOf(countries[i])!==-1){u.searchParams.set('atn_country',countries[i]);break;}
+        }
+        var kinds=['الفيديوهات الرائجة','الأغاني الرائجة','كلمات البحث الرائجة','الأصوات الرائجة','كل الترندات'];
+        for(var j=0;j<kinds.length;j++){
+          if(text.indexOf(kinds[j])!==-1){u.searchParams.set('atn_kind',kinds[j]);break;}
+        }
+        var date=text.match(/(?:آخر رصد|آخر تحديث)[^\n]{0,55}/);
+        if(date)u.searchParams.set('atn_seen',date[0].slice(0,60));
+        // Limited snapshot copied from the visible card; no network or DB writes.
+        var summary=text.replace(title,'').replace(/متابعة الموضوع/g,'').trim().slice(0,900);
+        if(summary)u.searchParams.set('atn_snapshot',summary);
+        return u;
+      }
+      function headingFrom(target){
+        var el=target && target.nodeType===3 ? target.parentElement : target;
+        return el && el.closest ? el.closest('h3') : null;
+      }
+      function eligible(h){
+        return h && cardFor(h);
+      }
+      function navigate(event){
+        var h=headingFrom(event.target),card=eligible(h);
+        if(!card)return;
+        if(event.type==='keydown' && event.key!=='Enter' && event.key!==' ')return;
+        var dest=destination(h,card);
+        if(!dest)return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.location.assign(dest.toString());
+      }
+      function enhance(){
+        var headings=document.querySelectorAll('h3');
+        for(var i=0;i<headings.length;i++){
+          var h=headings[i],card=eligible(h);
+          if(!card||h.hasAttribute('data-atn-internal-title'))continue;
+          h.setAttribute('data-atn-internal-title','1');
+          var a=h.querySelector('a[href]')||h.closest('a[href]');
+          if(a){
+            if(/^https:\/\//i.test(a.href)){a.setAttribute('data-atn-source-href',a.href);}
+            var dest=destination(h,card);
+            if(dest)a.href=dest.toString();
+          }else{
+            h.setAttribute('role','link');
+            h.setAttribute('tabindex','0');
+          }
+          h.style.cursor='pointer';
+        }
+      }
+      document.addEventListener('click',navigate,true);
+      document.addEventListener('keydown',navigate,true);
+      if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',enhance,{once:true});
+      else enhance();
+      window.addEventListener('load',enhance,{once:true});
+    })();
+    </script>
+    <?php
+}, 100);

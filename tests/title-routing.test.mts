@@ -8,6 +8,7 @@ const plugin = readFileSync(new URL('../atn-lightview.php', import.meta.url), 'u
 const script = plugin.match(/<script id="atn-title-internal-routing">([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script, 'Native title enhancement script is present');
 const fixture = readFileSync(new URL('./fixtures/native-trend-cards.html', import.meta.url), 'utf8');
+const archiveFixture = readFileSync(new URL('./fixtures/archive-summary.html', import.meta.url), 'utf8');
 const origin = 'https://arabiatrend.com';
 const base = origin + '/arab-trends-now/';
 const decode = (s: string) => s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#039;/g, "'");
@@ -216,6 +217,26 @@ test('waits for the DOM when necessary without intercepting user navigation', ()
   assert.deepEqual(env.listeners.map(l => l.type), ['DOMContentLoaded']);
   env.listeners[0].handler();
   assert.equal(titleOf(video).href, video.querySelector('.atni-follow')!.getAttribute('data-atni-url'));
+});
+
+test('uses the same enhancement for archived and later-added summary cards without inventing destinations', () => {
+  const env = setup(archiveFixture);
+  const archiveCards = env.document.querySelectorAll('article.atna-item');
+  assert.equal(archiveCards.length, 14);
+  const originalMedia = archiveCards.map(card => card.querySelector('.atn-thumb')!.href);
+  const originalTitles = archiveCards.map(card => card.querySelector('h3 a')?.href ?? null);
+  env.run();
+  assert.equal(env.observers.length, 1);
+  assert.deepEqual(archiveCards.map(card => card.querySelector('.atn-thumb')!.href), originalMedia);
+  assert.deepEqual(archiveCards.map(card => card.querySelector('h3 a')?.href ?? null), originalTitles);
+  const added = parse(archiveFixture).querySelector('article.atna-item')!;
+  const expected = added.querySelector('h3 a')!.href;
+  added.querySelector('h3 a')!.setAttribute('target', '_blank');
+  env.document.querySelector('.atna-grid')!.append(added);
+  env.mutate(added);
+  assert.equal(added.querySelector('h3 a')!.href, expected);
+  assert.equal(added.querySelector('h3 a')!.getAttribute('target'), null);
+  assert.deepEqual(env.navigations, []);
 });
 
 test('retires URL-supplied snapshots with an encoded search value and no copied summary or source phrase', (t) => {

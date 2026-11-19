@@ -2,11 +2,12 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.4
+ * Version: 0.12.5
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
 if (!defined('ABSPATH')) { exit; }
+require_once __DIR__ . '/includes/atn-section.php';
 /**
  * Public archive snapshot. Read-only and shared by the page and REST API.
  * The 15-minute transient prevents repeated 320-post queries on normal traffic.
@@ -318,12 +319,14 @@ function atn_lightview_native_topic_url($url) {
  * Tokenize the existing shortcode output once; no database or network calls.
  */
 function atn_lightview_restore_native_titles($output, $tag) {
-    if ($tag !== 'arabiatrend_now' || !is_string($output) ||
-        strpos($output, 'atn-card') === false || !class_exists('WP_HTML_Tag_Processor')) {
+    if (!in_array($tag, array('arabiatrend_now', 'atn_archive_index'), true) || !is_string($output) ||
+        (strpos($output, 'atn-card') === false && strpos($output, 'atna-item') === false) ||
+        !class_exists('WP_HTML_Tag_Processor')) {
         return $output;
     }
     $html = new WP_HTML_Tag_Processor($output);
-    while ($html->next_tag(array('tag_name' => 'ARTICLE', 'class_name' => 'atn-card'))) {
+    while ($html->next_tag(array('tag_name' => 'ARTICLE'))) {
+        if (!$html->has_class('atn-card') && !$html->has_class('atna-item')) { continue; }
         $in_heading = false;
         $title_found = false;
         $destination = '';
@@ -347,6 +350,7 @@ function atn_lightview_restore_native_titles($output, $tag) {
             if ($closing) { continue; }
             if ($name === 'A' && $in_heading && !$title_found) {
                 $title_found = $html->set_bookmark('atn-card-title');
+                $destination = atn_lightview_native_topic_url($html->get_attribute('href'));
                 continue;
             }
             if ($name === 'A' && !$in_heading && !$destination) {
@@ -394,14 +398,14 @@ add_shortcode('atn_trend_detail', function () {
 });
 
 /**
- * Spacing on the original topic renderer only.
- * Keep its external sources and conditional internal coverage sections intact.
+ * Shared typography for current topics and every existing/future archive child.
+ * Keep native source, history and conditional internal coverage renderers intact.
  */
 add_action('wp_head', function () {
-    if (!is_page(61258)) { return; }
+    if (!atn_lightview_is_section()) { return; }
     ?>
     <style id="atn-native-topic-spacing">
-    body.page-id-61258 #the-post .entry-header .entry-title{line-height:1.55;margin-block-end:24px;overflow-wrap:anywhere}
+    body.atn-trend-section #the-post .entry-header .entry-title{line-height:1.55;margin-block-end:24px;overflow-wrap:anywhere}
     .atn-detail{line-height:1.85;overflow-wrap:anywhere}
     .atn-detail .atn-detail-head{margin-block:20px 24px;gap:12px}
     .atn-detail .atn-detail-head h1,.atn-detail .atn-detail-head h2{line-height:1.55;margin-block:0 20px}
@@ -411,10 +415,28 @@ add_action('wp_head', function () {
     .atn-detail .atn-v1-sources a,.atn-detail .atn-coverage a{line-height:1.85;overflow-wrap:anywhere}
     .atn-detail .atn-v1-sources small{display:block;margin-block-start:5px}
     .atn-detail .atn-coverage{padding-block-start:24px;border-block-start:1px solid #dce6e1}
+    .atn-trend-section .atna,.atn-trend-section .atni-context{line-height:1.85;overflow-wrap:anywhere}
+    .atn-trend-section .atna h2,.atn-trend-section .atna h3,.atn-trend-section .atni-context h3{line-height:1.65;margin-block:28px 18px;clear:both}
+    .atn-trend-section .atna p{margin-block:0 16px}
+    .atn-trend-section .atna .atna-nav{display:flex;flex-wrap:wrap;gap:12px;margin-block:20px 24px}
+    .atn-trend-section .atna .atna-time{display:flex;flex-wrap:wrap;gap:4px 6px;align-items:baseline}
+    .atn-trend-section .atna .atna-time time{direction:ltr;unicode-bidi:isolate}
+    .atn-trend-section .atna .atna-item{gap:16px;align-items:flex-start}
+    .atn-trend-section .atna .atna-item>div{min-width:0}
+    .atn-trend-section .atna .atna-item h3{margin-block:0 14px;overflow-wrap:anywhere}
+    .atn-trend-section .atna .atna-table{overflow-x:auto;margin-block:20px 28px}
+    .atn-trend-section .atna .atna-table th,.atn-trend-section .atna .atna-table td{line-height:1.85;vertical-align:top}
+    .atn-trend-section .atna .atn-archive-sources{clear:both;margin-block:28px}
+    .atn-trend-section .atna .atn-archive-source{display:flex;align-items:flex-start;gap:16px}
+    .atn-trend-section .atna .atn-archive-source .atn-thumb{float:none;flex:0 0 auto;margin:0}
+    .atn-trend-section .atna .atn-archive-source small{display:block;margin-block-start:6px;direction:ltr;unicode-bidi:isolate}
+    .atn-trend-section .atna .atn-coverage{margin-block-start:30px;padding-block-start:24px;border-block-start:1px solid #dce6e1}
     @media(max-width:600px){
-      body.page-id-61258 #the-post .entry-header .entry-title{font-size:clamp(25px,6.5vw,34px);line-height:1.6;margin-block-end:22px}
+      body.atn-trend-section #the-post .entry-header .entry-title{font-size:clamp(25px,6.5vw,34px);line-height:1.6;margin-block-end:22px}
       .atn-detail .atn-detail-head{gap:10px;margin-block-end:24px}
       .atn-detail h3,.atn-detail .atn-v1-sources h3,.atn-detail .atn-coverage h3{font-size:20px;line-height:1.7;margin-block-end:18px}
+      .atn-trend-section .atna h2,.atn-trend-section .atna h3,.atn-trend-section .atni-context h3{font-size:20px;line-height:1.7;margin-block-end:18px}
+      .atn-trend-section .atna .atna-grid{grid-template-columns:minmax(0,1fr)}
     }
     </style>
     <?php
@@ -425,7 +447,7 @@ add_action('wp_head', function () {
  * The thumbnail and external media controls are never changed.
  */
 add_action('wp_footer', function () {
-    if (!is_page(61258) || isset($_GET['atn_topic'])) { return; }
+    if (!atn_lightview_is_section() || isset($_GET['atn_topic'])) { return; }
     ?>
     <script id="atn-title-internal-routing">
     (function(){
@@ -443,10 +465,10 @@ add_action('wp_footer', function () {
       }
       function enhance(root){
         var cards=[];
-        if(root.matches&&root.matches('article.atn-card'))cards.push(root);
-        if(root.querySelectorAll)cards=cards.concat(Array.prototype.slice.call(root.querySelectorAll('article.atn-card')));
+        if(root.matches&&root.matches('article.atn-card,article.atna-item'))cards.push(root);
+        if(root.querySelectorAll)cards=cards.concat(Array.prototype.slice.call(root.querySelectorAll('article.atn-card,article.atna-item')));
         cards.forEach(function(card){
-          var title=card.querySelector('.atn-card-content > h3 > a[href]');
+          var title=card.querySelector('h3 > a[href]');
           if(!title)return;
           var follow=card.querySelector('.atni-follow[data-atni-url]');
           var destination=nativeUrl(follow&&follow.getAttribute('data-atni-url'));
@@ -457,6 +479,7 @@ add_action('wp_footer', function () {
               if(destination)break;
             }
           }
+          if(!destination)destination=nativeUrl(title.getAttribute('href'));
           if(!destination)return;
           title.href=destination;
           title.removeAttribute('target');
@@ -465,20 +488,21 @@ add_action('wp_footer', function () {
         });
       }
       function start(){
-        var root=document.querySelector('.atn-dashboard');
-        if(!root)return;
-        enhance(root);
+        var roots=document.querySelectorAll('.atn-dashboard,.atna-grid');
+        Array.prototype.forEach.call(roots,function(root){
+          enhance(root);
         if(typeof MutationObserver==='function'){
           new MutationObserver(function(records){
             records.forEach(function(record){
               Array.prototype.forEach.call(record.addedNodes,function(node){
                 if(node.nodeType!==1)return;
-                var card=node.closest&&node.closest('article.atn-card');
+                var card=node.closest&&node.closest('article.atn-card,article.atna-item');
                 enhance(card||node);
               });
             });
           }).observe(root,{childList:true,subtree:true});
         }
+        });
       }
       if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
       else start();

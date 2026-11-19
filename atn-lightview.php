@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.0
+ * Version: 0.12.1
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -305,6 +305,13 @@ add_filter('wp_robots', function ($robots) {
     }
     return $robots;
 });
+add_filter('rank_math/frontend/robots', function ($robots) {
+    if (is_page(86386) && is_array($robots)) {
+        $robots['index'] = 'noindex';
+        $robots['follow'] = 'follow';
+    }
+    return $robots;
+}, 100);
 add_shortcode('atn_trend_detail', function () {
     $get = function ($key, $max) {
         if (!isset($_GET[$key]) || !is_string($_GET[$key])) { return ''; }

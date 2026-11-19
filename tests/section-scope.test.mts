@@ -57,11 +57,13 @@ test('shared scope includes old and future descendants and shortcode pages, excl
 test('organizes the existing archived source while preserving historical bytes and native enrichment', { skip: !phpAvailable && 'PHP CLI unavailable locally; executes in CI' }, () => {
   const enrichment = '<section class="atni-context"><h3>قراءة أحدث رصد متاح</h3><p>رصد محفوظ</p></section><section class="atn-coverage"><h3>تغطية مرتبطة من الترند العربي</h3><ul><li><a href="https://arabiatrend.com/44114">مادة مرتبطة</a></li></ul></section>';
   const input = topic + enrichment;
+  const formatted = input.replace('</nav><a', '</nav>\n<p><a').replace('</a><h2>', '</a></p>\n<h2>');
   const result = runPHP(`
     $posts[61269] = page(61269); $posts[61285] = page(61285, 61269, $input['content'], 'topic-33bbc109ca7d7b0ac6f8277e', 'BbY WOW | سجل الرواج'); $current = 61285;
     $once = atn_lightview_archive_sources($input['content']); $twice = atn_lightview_archive_sources($once);
-    echo json_encode(array('once' => $once, 'twice' => $twice));
-  `, { content: input });
+    $formatted = atn_lightview_archive_sources($input['formatted']);
+    echo json_encode(array('once' => $once, 'twice' => $twice, 'formatted' => $formatted));
+  `, { content: input, formatted });
   const table = topic.match(/<div class="atna-table">[\s\S]*?<\/table><\/div>/)![0];
   const thumbnail = topic.match(/<a class="atn-thumb[\s\S]*?<\/a>/)![0];
   const method = topic.match(/<details class="atna-method">[\s\S]*?<\/details>/)![0];
@@ -76,6 +78,9 @@ test('organizes the existing archived source while preserving historical bytes a
   assert.equal(result.once.indexOf('atn-archive-sources') < result.once.indexOf('atna-table'), true);
   assert.match(result.once, /<strong>BbY WOW<\/strong>/);
   assert.equal(result.twice, result.once, 'Transformation is idempotent');
+  assert.match(result.formatted, /data-atn-archive-source="1"/, 'Works after WordPress wraps the thumbnail in a paragraph');
+  assert.doesNotMatch(result.formatted, /<p>\s*<section/, 'Does not nest the source section inside a paragraph');
+  assert.doesNotMatch(result.formatted, /فتح العمل الأصلي/);
 });
 
 test('leaves summaries, unrelated pages, missing sources and invalid or mismatched destinations untouched', { skip: !phpAvailable && 'PHP CLI unavailable locally; executes in CI' }, () => {

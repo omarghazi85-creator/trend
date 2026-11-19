@@ -51,11 +51,11 @@ function atn_lightview_archive_sources($content) {
 
     // These boundaries identify the two standalone source elements in the
     // saved topic template, excluding media nested inside daily result cards.
-    if (!preg_match('~</nav>\s*(<a\b[^>]*>[\s\S]*?</a>)(?=\s*<h2\b)~i', $content, $thumb, PREG_OFFSET_CAPTURE) ||
+    if (!preg_match('~</nav>\s*((?:<p>\s*)?(<a\b[^>]*>[\s\S]*?</a>)(?:\s*</p>)?)(?=\s*<h2\b)~i', $content, $thumb, PREG_OFFSET_CAPTURE) ||
         !preg_match('~</table>\s*</div>\s*(<p>\s*(<a\b[^>]*>[\s\S]*?</a>)\s*</p>)~i', $content, $source, PREG_OFFSET_CAPTURE)) {
         return $content;
     }
-    $thumbnail = $thumb[1][0];
+    $thumbnail = $thumb[2][0];
     $source_anchor = $source[2][0];
     $classes = preg_split('/\s+/', atn_lightview_archive_attribute($thumbnail, 'class'));
     $label = trim(html_entity_decode(wp_strip_all_tags($source_anchor), ENT_QUOTES, 'UTF-8'));
@@ -78,6 +78,6 @@ function atn_lightview_archive_sources($content) {
     // in its original position, before the saved history table.
     // Everything outside these exact byte ranges remains untouched.
     $result = substr_replace($content, '', $source[1][1], strlen($source[1][0]));
-    return substr_replace($result, $block, $thumb[1][1], strlen($thumbnail));
+    return substr_replace($result, $block, $thumb[1][1], strlen($thumb[1][0]));
 }
 add_filter('the_content', 'atn_lightview_archive_sources', 90);

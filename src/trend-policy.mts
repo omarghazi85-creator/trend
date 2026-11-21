@@ -33,7 +33,8 @@ export function normalizeTrendText(raw:string):string {
   .replace(/[\u064B-\u065F\u0670\u0640]/gu,'')
   .replace(/[أإآٱ]/gu,'ا').replace(/ى/gu,'ي')
   .replace(/ؤ/gu,'و').replace(/ئ/gu,'ي').replace(/ة/gu,'ه')
-  .replace(/[\u200B-\u200F\u202A-\u202E\s]+/gu,' ').trim();
+  .replace(/[\u00AD\u061C\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/gu,'')
+  .replace(/\s+/gu,' ').trim();
 }
 // Terms contain only literal words and spaces; match exact word/phrase boundaries.
 const patterns=terms.map(s=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+normalizeTrendText(s)+'(?=$|[^\\p{L}\\p{N}])','u'));

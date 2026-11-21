@@ -3,6 +3,7 @@
  * This deliberately avoids requesting arabiatrend.com through its bot protection.
  * One bounded request; no WordPress writes, cron jobs or credentials.
  */
+import {isEditorialTrendAllowed} from '../../src/trend-policy.mts';
 const ORIGIN='https://arabiatrend.com';
 const API='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/';
 const PAGE_SIZE=100;
@@ -17,7 +18,7 @@ type PublicPage={title?:unknown;URL?:unknown;slug?:unknown;date?:unknown;status?
 function classify(page:PublicPage){
  if(page.parent===false||!page.parent||page.parent.ID!==61269||page.status!=='publish')return null;
  if(typeof page.URL!=='string'||!page.URL.startsWith(ORIGIN+'/trend-archive/'))return null;
- if(typeof page.title!=='string'||typeof page.slug!=='string'||typeof page.date!=='string')return null;
+ if(!isEditorialTrendAllowed(page.title)||typeof page.slug!=='string'||typeof page.date!=='string')return null;
  const slug=page.slug;
  const match=/^([a-z]{2})-(search|music|week)-/.exec(slug);
  let country='',kind='';

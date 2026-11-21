@@ -13,7 +13,7 @@ test('archive cards use a safe internal link before caching and revalidate old c
  assert.match(php,/\x27link\x27 => \$link,/);
  assert.equal((php.match(/new WP_Query\(/g)||[]).length,1);
  assert.doesNotMatch(php,/wp_schedule_event\s*\(/);
- assert.match(php,/Version: 0\.12\.9/);
+ assert.match(php,/Version: 0\.12\.10/);
 });
 
 test('archive link guard permits Saudi and newly supported countries, blocks external and query URLs',t=>{

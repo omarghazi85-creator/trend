@@ -35,6 +35,7 @@ test('archive link guard permits Saudi and newly supported countries, blocks ext
   'https://arabiatrend.com/trend-archive/sa-search-2026-11-21/?next=external',
   'https://arabiatrend.com/trend-archive/',
   'https://arabiatrend.com/wp-admin/',
+  'https://arabiatrend.com:8443/trend-archive/sa-search-2026-11-21/',
   'https://user:pass@arabiatrend.com/trend-archive/sa-search-2026-11-21/'
  ];
  const code='function wp_parse_url($s){return parse_url($s);}\n'+
@@ -42,5 +43,5 @@ test('archive link guard permits Saudi and newly supported countries, blocks ext
   '\necho json_encode(array_map("atn_lightview_archive_link_allowed",'+JSON.stringify(urls)+'));';
  const r=spawnSync('php',['-r',code],{encoding:'utf8'});
  assert.equal(r.status,0,r.stderr);
- assert.deepEqual(JSON.parse(r.stdout),[true,true,true,true,true,true,true,false,false,false,false,false,false,false]);
+ assert.deepEqual(JSON.parse(r.stdout),[true,true,true,true,true,true,true,false,false,false,false,false,false,false,false]);
 });

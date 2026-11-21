@@ -3,7 +3,7 @@
  * This deliberately avoids requesting arabiatrend.com through its bot protection.
  * One bounded request; no WordPress writes, cron jobs or credentials.
  */
-import {isEditorialTrendAllowed} from '../../src/trend-policy.mts';
+import {decodeHtmlEntities,isEditorialTrendAllowed} from '../../src/trend-policy.mts';
 const ORIGIN='https://arabiatrend.com';
 const API='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/';
 const PAGE_SIZE=100;
@@ -16,10 +16,20 @@ const COUNTRY:Record<string,string>={
 };
 const KINDS=new Set(['search','music','week']);
 type PublicPage={title?:unknown;URL?:unknown;slug?:unknown;date?:unknown;status?:unknown;parent?:{ID?:unknown}|false;};
+/** Keep title navigation on the verified internal WordPress archive path. */
+function canonicalArchiveUrl(value:string,slug:string):boolean{
+ try{
+  const u=new URL(value);
+  return u.origin===ORIGIN&&!u.username&&!u.password&&!u.search&&!u.hash &&
+   (u.pathname==='/trend-archive/'+slug||u.pathname==='/trend-archive/'+slug+'/');
+ }catch{return false;}
+}
 function classify(page:PublicPage){
  if(page.parent===false||!page.parent||page.parent.ID!==61269||page.status!=='publish')return null;
- if(typeof page.URL!=='string'||!page.URL.startsWith(ORIGIN+'/trend-archive/'))return null;
- if(!isEditorialTrendAllowed(page.title)||typeof page.slug!=='string'||typeof page.date!=='string')return null;
+ if(typeof page.URL!=='string'||typeof page.slug!=='string'||!canonicalArchiveUrl(page.URL,page.slug))return null;
+ if(typeof page.title!=='string'||typeof page.date!=='string')return null;
+ const title=decodeHtmlEntities(page.title).replace(/<[^>]{0,256}>/g,'').trim();
+ if(!isEditorialTrendAllowed(title))return null;
  const slug=page.slug;
  const match=/^([a-z]{2})-(search|music|week)-/.exec(slug);
  let country='',kind='';
@@ -28,8 +38,8 @@ function classify(page:PublicPage){
  }else if(/^topic-[a-f0-9]+$/.test(slug)){kind='topic';}
  else return null;
  const date=page.date.slice(0,10);
- if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return null;
- return {title:page.title.slice(0,240),link:page.URL,country,kind,date,date_iso:page.date};
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T00:00:00Z'))||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)return null;
+ return {title:title.slice(0,240),link:page.URL,country,kind,date,date_iso:page.date};
 }
 export default async(request:Request):Promise<Response>=>{
  if(request.method!=='GET')return new Response('method_not_allowed',{status:405});

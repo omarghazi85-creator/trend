@@ -102,3 +102,30 @@ function atn_lightview_archive_sources($content) {
     return substr_replace($result, $block, $thumb[1][1], strlen($thumb[1][0]));
 }
 add_filter('the_content', 'atn_lightview_archive_sources', 90);
+
+/**
+ * Remove excluded outbound source controls still embedded in historical
+ * topic tables/cards, not just the standalone duplicated original link.
+ * Preserve every other byte of the stored document and do not write to DB.
+ * This is limited to archived topic pages, without extra network requests.
+ */
+function atn_lightview_prune_excluded_archive_links($content) {
+    $post = get_post();
+    if (!is_string($content) || !$post || !atn_lightview_is_section($post) ||
+        !preg_match('/^topic-[a-f0-9]{24}$/D', $post->post_name) ||
+        stripos($content, '<a') === false) { return $content; }
+
+    $cleaned = preg_replace_callback(
+        '~<a\b(?:[^>"\x27] | " [^"]* " | \x27 [^\x27]* \x27 )*>[\s\S]*?</a\s*>~ix',
+        static function ($match) {
+            $url = atn_lightview_archive_attribute($match[0], 'href');
+            // Do not touch valid source, internal navigation, or unlinked text.
+            return $url !== '' && !atn_lightview_archive_source_url_allowed($url)
+                ? '' : $match[0];
+        },
+        $content
+    );
+    return is_string($cleaned) ? $cleaned : $content;
+}
+add_filter('the_content', 'atn_lightview_prune_excluded_archive_links', 91);
+

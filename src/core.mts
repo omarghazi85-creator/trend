@@ -1,5 +1,5 @@
 /** Pure, side-effect-free WordPress synchronization planning. */
-import {isEditorialTrendAllowed} from './trend-policy.mts';
+import {isEditorialTrendAllowed,isEditorialSourceUrlAllowed} from './trend-policy.mts';
 export interface Candidate {
   title: string;
   slug: string;
@@ -40,6 +40,7 @@ export function validateCandidate(input:unknown):Candidate {
   if(typeof x.excerpt==='string' && x.excerpt.trim()!=='' && !isEditorialTrendAllowed(x.excerpt)) throw new Error('editorial_excerpt_blocked');
   if(x.excerpt!==undefined && (typeof x.excerpt!=='string'||x.excerpt.length>500)) throw new Error('invalid_excerpt');
   if(x.sourceUrl!==undefined && (typeof x.sourceUrl!=='string'||!/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/i.test(x.sourceUrl))) throw new Error('invalid_source');
+  if(x.sourceUrl!==undefined&&!isEditorialSourceUrlAllowed(x.sourceUrl)) throw new Error('editorial_source_blocked');
   if(x.categoryIds!==undefined && (!Array.isArray(x.categoryIds)||x.categoryIds.length>4||!x.categoryIds.every(v=>Number.isSafeInteger(v)&&v>0))) throw new Error('invalid_categories');
   if(Array.isArray(x.categoryIds)&&x.categoryIds.includes(TECHNOLOGY_CATEGORY_ID)&&countEditorialWords(x.content as string)<TECHNOLOGY_MIN_WORDS) throw new Error('technology_article_below_500_words');
   if(x.featuredMediaId!==undefined && (!Number.isSafeInteger(x.featuredMediaId)||(x.featuredMediaId as number)<1)) throw new Error('invalid_media');

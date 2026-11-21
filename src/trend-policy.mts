@@ -42,11 +42,30 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
  return typeof title==='string' && title.trim().length>0 &&
  !patterns.some(p=>p.test(normalizeTrendText(title)));
 }
-export function filterTrendObservations<T extends {title?:unknown;name?:unknown;artist?:unknown;publisher?:unknown}>(items:readonly T[]):T[] {
+/**
+ * Source destinations must be HTTPS and safe after URL and percent decoding.
+ * A neutral title pointing to a prohibited media source is not admissible.
+ * Pure validation: never dereferences the URL.
+ */
+export function isEditorialSourceUrlAllowed(value:unknown):value is string {
+ if(typeof value!=='string'||value.length>2048||/\s/u.test(value))return false;
+ let url:URL;
+ try {url=new URL(value);}catch{return false;}
+ if(url.protocol!=='https:'||!url.hostname||url.username||url.password)return false;
+ const raw=[url.hostname,url.pathname,url.search,url.hash].join(' ');
+ let decoded=raw;
+ for(let i=0;i<2;i++){
+  try{decoded=decodeURIComponent(decoded.replace(/\+/g,' '));}catch{return false;}
+ }
+ return isEditorialTrendAllowed(raw)&&isEditorialTrendAllowed(decoded);
+}
+export function filterTrendObservations<T extends {title?:unknown;name?:unknown;artist?:unknown;publisher?:unknown;url?:unknown;sourceUrl?:unknown}>(items:readonly T[]):T[] {
  return items.filter(item=>{
   const title=item.title??item.name;
   return isEditorialTrendAllowed(title) &&
    (item.artist===undefined||isEditorialTrendAllowed(item.artist)) &&
-   (item.publisher===undefined||isEditorialTrendAllowed(item.publisher));
+   (item.publisher===undefined||isEditorialTrendAllowed(item.publisher)) &&
+   (item.url===undefined||isEditorialSourceUrlAllowed(item.url)) &&
+   (item.sourceUrl===undefined||isEditorialSourceUrlAllowed(item.sourceUrl));
  });
 }

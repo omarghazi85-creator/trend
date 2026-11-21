@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.6
+ * Version: 0.12.7
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -14,6 +14,39 @@ require_once __DIR__ . '/includes/atn-section.php';
  */
 function atn_lightview_country_codes() {
     return array('sa'=>'السعودية','ae'=>'الإمارات','eg'=>'مصر','kw'=>'الكويت','qa'=>'قطر','bh'=>'البحرين','om'=>'عُمان','jo'=>'الأردن','lb'=>'لبنان','iq'=>'العراق','sy'=>'سوريا','sd'=>'السودان','ps'=>'فلسطين','ye'=>'اليمن','ly'=>'ليبيا','tn'=>'تونس','dz'=>'الجزائر','ma'=>'المغرب','mr'=>'موريتانيا','so'=>'الصومال','dj'=>'جيبوتي','km'=>'جزر القمر');
+}
+/**
+ * Fail closed on archive topic titles excluded by the editorial policy.
+ * Filter before caching a new snapshot; re-check legacy cached snapshots
+ * without issuing any extra database query. This does not modify raw tables.
+ * Word-boundary checks avoid matching benign substrings (e.g. 'Essex').
+ */
+function atn_lightview_archive_title_allowed($title) {
+    if (!is_string($title) || trim($title) === '') { return false; }
+    $title = html_entity_decode(html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $title = wp_strip_all_tags($title);
+    $title = strtolower(strtr($title, array(
+        'أ'=>'ا', 'إ'=>'ا', 'آ'=>'ا', 'ٱ'=>'ا', 'ى'=>'ي', 'ة'=>'ه', 'ؤ'=>'و', 'ئ'=>'ي'
+    )));
+    $title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]/u', '', $title);
+    if (!is_string($title) || $title === '') { return false; }
+    $title = preg_replace('/\s+/u', ' ', $title);
+    $terms = array(
+        'سكس', 'سيكس', 'سكسي', 'سيكسي', 'اباحي', 'اباحيه', 'اباحيات',
+        'افلام اباحيه', 'مقاطع اباحيه', 'صور عاريه', 'محتوي جنسي صريح',
+        'ميا خليفه', 'امارنا ميلر', 'مثلي', 'مثليه', 'المثليه', 'شذوذ جنسي',
+        'porn', 'porno', 'pornography', 'pornhub', 'xvideos', 'xnxx', 'xhamster',
+        'onlyfans', 'only fans', 'redtube', 'youporn', 'adult video', 'adult videos',
+        'xxx', 'nudes', 'nude pics', 'sex tape', 'sex video', 'sex videos',
+        'lesbian porn', 'gay porn', 'hentai', 'sex', 'sex pistols', 'nsfw',
+        'nude', 'nudity', 'erotica', 'erotic', 'gay', 'lesbian', 'explicit sex'
+    );
+    foreach ($terms as $term) {
+        if (preg_match('~(?<![\p{L}\p{N}])' . preg_quote($term, '~') . '(?![\p{L}\p{N}])~u', $title)) {
+            return false;
+        }
+    }
+    return true;
 }
 function atn_lightview_archive_items() {
     $key = 'atn_lightview_latest_v9';
@@ -36,6 +69,7 @@ function atn_lightview_archive_items() {
         $items = array();
         foreach ($q->posts as $p) {
             $title = wp_strip_all_tags(get_the_title($p));
+            if (!atn_lightview_archive_title_allowed($title)) { continue; }
             if (strpos($title, 'كلمات البحث الرائجة') === false &&
                 strpos($title, 'الأغاني الأكثر تشغيلًا') === false &&
                 strpos($title, 'سجل الرواج') === false &&
@@ -54,7 +88,10 @@ function atn_lightview_archive_items() {
         wp_reset_postdata();
         set_transient($key, $items, 15 * MINUTE_IN_SECONDS);
     }
-    return $items;
+    // Historic transient versions may have been created before exclusion rules.
+    return array_values(array_filter($items, static function ($item) {
+        return is_array($item) && isset($item['title']) && atn_lightview_archive_title_allowed($item['title']);
+    }));
 }
 add_action('rest_api_init', function () {
     register_rest_route('atn-light/v1', '/archive', array(

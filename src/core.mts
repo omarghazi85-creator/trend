@@ -1,4 +1,5 @@
 /** Pure, side-effect-free WordPress synchronization planning. */
+import {isEditorialTrendAllowed} from './trend-policy.mts';
 export interface Candidate {
   title: string;
   slug: string;
@@ -32,6 +33,11 @@ export function validateCandidate(input:unknown):Candidate {
   if(typeof x.title!=='string' || x.title.trim().length<8 || x.title.length>220) throw new Error('invalid_title');
   if(typeof x.slug!=='string' || !SLUG_PATTERN.test(x.slug)) throw new Error('invalid_slug');
   if(typeof x.content!=='string' || normalizeText(x.content).length<120 || x.content.length>35000) throw new Error('invalid_content');
+  // Prevent even draft-sync candidates from bypassing the shared trend editorial gate.
+  // Reject the entire batch before any WordPress read or write in preview-sync.
+  if(!isEditorialTrendAllowed(x.title)) throw new Error('editorial_title_blocked');
+  if(!isEditorialTrendAllowed(x.content)) throw new Error('editorial_content_blocked');
+  if(typeof x.excerpt==='string' && x.excerpt.trim()!=='' && !isEditorialTrendAllowed(x.excerpt)) throw new Error('editorial_excerpt_blocked');
   if(x.excerpt!==undefined && (typeof x.excerpt!=='string'||x.excerpt.length>500)) throw new Error('invalid_excerpt');
   if(x.sourceUrl!==undefined && (typeof x.sourceUrl!=='string'||!/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/i.test(x.sourceUrl))) throw new Error('invalid_source');
   if(x.categoryIds!==undefined && (!Array.isArray(x.categoryIds)||x.categoryIds.length>4||!x.categoryIds.every(v=>Number.isSafeInteger(v)&&v>0))) throw new Error('invalid_categories');

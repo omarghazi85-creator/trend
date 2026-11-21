@@ -26,7 +26,7 @@ jobs:
           set -euo pipefail
           php -l atn-lightview.php
           php -l includes/atn-section.php
-          grep -Eq '^ \* Version: [0-9]+\.[0-9]+\.[0-9]+
+          grep -Eq '^ \* Version: [0-9]+\.[0-9]+\.[0-9]+$' atn-lightview.php
       - name: Build plugin directory
         run: |
           set -euo pipefail
@@ -40,57 +40,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lightview-installable
-          path: release/
-          if-no-files-found: error
-          retention-days: 7
- atn-lightview.php
-      - name: Build plugin directory
-        run: |
-          set -euo pipefail
-          install -d release/trend-atn-lightview-plugin/includes
-          cp atn-lightview.php release/trend-atn-lightview-plugin/atn-lightview.php
-          cp includes/atn-section.php release/trend-atn-lightview-plugin/includes/atn-section.php
-          (cd release && zip -qr /tmp/arabiatrend-lightview-installable.zip trend-atn-lightview-plugin)
-          unzip -Z1 /tmp/arabiatrend-lightview-installable.zip | grep -qx 'trend-atn-lightview-plugin/atn-lightview.php'
-          unzip -Z1 /tmp/arabiatrend-lightview-installable.zip | grep -qx 'trend-atn-lightview-plugin/includes/atn-section.php'
-      - name: Retain installable plugin as internal workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: lightview-installable-0-12-7
-          path: release/
-          if-no-files-found: error
-          retention-days: 7
- atn-lightview.php
-      - name: Build plugin directory
-        run: |
-          set -euo pipefail
-          install -d release/trend-atn-lightview-plugin/includes
-          cp atn-lightview.php release/trend-atn-lightview-plugin/atn-lightview.php
-          cp includes/atn-section.php release/trend-atn-lightview-plugin/includes/atn-section.php
-          (cd release && zip -qr /tmp/arabiatrend-lightview-installable.zip trend-atn-lightview-plugin)
-          unzip -Z1 /tmp/arabiatrend-lightview-installable.zip | grep -qx 'trend-atn-lightview-plugin/atn-lightview.php'
-          unzip -Z1 /tmp/arabiatrend-lightview-installable.zip | grep -qx 'trend-atn-lightview-plugin/includes/atn-section.php'
-      - name: Retain installable plugin as internal workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: lightview-installable
-          path: release/
-          if-no-files-found: error
-          retention-days: 7
- atn-lightview.php
-      - name: Build plugin directory
-        run: |
-          set -euo pipefail
-          install -d release/trend-atn-lightview-plugin/includes
-          cp atn-lightview.php release/trend-atn-lightview-plugin/atn-lightview.php
-          cp includes/atn-section.php release/trend-atn-lightview-plugin/includes/atn-section.php
-          (cd release && zip -qr /tmp/arabiatrend-lightview-installable.zip trend-atn-lightview-plugin)
-          unzip -Z1 /tmp/arabiatrend-lightview-installable.zip | grep -qx 'trend-atn-lightview-plugin/atn-lightview.php'
-          unzip -Z1 /tmp/arabiatrend-lightview-installable.zip | grep -qx 'trend-atn-lightview-plugin/includes/atn-section.php'
-      - name: Retain installable plugin as internal workflow artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: lightview-installable-0-12-7
           path: release/
           if-no-files-found: error
           retention-days: 7

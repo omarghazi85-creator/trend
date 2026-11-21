@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.10
+ * Version: 0.12.11
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -34,6 +34,21 @@ function atn_lightview_archive_link_allowed($url) {
     $path = rtrim($parts['path'] ?? '', '/');
     return (bool) preg_match('~^' . preg_quote($base, '~') .
         '/trend-archive/[a-z0-9-]{3,130}$~D', $path);
+}
+/**
+ * Use the observation period encoded in country archive slugs, not the day
+ * on which WordPress published the page. Legacy/topic links keep publication
+ * date. This is pure parsing; it makes no database or network requests.
+ */
+function atn_lightview_archive_period($slug, $published) {
+    if (!is_string($slug) || !is_string($published) ||
+        !preg_match('~^[a-z]{2}-(?:search|music|week)-(\\d{4})-(\\d{2})-(\\d{2})(?:-[a-z0-9]+)?$~D', $slug, $matches)) {
+        return $published;
+    }
+    if (!checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
+        return $published;
+    }
+    return $matches[1] . '-' . $matches[2] . '-' . $matches[3];
 }
 /**
  * Fail closed on archive topic titles excluded by the editorial policy.
@@ -109,7 +124,7 @@ function atn_lightview_archive_items() {
                 'country' => $item_country,
                 'title' => $title,
                 'link' => $link,
-                'date' => get_the_date('Y-m-d', $p),
+                'date' => atn_lightview_archive_period($p->post_name, get_the_date('Y-m-d', $p)),
                 'date_iso' => get_the_date('c', $p),
                 'kind' => strpos($title,'سجل الرواج') !== false ? 'topic' : (strpos($title,'الأغاني الأكثر تشغيلًا') !== false ? 'music' : (strpos($title,'حصيلة ترندات') !== false ? 'weekly' : 'search')),
             );
@@ -118,11 +133,22 @@ function atn_lightview_archive_items() {
         set_transient($key, $items, 15 * MINUTE_IN_SECONDS);
     }
     // Historic transient versions may have been created before exclusion rules.
-    return array_values(array_filter($items, static function ($item) {
+    $safe = array_values(array_filter($items, static function ($item) {
         return is_array($item) && isset($item['title'], $item['link']) &&
             atn_lightview_archive_title_allowed($item['title']) &&
             atn_lightview_archive_link_allowed($item['link']);
     }));
+    // Recalculate display dates from the already validated local permalink
+    // even for old transient snapshots; do not invalidate the 15-minute cache.
+    foreach ($safe as &$item) {
+        $path = wp_parse_url($item['link'], PHP_URL_PATH);
+        $slug = is_string($path) ? basename(rtrim($path, '/')) : '';
+        if (isset($item['date']) && is_string($item['date'])) {
+            $item['date'] = atn_lightview_archive_period($slug, $item['date']);
+        }
+    }
+    unset($item);
+    return $safe;
 }
 add_action('rest_api_init', function () {
     register_rest_route('atn-light/v1', '/archive', array(

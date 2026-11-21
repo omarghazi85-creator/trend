@@ -9,7 +9,7 @@ test('live archive excludes unsafe titles before set_transient, REST and shortco
  const preCache=php.indexOf('if (!atn_lightview_archive_title_allowed($title)) { continue; }');
  const save=php.indexOf('set_transient($key, $items, 15 * MINUTE_IN_SECONDS)');
  assert.ok(preCache>0 && save>preCache,'new transient snapshots must contain only permitted titles');
- assert.match(php,/return array_values\(array_filter\(\$items, static function \(\$item\) \{/);
+ assert.match(php,/\$safe = array_values\(array_filter\(\$items, static function \(\$item\) \{/);
  assert.match(php,/isset\(\$item\['title'\], \$item\['link'\]\) &&\s*atn_lightview_archive_title_allowed\(\$item\['title'\]\) &&\s*atn_lightview_archive_link_allowed\(\$item\['link'\]\)/);
  assert.equal((php.match(/function atn_lightview_archive_items\(/g)||[]).length,1);
  assert.match(php,/posts_per_page'\s*=>\s*320/);
@@ -38,4 +38,27 @@ test('PHP archive file passes syntax check when CLI available',t=>{
  if(version.error){t.skip('PHP CLI not installed on CI runner');return;}
  const lint=spawnSync('php',['-l',new URL('../atn-lightview.php',import.meta.url).pathname],{encoding:'utf8'});
  assert.equal(lint.status,0,lint.stderr);
+});
+
+test('WordPress archive cards display the trend period from dated slugs, with legacy cache support',t=>{
+ const version=spawnSync('php',['-v'],{encoding:'utf8'});
+ if(version.error){t.skip('PHP CLI not installed on CI runner');return;}
+ const helper=php.match(/function atn_lightview_archive_period\(\$slug, \$published\) \{[\s\S]*?\n\}/);
+ assert.ok(helper,'must extract the date parser independently of WordPress');
+ const script=helper[0]+'\n'+
+  'echo json_encode(array('+
+  'atn_lightview_archive_period("iq-week-2026-11-09","2026-11-17"),'+
+  'atn_lightview_archive_period("so-search-2026-11-19","2026-11-21"),'+
+  'atn_lightview_archive_period("topic-0efefcd61ae99a2577e7e596","2026-11-21"),'+
+  'atn_lightview_archive_period("so-search-2026-02-30","2026-11-21")));';
+ const result=spawnSync('php',['-r',script],{encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[
+  '2026-11-09','2026-11-19','2026-11-21','2026-11-21'
+ ]);
+ assert.match(php,/atn_lightview_archive_period\(\$p->post_name, get_the_date\('Y-m-d', \$p\)\)/);
+ assert.match(php,/atn_lightview_archive_period\(\$slug, \$item\['date'\]\)/);
+ assert.match(php,/get_the_date\('c', \$p\)/);
+ assert.match(php,/atn_lightview_latest_v9/);
+ assert.doesNotMatch(php,/wp_schedule_event\s*\(/);
 });

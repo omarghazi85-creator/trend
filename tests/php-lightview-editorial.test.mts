@@ -10,7 +10,7 @@ test('live archive excludes unsafe titles before set_transient, REST and shortco
  const save=php.indexOf('set_transient($key, $items, 15 * MINUTE_IN_SECONDS)');
  assert.ok(preCache>0 && save>preCache,'new transient snapshots must contain only permitted titles');
  assert.match(php,/return array_values\(array_filter\(\$items, static function \(\$item\) \{/);
- assert.match(php,/isset\(\$item\['title'\]\) && atn_lightview_archive_title_allowed\(\$item\['title'\]\)/);
+ assert.match(php,/isset\(\$item\['title'\], \$item\['link'\]\) &&\s*atn_lightview_archive_title_allowed\(\$item\['title'\]\) &&\s*atn_lightview_archive_link_allowed\(\$item\['link'\]\)/);
  assert.equal((php.match(/function atn_lightview_archive_items\(/g)||[]).length,1);
  assert.match(php,/posts_per_page'\s*=>\s*320/);
  assert.match(php,/atn_lightview_latest_v9/);

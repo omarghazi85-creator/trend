@@ -35,7 +35,8 @@ export function normalizeTrendText(raw:string):string {
   decoded=next;
  }
  return decoded.replace(/<[^>]{0,256}>/g,'').normalize('NFKC').toLowerCase()
-  .replace(/&(?:nbsp|amp|lt|gt|quot);/gi,' ')
+  // Do not erase an unresolved nested &amp; layer: the gate must fail closed.
+  .replace(/&(?:nbsp|lt|gt|quot);/gi,' ')
   .replace(/[\u064B-\u065F\u0670\u0640]/gu,'')
   .replace(/[أإآٱ]/gu,'ا').replace(/ى/gu,'ي')
   .replace(/ؤ/gu,'و').replace(/ئ/gu,'ي').replace(/ة/gu,'ه')

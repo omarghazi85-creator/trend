@@ -21,7 +21,7 @@ function atn_lightview_country_codes() {
  * This also checks cached legacy snapshots, without any extra database query.
  */
 function atn_lightview_archive_link_allowed($url) {
-    if (!is_string($url) || $url === '' || preg_match('/[\\x00-\\x20\\x7f]/', $url)) { return false; }
+    if (!is_string($url) || $url === '' || preg_match('/[\x00-\x20\x7f]/', $url)) { return false; }
     $parts = wp_parse_url($url);
     $home = wp_parse_url(home_url('/'));
     if (!is_array($parts) || !is_array($home) ||

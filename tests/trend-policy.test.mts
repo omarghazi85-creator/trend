@@ -17,3 +17,16 @@ test('drops unsafe observed title, artist or publisher without mutating input',(
  assert.deepEqual(filterTrendObservations(items).map(x=>x.title),['السد ضد لوسيل']);
  assert.equal(items.length,4);
 });
+
+test('decodes WordPress numeric and named entities for display without HTML rendering',async()=>{
+ const {decodeHtmlEntities}=await import('../src/trend-policy.mts');
+ assert.equal(decodeHtmlEntities('Garee2a Awy &#8211; A COLORS SHOW'),'Garee2a Awy – A COLORS SHOW');
+ assert.equal(decodeHtmlEntities('الماء &amp; الطقس'),'الماء & الطقس');
+ assert.equal(decodeHtmlEntities('النشرة &hellip;'),'النشرة …');
+});
+test('encoded and zero-width obfuscation cannot bypass editorial gate',()=>{
+ for(const term of ['p&#111;rn','p&amp;#111;rn','&#x73;&#x65;&#x78;','Only<span>Fans</span>','س\u200Dكس','&#x633;&#x643;&#x633;'])
+  assert.equal(isEditorialTrendAllowed(term),false,term);
+ for(const term of ['السودان','الصومال','Essex county','الطقس &#8211; اليوم'])
+  assert.equal(isEditorialTrendAllowed(term),true,term);
+});

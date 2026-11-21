@@ -32,6 +32,9 @@ export default async function(request:Request):Promise<Response>{
     let found:RemotePost[]=[];
     try{
       const query=new URLSearchParams({slug:candidate.slug,per_page:'1',_fields:'id,slug,status'});
+      // Authorized lookups must include drafts/pending/private posts. A published-only lookup
+      // would miss an existing draft and create a duplicate on every retry.
+      if(auth)query.set('status','any');
       const res=await requestWP('/wp-json/wp/v2/posts?'+query.toString(),{method:'GET',headers:auth?{authorization:auth}:{}});
       if(!res.ok)return Response.json({error:'wordpress_lookup_failed',status:res.status,results},{status:502});
       found=await res.json() as RemotePost[];
@@ -45,7 +48,9 @@ export default async function(request:Request):Promise<Response>{
     try{
       const res=await requestWP('/wp-json/wp/v2/posts',{method:'POST',headers:{authorization:auth!,'content-type':'application/json'},body:JSON.stringify(wordpressPayload(candidate))});
       if(!res.ok)return Response.json({error:'wordpress_draft_failed',status:res.status,results},{status:502});
-      const created=await res.json() as {id?:number};
+      const created=await res.json() as {id?:number;slug?:string;status?:string};
+      // A WordPress success HTTP status does not prove the exact requested draft was created.
+      if(!Number.isSafeInteger(created?.id)||created.slug!==candidate.slug||created.status!=='draft')return Response.json({error:'wordpress_draft_not_confirmed',results},{status:502});
       results.push({slug:candidate.slug,action:'created_draft',id:created.id});
     }catch{return Response.json({error:'wordpress_draft_unreachable',results},{status:502});}
   }

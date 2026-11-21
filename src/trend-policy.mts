@@ -28,8 +28,15 @@ const terms=[
  'مثلي','مثليه','المثليه','شذوذ جنسي','محتوى اباحي','محتوي اباحي',
 ];
 export function normalizeTrendText(raw:string):string {
- return decodeHtmlEntities(decodeHtmlEntities(raw)).replace(/<[^>]{0,256}>/g,'').normalize('NFKC').toLowerCase()
-  .replace(/&(?:nbsp|amp|lt|gt|quot);/gi,' ')
+ let decoded=raw;
+ for(let i=0;i<6;i++){
+  const next=decodeHtmlEntities(decoded);
+  if(next===decoded)break;
+  decoded=next;
+ }
+ return decoded.replace(/<[^>]{0,256}>/g,'').normalize('NFKC').toLowerCase()
+  // Do not erase an unresolved nested &amp; layer: the gate must fail closed.
+  .replace(/&(?:nbsp|lt|gt|quot);/gi,' ')
   .replace(/[\u064B-\u065F\u0670\u0640]/gu,'')
   .replace(/[أإآٱ]/gu,'ا').replace(/ى/gu,'ي')
   .replace(/ؤ/gu,'و').replace(/ئ/gu,'ي').replace(/ة/gu,'ه')
@@ -39,8 +46,11 @@ export function normalizeTrendText(raw:string):string {
 // Terms contain only literal words and spaces; match exact word/phrase boundaries.
 const patterns=terms.map(s=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+normalizeTrendText(s)+'(?=$|[^\\p{L}\\p{N}])','u'));
 export function isEditorialTrendAllowed(title:unknown):title is string {
- return typeof title==='string' && title.trim().length>0 &&
- !patterns.some(p=>p.test(normalizeTrendText(title)));
+ if(typeof title!=='string'||title.trim().length===0)return false;
+ const normalized=normalizeTrendText(title);
+ return normalized.length>0 &&
+  !/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(normalized) &&
+  !patterns.some(p=>p.test(normalized));
 }
 /**
  * Source destinations must be HTTPS and safe after URL and percent decoding.
@@ -68,6 +78,8 @@ export function filterTrendObservations<T extends {title?:unknown;name?:unknown;
  return items.filter(item=>{
   const title=item.title??item.name;
   return isEditorialTrendAllowed(title) &&
+   (item.title===undefined||isEditorialTrendAllowed(item.title)) &&
+   (item.name===undefined||isEditorialTrendAllowed(item.name)) &&
    (item.artist===undefined||isEditorialTrendAllowed(item.artist)) &&
    (item.publisher===undefined||isEditorialTrendAllowed(item.publisher)) &&
    (item.url===undefined||isEditorialSourceUrlAllowed(item.url)) &&

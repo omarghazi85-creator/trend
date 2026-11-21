@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.9
+ * Version: 0.12.10
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -43,7 +43,14 @@ function atn_lightview_archive_link_allowed($url) {
  */
 function atn_lightview_archive_title_allowed($title) {
     if (!is_string($title) || trim($title) === '') { return false; }
-    $title = html_entity_decode(html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    // Multiple HTML entity layers can conceal excluded terms in historic titles.
+    // Keep this bounded and fail closed if entity nesting still remains.
+    for ($i = 0; $i < 6; $i++) {
+        $decoded = html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if ($decoded === $title) { break; }
+        $title = $decoded;
+    }
+    if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title)) { return false; }
     $title = wp_strip_all_tags($title);
     $title = strtolower(strtr($title, array(
         'أ'=>'ا', 'إ'=>'ا', 'آ'=>'ا', 'ٱ'=>'ا', 'ى'=>'ي', 'ة'=>'ه', 'ؤ'=>'و', 'ئ'=>'ي'

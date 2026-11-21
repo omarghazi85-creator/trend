@@ -54,10 +54,15 @@ export function isEditorialSourceUrlAllowed(value:unknown):value is string {
  if(url.protocol!=='https:'||!url.hostname||url.username||url.password)return false;
  const raw=[url.hostname,url.pathname,url.search,url.hash].join(' ');
  let decoded=raw;
- for(let i=0;i<2;i++){
-  try{decoded=decodeURIComponent(decoded.replace(/\+/g,' '));}catch{return false;}
+ for(let i=0;i<6;i++){
+  if(!isEditorialTrendAllowed(decoded)||/[\x00-\x1f\x7f]/u.test(decoded))return false;
+  let next:string;
+  try{next=decodeURIComponent(decoded.replace(/\+/g,' '));}catch{return false;}
+  if(next===decoded)return true;
+  decoded=next;
  }
- return isEditorialTrendAllowed(raw)&&isEditorialTrendAllowed(decoded);
+ // Reject a remaining nested escape instead of accepting partially decoded input.
+ return isEditorialTrendAllowed(decoded)&&!/%[0-9a-f]{2}/i.test(decoded);
 }
 export function filterTrendObservations<T extends {title?:unknown;name?:unknown;artist?:unknown;publisher?:unknown;url?:unknown;sourceUrl?:unknown}>(items:readonly T[]):T[] {
  return items.filter(item=>{

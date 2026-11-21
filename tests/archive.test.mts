@@ -62,3 +62,21 @@ test('invalid pagination fails before any upstream request',async()=>{
   }
  }finally{globalThis.fetch=original;}
 });
+
+test('archive transport excludes disallowed trend titles without additional upstream requests',async()=>{
+ const original=globalThis.fetch;
+ let requests=0;
+ globalThis.fetch=async()=>{requests++;return Response.json({found:3,posts:[
+  {...payload.posts[0],ID:300,title:'آمارنا ميلر'},
+  {...payload.posts[0],ID:301,title:'سكس بستلس'},
+  {...payload.posts[0],ID:302,title:'حصيلة ترندات السودان'}
+ ]});};
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,200);
+  const body=await response.json();
+  assert.deepEqual(body.items.map((x:{title:string})=>x.title),['حصيلة ترندات السودان']);
+  assert.equal(body.available_in_window,1);
+  assert.equal(requests,1);
+ }finally{globalThis.fetch=original;}
+});

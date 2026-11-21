@@ -25,7 +25,7 @@ test('decodes WordPress numeric and named entities for display without HTML rend
  assert.equal(decodeHtmlEntities('النشرة &hellip;'),'النشرة …');
 });
 test('encoded and zero-width obfuscation cannot bypass editorial gate',()=>{
- for(const term of ['p&#111;rn','p&amp;#111;rn','p&amp;amp;#111;rn','p&amp;amp;amp;amp;#111;rn','&#x73;&#x65;&#x78;','Only<span>Fans</span>','س\u200Dكس','&#x633;&#x643;&#x633;'])
+ for(const term of ['p&#111;rn','p&amp;#111;rn','p&amp;amp;#111;rn','p&amp;amp;amp;amp;#111;rn','p&amp;amp;amp;amp;amp;amp;amp;#111;rn','&#x73;&#x65;&#x78;','Only<span>Fans</span>','س\u200Dكس','&#x633;&#x643;&#x633;'])
   assert.equal(isEditorialTrendAllowed(term),false,term);
  for(const term of ['السودان','الصومال','Essex county','الطقس &#8211; اليوم'])
   assert.equal(isEditorialTrendAllowed(term),true,term);

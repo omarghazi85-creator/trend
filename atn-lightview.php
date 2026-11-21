@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.5
+ * Version: 0.12.6
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -13,7 +13,7 @@ require_once __DIR__ . '/includes/atn-section.php';
  * The 15-minute transient prevents repeated 320-post queries on normal traffic.
  */
 function atn_lightview_country_codes() {
-    return array('sa'=>'السعودية','ae'=>'الإمارات','eg'=>'مصر','kw'=>'الكويت','qa'=>'قطر','bh'=>'البحرين','om'=>'عُمان','jo'=>'الأردن','lb'=>'لبنان','iq'=>'العراق','sy'=>'سوريا','ps'=>'فلسطين','ye'=>'اليمن','ly'=>'ليبيا','tn'=>'تونس','dz'=>'الجزائر','ma'=>'المغرب','mr'=>'موريتانيا');
+    return array('sa'=>'السعودية','ae'=>'الإمارات','eg'=>'مصر','kw'=>'الكويت','qa'=>'قطر','bh'=>'البحرين','om'=>'عُمان','jo'=>'الأردن','lb'=>'لبنان','iq'=>'العراق','sy'=>'سوريا','sd'=>'السودان','ps'=>'فلسطين','ye'=>'اليمن','ly'=>'ليبيا','tn'=>'تونس','dz'=>'الجزائر','ma'=>'المغرب','mr'=>'موريتانيا','so'=>'الصومال','dj'=>'جيبوتي','km'=>'جزر القمر');
 }
 function atn_lightview_archive_items() {
     $key = 'atn_lightview_latest_v9';
@@ -122,7 +122,7 @@ add_shortcode('atn_lightview', function () {
           <details><summary>بحث تفصيلي</summary><div class="atn-lite-filters"><label>نوع المادة <select class="atn-lite-type"><option value="">جميع المواد</option><option value="search">كلمات البحث</option><option value="music">الأغاني</option><option value="weekly">حصيلة أسبوعية</option><option value="topic">ملف موضوع</option></select></label><label>تاريخ النشر <select class="atn-lite-range"><option value="">جميع التواريخ المتاحة</option><option value="1">آخر 24 ساعة</option><option value="7">آخر 7 أيام</option><option value="30">آخر 30 يومًا</option></select></label></div></details>
         </div>
       </div>
-      <div class="atn-lite-heading"><h3>الدول العربية</h3><span>18 دولة ضمن أرشيف الرصد</span></div>
+      <div class="atn-lite-heading"><h3>الدول العربية</h3><span>22 دولة عربية؛ تظهر الحصائل حيث تتوفر بيانات منشورة</span></div>
       <div class="atn-lite-countries"><button type="button" class="atn-lite-country current" data-country="" aria-pressed="true">جميع الدول</button>
         <?php foreach ($countries as $c) : ?><button type="button" class="atn-lite-country" data-country="<?php echo esc_attr($c); ?>" aria-pressed="false"><?php echo esc_html($c); ?> <span class="atn-lite-country-count" aria-label="عدد الحصائل ضمن آخر السجلات المحملة">(<?php echo intval($country_counts[$c]); ?>)</span></button><?php endforeach; ?>
       </div>

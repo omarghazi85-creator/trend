@@ -55,7 +55,7 @@ export function isEditorialSourceUrlAllowed(value:unknown):value is string {
  const raw=[url.hostname,url.pathname,url.search,url.hash].join(' ');
  let decoded=raw;
  for(let i=0;i<6;i++){
-  if(!isEditorialTrendAllowed(decoded)||/[\\x00-\\x1f\\x7f]/u.test(decoded))return false;
+  if(!isEditorialTrendAllowed(decoded)||/[\x00-\x1f\x7f]/u.test(decoded))return false;
   let next:string;
   try{next=decodeURIComponent(decoded.replace(/\+/g,' '));}catch{return false;}
   if(next===decoded)return true;

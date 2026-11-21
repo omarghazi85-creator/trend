@@ -96,3 +96,23 @@ test('public archive correctly classifies all four additional Arab countries',as
   assert.deepEqual(data.items.map((x:{country:string})=>x.country),entries.map(x=>x[1]));
  }finally{globalThis.fetch=original;}
 });
+
+test('rejects mismatched archive slug destinations and normalizes encoded WordPress titles',async()=>{
+ const original=globalThis.fetch;
+ const same={...payload.posts[0],ID:711,slug:'ma-search-2026-11-16'};
+ globalThis.fetch=async()=>Response.json({found:5,posts:[
+  {...same,title:'حصيلة &#8211; المغرب',URL:'https://arabiatrend.com/trend-archive/ma-search-2026-11-16/'},
+  {...same,ID:712,title:'عنوان مختلف',URL:'https://arabiatrend.com/trend-archive/eg-search-2026-11-16'},
+  {...same,ID:713,title:'عنوان آخر',URL:'https://arabiatrend.com/trend-archive/ma-search-2026-11-16?next=external'},
+  {...same,ID:714,title:'p&#111;rn archive'},
+  {...same,ID:715,title:'عنوان غير صحيح',date:'2026-02-30T10:00:00Z'}
+ ]});
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,200);
+  const data=await response.json();
+  assert.equal(data.items.length,1);
+  assert.equal(data.items[0].title,'حصيلة – المغرب');
+  assert.equal(data.items[0].link,'https://arabiatrend.com/trend-archive/ma-search-2026-11-16/');
+ }finally{globalThis.fetch=original;}
+});

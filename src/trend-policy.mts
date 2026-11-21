@@ -48,14 +48,14 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
  * Pure validation: never dereferences the URL.
  */
 export function isEditorialSourceUrlAllowed(value:unknown):value is string {
- if(typeof value!=='string'||value.length>2048||/\\s/u.test(value))return false;
+ if(typeof value!=='string'||value.length>2048||/\s/u.test(value))return false;
  let url:URL;
  try {url=new URL(value);}catch{return false;}
  if(url.protocol!=='https:'||!url.hostname||url.username||url.password)return false;
  const raw=[url.hostname,url.pathname,url.search,url.hash].join(' ');
  let decoded=raw;
  for(let i=0;i<2;i++){
-  try{decoded=decodeURIComponent(decoded.replace(/\\+/g,' '));}catch{return false;}
+  try{decoded=decodeURIComponent(decoded.replace(/\+/g,' '));}catch{return false;}
  }
  return isEditorialTrendAllowed(raw)&&isEditorialTrendAllowed(decoded);
 }

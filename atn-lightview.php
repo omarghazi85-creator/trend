@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.7
+ * Version: 0.12.8
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -14,6 +14,26 @@ require_once __DIR__ . '/includes/atn-section.php';
  */
 function atn_lightview_country_codes() {
     return array('sa'=>'السعودية','ae'=>'الإمارات','eg'=>'مصر','kw'=>'الكويت','qa'=>'قطر','bh'=>'البحرين','om'=>'عُمان','jo'=>'الأردن','lb'=>'لبنان','iq'=>'العراق','sy'=>'سوريا','sd'=>'السودان','ps'=>'فلسطين','ye'=>'اليمن','ly'=>'ليبيا','tn'=>'تونس','dz'=>'الجزائر','ma'=>'المغرب','mr'=>'موريتانيا','so'=>'الصومال','dj'=>'جيبوتي','km'=>'جزر القمر');
+}
+/**
+ * Archive card titles must stay on a local archive detail page.
+ * The media thumbnails and original-source controls are deliberately untouched.
+ * This also checks cached legacy snapshots, without any extra database query.
+ */
+function atn_lightview_archive_link_allowed($url) {
+    if (!is_string($url) || $url === '' || preg_match('/[\\x00-\\x20\\x7f]/', $url)) { return false; }
+    $parts = wp_parse_url($url);
+    $home = wp_parse_url(home_url('/'));
+    if (!is_array($parts) || !is_array($home) ||
+        ($parts['scheme'] ?? '') !== ($home['scheme'] ?? '') ||
+        strtolower($parts['host'] ?? '') !== strtolower($home['host'] ?? '') ||
+        ($parts['port'] ?? null) !== ($home['port'] ?? null) ||
+        isset($parts['user']) || isset($parts['pass']) ||
+        isset($parts['query']) || isset($parts['fragment'])) { return false; }
+    $base = rtrim($home['path'] ?? '', '/');
+    $path = rtrim($parts['path'] ?? '', '/');
+    return (bool) preg_match('~^' . preg_quote($base, '~') .
+        '/trend-archive/[a-z0-9-]{3,130}$~D', $path);
 }
 /**
  * Fail closed on archive topic titles excluded by the editorial policy.
@@ -74,12 +94,14 @@ function atn_lightview_archive_items() {
                 strpos($title, 'الأغاني الأكثر تشغيلًا') === false &&
                 strpos($title, 'سجل الرواج') === false &&
                 strpos($title, 'حصيلة ترندات') === false) { continue; }
+            $link = get_permalink($p);
+            if (!atn_lightview_archive_link_allowed($link)) { continue; }
             $slug_prefix = explode('-', $p->post_name, 2)[0];
             $item_country = isset($country_codes[$slug_prefix]) ? $country_codes[$slug_prefix] : '';
             $items[] = array(
                 'country' => $item_country,
                 'title' => $title,
-                'link' => get_permalink($p),
+                'link' => $link,
                 'date' => get_the_date('Y-m-d', $p),
                 'date_iso' => get_the_date('c', $p),
                 'kind' => strpos($title,'سجل الرواج') !== false ? 'topic' : (strpos($title,'الأغاني الأكثر تشغيلًا') !== false ? 'music' : (strpos($title,'حصيلة ترندات') !== false ? 'weekly' : 'search')),
@@ -90,7 +112,9 @@ function atn_lightview_archive_items() {
     }
     // Historic transient versions may have been created before exclusion rules.
     return array_values(array_filter($items, static function ($item) {
-        return is_array($item) && isset($item['title']) && atn_lightview_archive_title_allowed($item['title']);
+        return is_array($item) && isset($item['title'], $item['link']) &&
+            atn_lightview_archive_title_allowed($item['title']) &&
+            atn_lightview_archive_link_allowed($item['link']);
     }));
 }
 add_action('rest_api_init', function () {

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.11
+ * Version: 0.12.12
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -90,6 +90,32 @@ function atn_lightview_archive_title_allowed($title) {
     }
     return true;
 }
+/**
+ * Hide excluded archived detail pages even when opened directly from a
+ * bookmark or a search engine. Listing/REST filtering alone is insufficient.
+ * This uses only the already queried WP_Post and never edits stored records.
+ */
+function atn_lightview_archive_detail_blocked($post) {
+    return $post instanceof WP_Post && $post->post_type === 'page' &&
+        (int) $post->post_parent === 61269 &&
+        !atn_lightview_archive_title_allowed(get_the_title($post));
+}
+add_action('template_redirect', function () {
+    if (!is_singular('page') || is_preview()) { return; }
+    $post = get_queried_object();
+    if (!atn_lightview_archive_detail_blocked($post) ||
+        current_user_can('edit_post', $post->ID)) { return; }
+
+    global $wp_query;
+    $wp_query->set_404();
+    status_header(404);
+    nocache_headers();
+    header('X-Robots-Tag: noindex', true);
+    $template = get_404_template();
+    if ($template) { include $template; exit; }
+    wp_die('هذه الصفحة غير متاحة', '', array('response' => 404));
+}, 2);
+
 function atn_lightview_archive_items() {
     $key = 'atn_lightview_latest_v9';
     $items = get_transient($key);

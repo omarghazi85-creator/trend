@@ -1,5 +1,5 @@
 'use strict';
-const COUNTRY_NAMES=['السعودية','الإمارات','مصر','الكويت','قطر','البحرين','عُمان','الأردن','لبنان','العراق','سوريا','فلسطين','اليمن','ليبيا','تونس','الجزائر','المغرب','موريتانيا'];
+const COUNTRY_NAMES=['السعودية','الإمارات','مصر','الكويت','قطر','البحرين','عُمان','الأردن','لبنان','العراق','سوريا','السودان','فلسطين','اليمن','ليبيا','تونس','الجزائر','المغرب','موريتانيا','الصومال','جيبوتي','جزر القمر'];
 const countryButtons=document.getElementById('countries');
 const countrySelect=document.getElementById('countrySelect');
 const queryInput=document.getElementById('query');

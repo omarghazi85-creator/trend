@@ -80,3 +80,19 @@ test('archive transport excludes disallowed trend titles without additional upst
   assert.equal(requests,1);
  }finally{globalThis.fetch=original;}
 });
+
+test('public archive correctly classifies all four additional Arab countries',async()=>{
+ const original=globalThis.fetch;
+ const entries=[['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']] as const;
+ globalThis.fetch=async()=>Response.json({found:4,posts:entries.map(([country,name],i)=>({
+  ...payload.posts[0],ID:1100+i,title:'حصيلة كلمات البحث في '+name,
+  URL:'https://arabiatrend.com/trend-archive/'+country+'-search-2026-11-21',
+  slug:country+'-search-2026-11-21',date:'2026-11-21T10:00:00Z'
+ }))});
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,200);
+  const data=await response.json();
+  assert.deepEqual(data.items.map((x:{country:string})=>x.country),entries.map(x=>x[1]));
+ }finally{globalThis.fetch=original;}
+});

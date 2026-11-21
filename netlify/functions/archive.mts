@@ -11,7 +11,8 @@ const MAX_PAGE=10;
 const COUNTRY:Record<string,string>={
  sa:'السعودية',ae:'الإمارات',eg:'مصر',kw:'الكويت',qa:'قطر',bh:'البحرين',
  om:'عُمان',jo:'الأردن',lb:'لبنان',iq:'العراق',sy:'سوريا',ps:'فلسطين',
- ye:'اليمن',ly:'ليبيا',tn:'تونس',dz:'الجزائر',ma:'المغرب',mr:'موريتانيا'
+ ye:'اليمن',ly:'ليبيا',tn:'تونس',dz:'الجزائر',ma:'المغرب',mr:'موريتانيا',
+ sd:'السودان',so:'الصومال',dj:'جيبوتي',km:'جزر القمر'
 };
 const KINDS=new Set(['search','music','week']);
 type PublicPage={title?:unknown;URL?:unknown;slug?:unknown;date?:unknown;status?:unknown;parent?:{ID?:unknown}|false;};

@@ -30,3 +30,20 @@ test('malformed source entries do not abort the whole daily batch',()=>{
  const rows=[{country:'sa',term:'أخبار',source:'google',observedAt:'2026-11-11T09:00:00Z'},null,{country:'sa',term:10,source:'google',observedAt:'2026-11-11T09:00:00Z'}];
  assert.equal(makeTrendSnapshot('sa','2026-11-11',rows as any).terms.length,1);
 });
+
+test('editorial exclusions occur before snapshots, deduplication and digest generation',async()=>{
+ const clean={country:'sd',term:'تحلية المياه',source:'google',observedAt:'2026-11-21T11:00:00Z',score:30};
+ const forbidden={...clean,term:'آمارنا ميلر',score:99};
+ const normal=makeTrendSnapshot('sd','2026-11-21',[clean]);
+ const filtered=makeTrendSnapshot('sd','2026-11-21',[forbidden,clean]);
+ assert.deepEqual(filtered,normal);
+ assert.equal(await snapshotDigest(filtered),await snapshotDigest(normal));
+ assert.equal(filtered.terms.length,1);
+ assert.equal(filtered.terms[0].term,'تحلية المياه');
+});
+test('snapshots do not retain blocked-only observations or leak their labels',()=>{
+ const r={country:'so',term:'OnlyFans',source:'youtube',observedAt:'2026-11-21T10:00:00Z'};
+ const snapshot=makeTrendSnapshot('so','2026-11-21',[r]);
+ assert.equal(snapshot.terms.length,0);
+ assert.equal(JSON.stringify(snapshot).includes(r.term),false);
+});

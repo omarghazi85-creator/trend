@@ -1,6 +1,6 @@
 /** Deterministic, side-effect-free trend snapshot preparation. No PHP/WordPress calls. */
 import {isEditorialTrendAllowed,isEditorialSourceUrlAllowed} from './trend-policy.mts';
-export type TrendRecord={country:string;term:string;source:string;observedAt:string;score?:number;sourceUrl?:string};
+export type TrendRecord={country:string;term:string;source:string;observedAt:string;score?:number;sourceUrl?:string;url?:string};
 export type TrendSnapshot={country:string;day:string;terms:Array<{key:string;term:string;sources:string[];score:number|null}>};
 const COUNTRY=/^[a-z]{2}$/;
 const DAY=/^\d{4}-\d{2}-\d{2}$/;
@@ -22,7 +22,8 @@ export function makeTrendSnapshot(country:string,day:string,rows:readonly TrendR
   if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==day)continue;
   // Reject before normalization, aggregation, hashing, or any future persistence layer.
   if(!isEditorialTrendAllowed(row.term)||!isEditorialTrendAllowed(row.source)||
-     (row.sourceUrl!==undefined&&!isEditorialSourceUrlAllowed(row.sourceUrl)))continue;
+     (row.sourceUrl!==undefined&&!isEditorialSourceUrlAllowed(row.sourceUrl))||
+     (row.url!==undefined&&!isEditorialSourceUrlAllowed(row.url)))continue;
   const key=normalizeTrendKey(row.term);
   if(!key||key.length>180)continue;
   const source=row.source.trim().toLowerCase();

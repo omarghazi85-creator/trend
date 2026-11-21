@@ -38,6 +38,21 @@ function atn_lightview_archive_attribute($tag, $name) {
 }
 
 /**
+ * Apply the editorial exclusion policy to stored original-source URLs,
+ * including nested percent/HTML entities. This is purely display-side.
+ */
+function atn_lightview_archive_source_url_allowed($url) {
+    if (!is_string($url) || $url === '') { return false; }
+    for ($i = 0; $i < 5; $i++) {
+        if (!atn_lightview_archive_title_allowed($url)) { return false; }
+        $decoded = rawurldecode(html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($decoded === $url) { return true; }
+        $url = $decoded;
+    }
+    return atn_lightview_archive_title_allowed($url) && !preg_match('/%[0-9a-f]{2}/i', $url);
+}
+
+/**
  * Organize the archived source already stored on topic history pages.
  * Byte-preserve the historical table, methodology and native enrichment.
  * No content writes, extra lookups, remote requests or related-article queries.
@@ -67,6 +82,12 @@ function atn_lightview_archive_sources($content) {
     if (!is_array($parts) || !in_array(strtolower($parts['scheme'] ?? ''), array('http', 'https'), true) ||
         empty($parts['host']) || isset($parts['user']) || isset($parts['pass']) ||
         preg_match('/[\x00-\x20\x7f]/', $url) || !esc_url($url)) { return $content; }
+    // For excluded original destinations, hide only the two exact duplicate
+    // links and preserve the archive history, methodology and other media.
+    if (!atn_lightview_archive_source_url_allowed($url)) {
+        $without_duplicate = substr_replace($content, '', $source[1][1], strlen($source[1][0]));
+        return substr_replace($without_duplicate, '', $thumb[1][1], strlen($thumb[1][0]));
+    }
     $title = trim(preg_replace('/\s*\|\s*سجل الرواج\s*$/u', '', wp_strip_all_tags($post->post_title)));
     if ($title === '') { return $content; }
     $block = '<section class="atn-archive-sources" data-atn-archive-source="1" aria-label="تغطيات مرتبطة بالموضوع">'

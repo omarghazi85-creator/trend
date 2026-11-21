@@ -10,6 +10,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/package-lightview.yml'
+      - 'atn-lightview.php'
+      - 'includes/atn-section.php'
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,7 +26,7 @@ jobs:
           set -euo pipefail
           php -l atn-lightview.php
           php -l includes/atn-section.php
-          grep -q 'Version: 0.12.7' atn-lightview.php
+          grep -Eq '^ \* Version: [0-9]+\.[0-9]+\.[0-9]+$' atn-lightview.php
       - name: Build plugin directory
         run: |
           set -euo pipefail
@@ -37,7 +39,7 @@ jobs:
       - name: Retain installable plugin as internal workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lightview-installable-0-12-7
+          name: lightview-installable
           path: release/
           if-no-files-found: error
           retention-days: 7

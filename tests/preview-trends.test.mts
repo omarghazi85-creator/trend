@@ -18,3 +18,18 @@ test('repeat batch has same digest and no changed flag',async()=>{
 test('invalid batch rejected before processing',async()=>{
  const r=await preview(req({country:'sa',day:'2026-11-11',rows:Array(201).fill(rows[0])}));assert.equal(r.status,400);
 });
+test('authorized shadow API rejects excluded terms before preparing response and never calls external services',async()=>{
+ const original=globalThis.fetch;let calls=0;
+ globalThis.fetch=async()=>{calls++;throw new Error('unexpected network access')};
+ try{
+  const clean={country:'sd',term:'المنصورة',source:'google',observedAt:'2026-11-21T10:00:00Z'};
+  const forbidden={...clean,term:'ميا خليفة'};
+  const response=await preview(req({country:'sd',day:'2026-11-21',rows:[clean,forbidden]}));
+  assert.equal(response.status,200);
+  const result=await response.json();
+  assert.equal(result.termCount,1);
+  assert.equal(result.terms[0].term,'المنصورة');
+  assert.equal(JSON.stringify(result).includes(forbidden.term),false);
+  assert.equal(calls,0);
+ }finally{globalThis.fetch=original;}
+});

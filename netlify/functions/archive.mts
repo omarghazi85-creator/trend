@@ -42,8 +42,14 @@ function classify(page:PublicPage){
  // would mislabel historical search/music/weekly records. Preserve legacy
  // slugs without a day and topic pages by using their publication date.
  const archiveDay=/^[a-z]{2}-(?:search|music|week)-(\d{4}-\d{2}-\d{2})(?:-[a-z0-9]+)?$/.exec(slug)?.[1];
- const date=archiveDay??page.date.slice(0,10);
- if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T00:00:00Z'))||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)return null;
+ const publishedDay=page.date.slice(0,10);
+ const validDay=(day:string)=>/^\d{4}-\d{2}-\d{2}$/.test(day)&&
+  Number.isFinite(Date.parse(day+'T00:00:00Z'))&&new Date(day+'T00:00:00Z').toISOString().slice(0,10)===day;
+ // The upstream publication timestamp must remain valid even when the label
+ // comes from a dated archive slug; corrupted WordPress rows are not shown.
+ if(!validDay(publishedDay))return null;
+ const date=archiveDay??publishedDay;
+ if(!validDay(date))return null;
  return {title:title.slice(0,240),link:page.URL,country,kind,date,date_iso:page.date};
 }
 export default async(request:Request):Promise<Response>=>{

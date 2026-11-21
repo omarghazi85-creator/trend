@@ -3,7 +3,7 @@ import {isEditorialTrendAllowed,isEditorialSourceUrlAllowed,normalizeTrendText,d
 export type TrendRecord={country:string;term:string;source:string;observedAt:string;score?:number;sourceUrl?:string;url?:string};
 export type TrendSnapshot={country:string;day:string;terms:Array<{key:string;term:string;sources:string[];score:number|null}>};
 const COUNTRIES=new Set('sa ae eg kw qa bh om jo lb iq sy sd ps ye ly tn dz ma mr so dj km'.split(' '));
-const DAY=/^\\d{4}-\\d{2}-\\d{2}$/;
+const DAY=/^\d{4}-\d{2}-\d{2}$/;
 /** Normalize aliases as the editorial gate does, including hidden bidi marks and entities. */
 export function normalizeTrendKey(value:string):string {
  return normalizeTrendText(value);
@@ -17,9 +17,9 @@ function cleanTrendDisplay(value:string):string {
   decoded=next;
  }
  return decoded.replace(/<[^>]{0,256}>/g,'').normalize('NFKC')
-  .replace(/[\\u00ad\\u061c\\u200b-\\u200f\\u202a-\\u202e\\u2066-\\u2069\\ufeff]/gu,'')
-  .replace(/[\\u0000-\\u001f\\u007f]/gu,' ')
-  .replace(/\\s+/gu,' ').trim();
+  .replace(/[\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu,'')
+  .replace(/[\u0000-\u001f\u007f]/gu,' ')
+  .replace(/\s+/gu,' ').trim();
 }
 function canonicalDisplay(a:string,b:string):string {
  // Pick the same display label regardless of the order sources are received.

@@ -24,6 +24,8 @@ function runPHP(body: string, data: unknown) {
     function wp_strip_all_tags($s) { return strip_tags($s); }
     function esc_html($s) { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
     function esc_url($s) { return preg_match('~^https?://~i', $s) ? htmlspecialchars($s, ENT_QUOTES, 'UTF-8') : ''; }
+    // Isolated layout test: editorial policy is exercised in php-lightview-sources.test.mts.
+    function atn_lightview_archive_title_allowed($s) { return is_string($s) && trim($s) !== ''; }
     function page($id, $parent = 0, $content = '', $slug = '', $title = '') { return (object) array('ID' => $id, 'post_type' => 'page', 'post_parent' => $parent, 'post_content' => $content, 'post_name' => $slug, 'post_title' => $title); }
     require $argv[1];
     $input = json_decode(stream_get_contents(STDIN), true);

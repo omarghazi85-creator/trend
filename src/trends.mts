@@ -1,4 +1,5 @@
 /** Deterministic, side-effect-free trend snapshot preparation. No PHP/WordPress calls. */
+import {isEditorialTrendAllowed} from './trend-policy.mts';
 export type TrendRecord={country:string;term:string;source:string;observedAt:string;score?:number};
 export type TrendSnapshot={country:string;day:string;terms:Array<{key:string;term:string;sources:string[];score:number|null}>};
 const COUNTRY=/^[a-z]{2}$/;
@@ -19,6 +20,8 @@ export function makeTrendSnapshot(country:string,day:string,rows:readonly TrendR
   if(!row||typeof row!=='object'||row.country!==country||typeof row.term!=='string'||typeof row.source!=='string'||typeof row.observedAt!=='string')continue;
   const d=new Date(row.observedAt);
   if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==day)continue;
+  // Reject before normalization, aggregation, hashing, or any future persistence layer.
+  if(!isEditorialTrendAllowed(row.term))continue;
   const key=normalizeTrendKey(row.term);
   if(!key||key.length>180)continue;
   const source=row.source.trim().toLowerCase();

@@ -92,3 +92,12 @@ test('Arabic search ignores diacritics and common alef/ya variants',async()=>{
   nodes.searchBtn.dispatch('click');
   assert.equal(nodes.results.children.length,1);
 });
+
+test('external archive interface offers all 22 Arab countries without requiring published records',async()=>{
+ const {nodes}=setup([page(1,[],false)]);
+ await flush();
+ assert.equal(nodes.countries.children.length,22);
+ const countries=nodes.countries.children.map(b=>b.textContent);
+ for(const name of ['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر'])assert.ok(countries.includes(name));
+ assert.match(nodes.status.textContent,/لا توجد نتائج/);
+});

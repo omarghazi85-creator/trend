@@ -20,7 +20,7 @@ test('live archive excludes unsafe titles before set_transient, REST and shortco
 test('PHP filtering rejects explicit terms and keeps legitimate trends without false substring matches',t=>{
  const version=spawnSync('php',['-v'],{encoding:'utf8'});
  if(version.error){t.skip('PHP CLI not installed on CI runner');return;}
- const match=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}\n(?=function atn_lightview_archive_items\(\))/);
+ const match=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/);
  assert.ok(match,'extract executable PHP guard');
  const script='function wp_strip_all_tags($s){return strip_tags($s);} \n'+match[0]+'\n'+
   'echo json_encode(array_map("atn_lightview_archive_title_allowed", array('+

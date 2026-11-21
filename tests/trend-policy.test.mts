@@ -36,3 +36,13 @@ test('conflicting title and name fields cannot conceal an excluded observation',
   {title:'رياضة محلية',name:'الرياضة اليوم'}];
  assert.deepEqual(filterTrendObservations(rows),[rows[2]]);
 });
+
+
+test('raw trend observations are checked before persistence, including term/source and both URL aliases',()=>{
+ const safe={term:'أخبار السودان',source:'google',sourceUrl:'https://trends.google.com/trends/explore?q=sudan'};
+ const forbiddenTerm={...safe,term:'آمارنا ميلر'};
+ const forbiddenSource={...safe,source:'pornhub'};
+ const forbiddenHref={...safe,url:'https://onlyfans.com'};
+ const conflicting={...safe,title:'طقس اليوم',term:'OnlyFans'};
+ assert.deepEqual(filterTrendObservations([safe,forbiddenTerm,forbiddenSource,forbiddenHref,conflicting]),[safe]);
+});

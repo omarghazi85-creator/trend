@@ -47,3 +47,23 @@ test('snapshots do not retain blocked-only observations or leak their labels',()
  assert.equal(snapshot.terms.length,0);
  assert.equal(JSON.stringify(snapshot).includes(r.term),false);
 });
+
+
+test('only the 22 supported Arab countries can produce external shadow snapshots',()=>{
+ const allowed='sa ae eg kw qa bh om jo lb iq sy sd ps ye ly tn dz ma mr so dj km'.split(' ');
+ for(const country of allowed)assert.doesNotThrow(()=>makeTrendSnapshot(country,'2026-11-21',[]),country);
+ for(const country of ['zz','us','il','xx','SA','s1',''])assert.throws(()=>makeTrendSnapshot(country,'2026-11-21',[]),/invalid_country_or_day/,country);
+});
+
+test('invisible marks and encoded HTML normalize before raw snapshot output and digest',async()=>{
+ const base={country:'sd',term:'الطقس اليوم',source:'google',observedAt:'2026-11-21T11:00:00Z'};
+ const hidden={...base,term:'الطقس\u200D اليوم'};
+ const html={...base,term:'الطقس <b>اليوم</b>'};
+ const entity={...base,term:'الطقس &#1575;&#1604;&#1610;&#1608;&#1605;'};
+ const clean=makeTrendSnapshot('sd','2026-11-21',[base]);
+ const combined=makeTrendSnapshot('sd','2026-11-21',[hidden,html,entity,base]);
+ assert.equal(combined.terms.length,1);
+ assert.equal(combined.terms[0].term,'الطقس اليوم');
+ assert.equal(await snapshotDigest(clean),await snapshotDigest(combined));
+ assert.equal(normalizeTrendKey('الطقس\u200D اليوم'),normalizeTrendKey('الطقس اليوم'));
+});

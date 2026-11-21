@@ -74,12 +74,15 @@ export function isEditorialSourceUrlAllowed(value:unknown):value is string {
  // Reject a remaining nested escape instead of accepting partially decoded input.
  return isEditorialTrendAllowed(decoded)&&!/%[0-9a-f]{2}/i.test(decoded);
 }
-export function filterTrendObservations<T extends {title?:unknown;name?:unknown;artist?:unknown;publisher?:unknown;url?:unknown;sourceUrl?:unknown}>(items:readonly T[]):T[] {
+/** Works on both page records (title/name) and raw observations (term/source). */
+export function filterTrendObservations<T extends {title?:unknown;name?:unknown;term?:unknown;source?:unknown;artist?:unknown;publisher?:unknown;url?:unknown;sourceUrl?:unknown}>(items:readonly T[]):T[] {
  return items.filter(item=>{
-  const title=item.title??item.name;
+  const title=item.title??item.name??item.term;
   return isEditorialTrendAllowed(title) &&
    (item.title===undefined||isEditorialTrendAllowed(item.title)) &&
    (item.name===undefined||isEditorialTrendAllowed(item.name)) &&
+   (item.term===undefined||isEditorialTrendAllowed(item.term)) &&
+   (item.source===undefined||isEditorialTrendAllowed(item.source)) &&
    (item.artist===undefined||isEditorialTrendAllowed(item.artist)) &&
    (item.publisher===undefined||isEditorialTrendAllowed(item.publisher)) &&
    (item.url===undefined||isEditorialSourceUrlAllowed(item.url)) &&

@@ -24,3 +24,16 @@ test('count excludes HTML markup rather than treating tags as words',async()=>{
 test('other editorial categories are unaffected by technology-only minimum',()=>{
  assert.equal(validateCandidate({...base,categoryIds:[15],content:'خبر مهم '.repeat(65)}).categoryIds?.[0],15);
 });
+
+test('editorial gate rejects prohibited headline before creating a draft',()=>{
+ assert.throws(()=>validateCandidate({...base,title:'ترند سكس بستلس في المنصات'}),/editorial_title_blocked/);
+ assert.throws(()=>validateCandidate({...base,title:'تفاعل مع آمارنا ميلر في الشبكات'}),/editorial_title_blocked/);
+});
+test('editorial gate rejects prohibited body and excerpt, even when headline looks safe',()=>{
+ assert.throws(()=>validateCandidate({...base,content:'<p>خبر مهم عن onlyfans. </p>'+'نص توضيحي '.repeat(60)}),/editorial_content_blocked/);
+ assert.throws(()=>validateCandidate({...base,excerpt:'تغطية تفاصيل ميا خليفة'}),/editorial_excerpt_blocked/);
+});
+test('editorial gate preserves unrelated topics and substrings',()=>{
+ const legitimate={...base,title:'تطور النشاط البحري في مقاطعة Essex'};
+ assert.equal(validateCandidate(legitimate).slug,base.slug);
+});

@@ -20,6 +20,9 @@ test('uses official public WordPress.com API, one GET, exact archive parent, saf
   assert.equal(body.items[0].country,'المغرب');
   assert.equal(body.items[0].kind,'search');
   assert.equal(body.items[1].kind,'weekly');
+  // Weekly material dated Nov 9 was not published until Nov 16.
+  assert.equal(body.items[1].date,'2026-11-09');
+  assert.equal(body.items[0].date,'2026-11-16');
   assert.equal(body.available_in_window,2);
   assert.equal(body.page,1);
   assert.equal(body.has_more,true);
@@ -114,5 +117,38 @@ test('rejects mismatched archive slug destinations and normalizes encoded WordPr
   assert.equal(data.items.length,1);
   assert.equal(data.items[0].title,'حصيلة – المغرب');
   assert.equal(data.items[0].link,'https://arabiatrend.com/trend-archive/ma-search-2026-11-16/');
+ }finally{globalThis.fetch=original;}
+});
+
+test('archive period follows dated slugs for Somalia and Sudan even when pages publish later',async()=>{
+ const original=globalThis.fetch;
+ const entries=[
+  {country:'so',day:'2026-11-18',published:'2026-11-21T08:00:00Z',title:'حصيلة كلمات البحث في الصومال'},
+  {country:'sd',day:'2026-11-19',published:'2026-11-21T08:00:00Z',title:'حصيلة كلمات البحث في السودان'}
+ ];
+ globalThis.fetch=async()=>Response.json({found:2,posts:entries.map((x,i)=>({
+  ...payload.posts[0],ID:2000+i,title:x.title,
+  URL:'https://arabiatrend.com/trend-archive/'+x.country+'-search-'+x.day,
+  slug:x.country+'-search-'+x.day,date:x.published
+ }))});
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  const data=await r.json();
+  assert.deepEqual(data.items.map((x:{date:string})=>x.date),['2026-11-18','2026-11-19']);
+  assert.ok(data.items.every((x:{link:string})=>x.link.startsWith('https://arabiatrend.com/trend-archive/')));
+ }finally{globalThis.fetch=original;}
+});
+test('malformed dated archive slug is rejected instead of displaying a false day',async()=>{
+ const original=globalThis.fetch;
+ globalThis.fetch=async()=>Response.json({found:1,posts:[{
+  ...payload.posts[0],slug:'so-search-2026-02-30',
+  URL:'https://arabiatrend.com/trend-archive/so-search-2026-02-30',
+  date:'2026-11-21T10:00:00Z'
+ }]});
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  assert.deepEqual((await r.json()).items,[]);
  }finally{globalThis.fetch=original;}
 });

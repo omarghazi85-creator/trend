@@ -37,7 +37,12 @@ function classify(page:PublicPage){
    country=COUNTRY[match[1]];kind=match[2]==='week'?'weekly':match[2];
  }else if(/^topic-[a-f0-9]+$/.test(slug)){kind='topic';}
  else return null;
- const date=page.date.slice(0,10);
+ // A dated archive slug records the actual trend period. WordPress may publish
+ // the page a day or a week later; showing publication time as the trend date
+ // would mislabel historical search/music/weekly records. Preserve legacy
+ // slugs without a day and topic pages by using their publication date.
+ const archiveDay=/^[a-z]{2}-(?:search|music|week)-(\d{4}-\d{2}-\d{2})(?:-[a-z0-9]+)?$/.exec(slug)?.[1];
+ const date=archiveDay??page.date.slice(0,10);
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T00:00:00Z'))||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)return null;
  return {title:title.slice(0,240),link:page.URL,country,kind,date,date_iso:page.date};
 }

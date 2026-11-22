@@ -185,7 +185,12 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
  }
  const entries=Object.entries(value);
  return entries.length<=32&&entries.every(([key,entry])=>{
-  if(key.length>100)return false;
+  // Feed labels may put an excluded brand or disguised URL in a JSON key,
+  // while giving that key an innocuous value. Scan property names as well as
+  // values before the observation can enter a snapshot or future raw store.
+  // Split common camelCase names to catch "OnlyFansCampaign" while keeping
+  // normal metadata keys such as trackingUrl and media:thumbnail valid.
+  if(key.length>100||!isEditorialTrendAllowed(key.replace(/([a-z0-9])([A-Z])/g,'$1 $2')))return false;
   // Recognize common snake-case and camelCase destination keys.
   // Unknown feed metadata must not smuggle source URLs into observations.
   if(typeof entry==='string' &&

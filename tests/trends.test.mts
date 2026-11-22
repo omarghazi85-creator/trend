@@ -143,3 +143,20 @@ test('four-country shadow snapshots discard excluded feed aliases before aggrega
   assert.equal(await snapshotDigest(actual),await snapshotDigest(expected),country);
  }
 });
+
+test('structured RSS media objects and links are excluded before four-country snapshot digests',async()=>{
+ for(const country of ['sd','so','dj','km']){
+  const base={country,term:'تقرير الأسواق',source:'google',observedAt:'2026-11-22T10:00:00Z',
+   enclosure:{url:'https://example.com/audio.mp3',type:'audio/mpeg'}};
+  const blocked=[
+   {...base,enclosure:{url:'https://onlyfans.com/clip'}},
+   {...base,links:[{href:'https://example.com/ok'},{href:'https://pornhub.com/clip'}]},
+   {...base,'media:content':[{url:'https://onlyfans.com/photo'}]},
+   {...base,media:{thumbnail:{url:'javascript:alert(1)'}}}
+  ];
+  const clean=makeTrendSnapshot(country,'2026-11-22',[base]);
+  const observed=makeTrendSnapshot(country,'2026-11-22',[...blocked,base]);
+  assert.deepEqual(observed,clean,country);
+  assert.equal(await snapshotDigest(observed),await snapshotDigest(clean),country);
+ }
+});

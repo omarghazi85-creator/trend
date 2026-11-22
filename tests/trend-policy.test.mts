@@ -232,3 +232,19 @@ test('entity-encoded and invisible joiners cannot disguise excluded names or uns
  assert.deepEqual(filterTrendObservations([good,{...good,caption:'Only&shy;Fans'},{
    ...good,media:{caption:'Only&NoBreak;Fans'}}]),[good]);
 });
+
+
+test('unknown nested feed metadata and camelCase URLs cannot bypass editorial admission',()=>{
+ const safe={title:'أخبار الأسواق',source:'google',country:'sd',observedAt:'2026-11-22T09:00:00Z',
+  extra:{labels:['اقتصاد','أسواق'],trackingUrl:'https://example.com/markets'}};
+ const blocked=[
+  {...safe,extra:{sponsor:'OnlyFans'}},
+  {...safe,analytics:{trackingUrl:'https://pornhub.com/ref'}},
+  {...safe,extra:{links:[{targetUrl:'https://onlyfans.com/channel'}]}},
+  {...safe,other:{text:'porn%68ub'}},
+  {...safe,extra:{brand:'Only&shy;Fans'}},
+  {...safe,extra:{destinationUrl:'javascript:alert(1)'}},
+  {...safe,extra:{tags:Array.from({length:129},(_,i)=>'label'+i)}}
+ ];
+ assert.deepEqual(filterTrendObservations([safe,...blocked]),[safe]);
+});

@@ -91,3 +91,20 @@ test('valid percent-encoded benign titles are decoded before display and dedupli
  assert.equal(await snapshotDigest(b),await snapshotDigest(a));
  assert.equal(makeTrendSnapshot('km','2026-11-21',[{...safe,country:'km',term:'نمو 25% في جزر القمر'}]).terms.length,1);
 });
+
+test('new countries discard forbidden raw descriptions and media links before snapshot digests',async()=>{
+ const cases=['sd','so','dj','km'];
+ for(const country of cases){
+  const safe={country,day:'2026-11-21',term:'أخبار الأسواق المحلية',source:'google',observedAt:'2026-11-21T11:00:00Z',caption:'تقرير محلي'};
+  const bad=[
+   {...safe,description:'only%252566ans'},
+   {...safe,summary:'إعلان <img src="data:text/html;base64,AAAA">'},
+   {...safe,mediaUrl:'https://onlyfans.com/image'},
+   {...safe,originalUrl:'https://example.com/%70ornhub'}
+  ];
+  const baseline=makeTrendSnapshot(country,'2026-11-21',[safe]);
+  const guarded=makeTrendSnapshot(country,'2026-11-21',[...bad,safe]);
+  assert.deepEqual(guarded,baseline,country);
+  assert.equal(await snapshotDigest(guarded),await snapshotDigest(baseline),country);
+ }
+});

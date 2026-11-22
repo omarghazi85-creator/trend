@@ -1,6 +1,10 @@
 /** Deterministic, side-effect-free trend snapshot preparation. No PHP/WordPress calls. */
 import {isEditorialTrendAllowed,isEditorialObservationAllowed,normalizeTrendText,decodeEditorialText} from './trend-policy.mts';
-export type TrendRecord={country:string;term:string;source:string;observedAt:string;score?:number;sourceUrl?:string;url?:string;description?:unknown;excerpt?:unknown;summary?:unknown;caption?:unknown;content?:unknown;mediaUrl?:unknown;imageUrl?:unknown;originalUrl?:unknown;link?:unknown};
+export type TrendRecord={country:string;term:string;source:string;observedAt:string;score?:number;sourceUrl?:string;url?:string;description?:unknown;excerpt?:unknown;summary?:unknown;caption?:unknown;content?:unknown;mediaUrl?:unknown;imageUrl?:unknown;originalUrl?:unknown;link?:unknown;
+ provider?:unknown;channel?:unknown;author?:unknown;platform?:unknown;byline?:unknown;
+ subtitle?:unknown;body?:unknown;text?:unknown;
+ permalink?:unknown;canonicalUrl?:unknown;thumbnailUrl?:unknown;videoUrl?:unknown;postUrl?:unknown;
+ source_url?:unknown;media_url?:unknown;image_url?:unknown;original_url?:unknown;video_url?:unknown;thumbnail_url?:unknown};
 export type TrendSnapshot={country:string;day:string;terms:Array<{key:string;term:string;sources:string[];score:number|null}>};
 const COUNTRIES=new Set('sa ae eg kw qa bh om jo lb iq sy sd ps ye ly tn dz ma mr so dj km'.split(' '));
 const DAY=/^\d{4}-\d{2}-\d{2}$/;

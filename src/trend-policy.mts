@@ -148,26 +148,34 @@ export function isEditorialSourceUrlAllowed(value:unknown):value is string {
 /** Shared pre-admission policy for source observations and archive records. */
 export type EditorialObservation={
  title?:unknown;name?:unknown;term?:unknown;source?:unknown;artist?:unknown;publisher?:unknown;
+ provider?:unknown;channel?:unknown;author?:unknown;platform?:unknown;byline?:unknown;
  description?:unknown;excerpt?:unknown;summary?:unknown;caption?:unknown;content?:unknown;
+ subtitle?:unknown;body?:unknown;text?:unknown;
  url?:unknown;sourceUrl?:unknown;mediaUrl?:unknown;imageUrl?:unknown;originalUrl?:unknown;link?:unknown;
+ permalink?:unknown;canonicalUrl?:unknown;thumbnailUrl?:unknown;videoUrl?:unknown;postUrl?:unknown;
+ source_url?:unknown;media_url?:unknown;image_url?:unknown;original_url?:unknown;video_url?:unknown;thumbnail_url?:unknown;
 };
 export function isEditorialObservationAllowed(item:EditorialObservation):boolean {
  if(!item||typeof item!=='object')return false;
  const title=item.title??item.name??item.term;
  if(!isEditorialTrendAllowed(title))return false;
- for(const field of ['title','name','term','source','artist','publisher'] as const){
+ for(const field of ['title','name','term','source','artist','publisher','provider','channel','author','platform','byline'] as const){
   if(item[field]!==undefined&&!isEditorialTrendAllowed(item[field]))return false;
  }
  // Raw feeds often hide excluded source terms in captions, excerpts or bodies
  // while displaying a harmless title. Check them before any aggregation or
  // future raw persistence. Blank optional fields mean no supplied text.
- for(const field of ['description','excerpt','summary','caption','content'] as const){
+ for(const field of ['description','excerpt','summary','caption','content','subtitle','body','text'] as const){
   const value=item[field];
   if(value!==undefined&&value!==null&&value!==''&&!isEditorialTrendAllowed(value))return false;
  }
  // Keep external media/source destinations distinct from the local detail URL,
  // but never admit an unsafe one simply because the headline was legitimate.
- for(const field of ['url','sourceUrl','mediaUrl','imageUrl','originalUrl','link'] as const){
+ // Common RSS/JSON feed aliases are screened as well: a clean title must not
+ // allow an excluded source to pass through `permalink` or `thumbnail_url`.
+ for(const field of ['url','sourceUrl','mediaUrl','imageUrl','originalUrl','link',
+   'permalink','canonicalUrl','thumbnailUrl','videoUrl','postUrl',
+   'source_url','media_url','image_url','original_url','video_url','thumbnail_url'] as const){
   const value=item[field];
   if(value!==undefined&&!isEditorialSourceUrlAllowed(value))return false;
  }

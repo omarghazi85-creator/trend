@@ -65,9 +65,9 @@ test('anonymous preview queries cannot bypass excluded details; editors keep acc
     function __construct($title){$this->post_title=$title;}
   }
   class MockQuery {public $blocked=false; function set_404(){$this->blocked=true;}}
-  $wp_query=new MockQuery(); $editor=false; $post=new WP_Post("pornhub | سجل الرواج");
+  $wp_query=new MockQuery(); $editor=false; $preview=true; $post=new WP_Post("pornhub | سجل الرواج");
   function is_singular($type){return $type==='page';}
-  function is_preview(){return true;} // Simulate an untrusted ?preview=true query
+  function is_preview(){global $preview;return $preview;} // Simulate preview flag
   function get_queried_object(){global $post;return $post;}
   function get_the_title($post){return $post->post_title;}
   function wp_strip_all_tags($text){return strip_tags($text);}
@@ -82,13 +82,16 @@ test('anonymous preview queries cannot bypass excluded details; editors keep acc
     $first=false;
     try{$route();}catch(Exception $e){$first=$e->getMessage()==='blocked:404';}
     $anonymousBlocked=$first && $wp_query->blocked;
+    $preview=false; $wp_query->blocked=false; $second=false;
+    try{$route();}catch(Exception $e){$second=$e->getMessage()==='blocked:404';}
+    $ordinaryBlocked=$second && $wp_query->blocked;
     $editor=true; $wp_query->blocked=false; $route();
     $editorAllowed=!$wp_query->blocked;
     $editor=false; $post=new WP_Post("حصيلة كلمات البحث في السودان");
     $route(); $normalAllowed=!$wp_query->blocked;
-    echo json_encode([$anonymousBlocked,$editorAllowed,$normalAllowed]);
+    echo json_encode([$anonymousBlocked,$ordinaryBlocked,$editorAllowed,$normalAllowed]);
   `;
   const res=spawnSync('php',['-r',script],{encoding:'utf8'});
   assert.equal(res.status,0,res.stderr);
-  assert.deepEqual(JSON.parse(res.stdout),[true,true,true]);
+  assert.deepEqual(JSON.parse(res.stdout),[true,true,true,true]);
 });

@@ -150,7 +150,7 @@ export function isEditorialObservationAllowed(item:EditorialObservation):boolean
  // but never admit an unsafe one simply because the headline was legitimate.
  for(const field of ['url','sourceUrl','mediaUrl','imageUrl','originalUrl','link'] as const){
   const value=item[field];
-  if(value!==undefined&&value!==null&&value!==''&&!isEditorialSourceUrlAllowed(value))return false;
+  if(value!==undefined&&!isEditorialSourceUrlAllowed(value))return false;
  }
  return true;
 }

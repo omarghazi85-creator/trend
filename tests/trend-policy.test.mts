@@ -98,3 +98,26 @@ test('rejects executable HTML source schemes in raw and entity-encoded archives 
   'أسعار البيانات 25% في جزر القمر'
  ])assert.equal(isEditorialTrendAllowed(entry),true,entry);
 });
+
+test('rejects concealed media and CSS protocols before raw trend admission, preserving HTTPS candidates',()=>{
+ const unsafe=[
+  'حصيلة السودان <img srcset="https://example.com/a.jpg 1x, javascript:alert(1) 2x">',
+  'حصيلة الصومال <source srcset="data:image/svg+xml;base64,PHN2Zz4= 2x">',
+  'حصيلة جيبوتي <img data-srcset="https://example.com/a.jpg 1x, java%73cript:alert(1) 2x">',
+  'حصيلة جزر القمر <video poster="blob:https://example.com/id"></video>',
+  'حصيلة السودان <a data-href="vbscript:msgbox(1)">المصدر</a>',
+  'حصيلة جيبوتي <img data-src="data:text/html;base64,PHNjcmlwdD4=">',
+  'حصيلة الصومال <div style="background-image:url(data:text/html;base64,PHNjcmlwdD4=)">معلومة</div>',
+  'حصيلة جزر القمر &lt;div style="background-image:url(java&#x73;cript:alert(1))"&gt;حصيلة&lt;/div&gt;'
+ ];
+ for(const title of unsafe)assert.equal(isEditorialTrendAllowed(title),false,title);
+ const safe=[
+  'حصيلة السودان <img srcset="https://example.com/a.jpg 1x, https://example.com/b.jpg 2x">',
+  'حصيلة الصومال <video poster="https://example.com/cover.png"></video>',
+  'حصيلة جيبوتي <div style="background-image:url(https://example.com/graph.png)">ملخص</div>',
+  'حصيلة جزر القمر <a data-href="/trend-archive/km-search-2026-11-21">التفاصيل</a>'
+ ];
+ for(const title of safe)assert.equal(isEditorialTrendAllowed(title),true,title);
+ const rows=[{term:'نشرة السودان',source:'news'},{term:unsafe[0],source:'news'},{term:unsafe[6],source:'news'}];
+ assert.deepEqual(filterTrendObservations(rows),[rows[0]]);
+});

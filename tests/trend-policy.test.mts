@@ -46,3 +46,25 @@ test('raw trend observations are checked before persistence, including term/sour
  const conflicting={...safe,title:'طقس اليوم',term:'OnlyFans'};
  assert.deepEqual(filterTrendObservations([safe,forbiddenTerm,forbiddenSource,forbiddenHref,conflicting]),[safe]);
 });
+
+test('raw text policy peels layered percent and HTML encoding before admitting a label',()=>{
+ for(const term of [
+  'porn%68ub','p%6frnhub','only%252566ans',
+  'only&amp;#37;66ans','%70ornhub','porn%25252568ub',
+  'https://example.com/%FF','only%252525252525252566ans'
+ ])assert.equal(isEditorialTrendAllowed(term),false,term);
+ for(const term of [
+  'نمو 25% في مصر','الطقس%20اليوم','السودان','الصومال','جيبوتي','جزر القمر',
+  'السوق &amp; الاقتصاد'
+ ])assert.equal(isEditorialTrendAllowed(term),true,term);
+});
+test('filter rejects encoded raw source, term, and conflicting fields without mutating observations',()=>{
+ const safe={title:'الطقس',term:'نمو 25% في مصر',source:'google'};
+ const blocked=[
+  {...safe,term:'porn%68ub'},
+  {...safe,title:'only%252566ans'},
+  {...safe,source:'porn%68ub'},
+  {...safe,name:'only&amp;#37;66ans'}
+ ];
+ assert.deepEqual(filterTrendObservations([safe,...blocked]),[safe]);
+});

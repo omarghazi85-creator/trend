@@ -79,3 +79,22 @@ test('checks excluded source URLs hidden inside HTML attributes before stripping
   'نشرة الأسواق <a href="https://example.com/%70ornhub">الرابط</a>'
  ])assert.equal(isEditorialTrendAllowed(title),false,title);
 });
+
+test('rejects executable HTML source schemes in raw and entity-encoded archives and draft bodies',()=>{
+ const unsafe=[
+  'حصيلة السودان <a href="javascript:alert(1)">تفاصيل</a>',
+  'حصيلة الصومال <img src="data:text/html;base64,PHNjcmlwdD4=">',
+  'حصيلة جيبوتي &lt;a href="java&#x0A;script:alert(1)"&gt;قراءة&lt;/a&gt;',
+  'حصيلة جزر القمر <a href="java%73cript:alert(1)">متابعة</a>',
+  'حصيلة السودان <a href=vbscript:msgbox(1)>مادة</a>',
+  'حصيلة الصومال <form action="file:///etc/passwd">متابعة</form>',
+  'حصيلة جيبوتي <img src="blob:https://example.com/abc">'
+ ];
+ for(const entry of unsafe)assert.equal(isEditorialTrendAllowed(entry),false,entry);
+ for(const entry of [
+  'حصيلة السودان <a href="https://example.com/news">تفاصيل</a>',
+  'حصيلة الصومال <img src="https://example.com/photo.jpg">',
+  'حصيلة جيبوتي <a href="/trend-archive/dj-search-2026-11-21">التفاصيل</a>',
+  'أسعار البيانات 25% في جزر القمر'
+ ])assert.equal(isEditorialTrendAllowed(entry),true,entry);
+});

@@ -201,3 +201,26 @@ test('archive excludes prohibited body or excerpt even when headings are innocuo
   assert.equal(requests,1);
  }finally{globalThis.fetch=original;}
 });
+
+test('archive excludes executable source protocols in the title and body without extra WordPress traffic',async()=>{
+ const original=globalThis.fetch;
+ let requests=0;
+ const items=[
+  {...payload.posts[0],slug:'sd-search-2026-11-21',URL:'https://arabiatrend.com/trend-archive/sd-search-2026-11-21',
+   title:'حصيلة السودان <a href="javascript:alert(1)">قراءة</a>'},
+  {...payload.posts[0],slug:'so-search-2026-11-21',URL:'https://arabiatrend.com/trend-archive/so-search-2026-11-21',
+   title:'حصيلة الصومال',content:'<img src="data:text/html;base64,PHNjcmlwdD4=">'},
+  {...payload.posts[0],slug:'dj-search-2026-11-21',URL:'https://arabiatrend.com/trend-archive/dj-search-2026-11-21',
+   title:'حصيلة جيبوتي',content:'<a href="https://example.com/news">المصدر</a>'},
+  {...payload.posts[0],slug:'km-search-2026-11-21',URL:'https://arabiatrend.com/trend-archive/km-search-2026-11-21',
+   title:'حصيلة جزر القمر',content:'نشرة الاقتصاد والطقس'}
+ ];
+ globalThis.fetch=async()=>{requests++;return Response.json({found:4,posts:items});};
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  const data=await r.json();
+  assert.deepEqual(data.items.map((x:{country:string})=>x.country),['جيبوتي','جزر القمر']);
+  assert.equal(requests,1);
+ }finally{globalThis.fetch=original;}
+});

@@ -39,12 +39,12 @@ test('PHP original-source URL guard blocks excluded media, even if the URL is mu
   'https://onlyfans.com/creator','https://example.com/%6fnlyfans',
   'https://example.com/%25256fnlyfans','https://pornhub.com/video',
   'https://example.com/?q=sex%20video',
-  'javascript:alert(1)','%6Aavascript:alert(1)',
+  'javascript:alert(1)','%6Aavascript:alert(1)','%2525256Aavascript:alert(1)',
   'data:text/html,hello','vbscript:msgbox(1)',
   'https://example.com/normal?q=good%20news','/trend-archive/topic-aaaaaaaaaaaaaaaaaaaaaaaa','#history'
  ];
  const allowed=runPhp('echo json_encode(array_map("atn_lightview_archive_source_url_allowed",'+JSON.stringify(urls)+'));');
- assert.deepEqual(allowed,[true,true,false,false,false,false,false,false,false,false,false,true,true,true]);
+ assert.deepEqual(allowed,[true,true,false,false,false,false,false,false,false,false,false,false,true,true,true]);
 });
 test('historic archive preserves legitimate originals, hides excluded duplicate source controls without database writes',t=>{
  if(!hasPhp){t.skip('PHP unavailable');return;}

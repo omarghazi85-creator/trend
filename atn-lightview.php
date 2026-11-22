@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.17
+ * Version: 0.12.20
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -68,13 +68,46 @@ function atn_lightview_archive_title_allowed($title) {
     }
     if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title) ||
         preg_match('/%[0-9a-f]{2}/i', $title)) { return false; }
+    $raw_title = $title;
+    // Inspect media/link attributes before stripping HTML. An otherwise safe
+    // archive heading or excerpt must not conceal active URL schemes.
+    // Decoding &quot; inside CSS can produce nested quote characters.
+    // Inspect the entire style attribute before parsing individual HTML URLs.
+    $css_markup = preg_replace('~[\x00-\x20\x7f\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]~u', '', $raw_title);
+    if (!is_string($css_markup)) { return false; }
+    $css_markup = str_replace(array('"', "'"), '', $css_markup);
+    if (preg_match('~style=[^>]*url\((?:javascript|vbscript|data|file|blob):~i', $css_markup)) { return false; }
+    $attributes = array();
+    if (preg_match_all("~(?:^|[\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s>]+))~iu", $raw_title, $attributes, PREG_SET_ORDER)) {
+        foreach ($attributes as $attribute) {
+            $name = strtolower($attribute[1]);
+            $value = isset($attribute[2]) && $attribute[2] !== '' ? $attribute[2] :
+                (isset($attribute[3]) && $attribute[3] !== '' ? $attribute[3] : ($attribute[4] ?? ''));
+            $compact = preg_replace('~[\x00-\x20\x7f\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]~u', '', $value);
+            if (!is_string($compact)) { return false; }
+            if ($name === 'style') {
+                $css = str_replace(array('"', "'"), '', $compact);
+                if (preg_match('~url\((?:javascript|vbscript|data|file|blob):~i', $css)) { return false; }
+            } elseif ($name === 'srcset' || $name === 'data-srcset') {
+                foreach (explode(',', $compact) as $candidate) {
+                    if (preg_match('~^(?:javascript|vbscript|data|file|blob):~i', $candidate)) { return false; }
+                }
+            } elseif (preg_match('~^(?:javascript|vbscript|data|file|blob):~i', $compact)) {
+                return false;
+            }
+        }
+    }
     $title = wp_strip_all_tags($title);
-    $title = strtolower(strtr($title, array(
+    $fold = array(
         'أ'=>'ا', 'إ'=>'ا', 'آ'=>'ا', 'ٱ'=>'ا', 'ى'=>'ي', 'ة'=>'ه', 'ؤ'=>'و', 'ئ'=>'ي'
-    )));
+    );
+    $title = strtolower(strtr($title, $fold));
+    $raw_title = strtolower(strtr($raw_title, $fold));
     $title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]/u', '', $title);
+    $raw_title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]/u', '', $raw_title);
     if (!is_string($title) || $title === '') { return false; }
     $title = preg_replace('/\s+/u', ' ', $title);
+    $raw_title = preg_replace('/\s+/u', ' ', $raw_title);
     $terms = array(
         'سكس', 'سيكس', 'سكسي', 'سيكسي', 'اباحي', 'اباحيه', 'اباحيات',
         'افلام اباحيه', 'مقاطع اباحيه', 'صور عاريه', 'محتوي جنسي صريح',
@@ -86,7 +119,8 @@ function atn_lightview_archive_title_allowed($title) {
         'nude', 'nudity', 'erotica', 'erotic', 'gay', 'lesbian', 'explicit sex'
     );
     foreach ($terms as $term) {
-        if (preg_match('~(?<![\p{L}\p{N}])' . preg_quote($term, '~') . '(?![\p{L}\p{N}])~u', $title)) {
+        if (preg_match('~(?<![\p{L}\p{N}])' . preg_quote($term, '~') . '(?![\p{L}\p{N}])~u', $title) ||
+            preg_match('~(?<![\p{L}\p{N}])' . preg_quote($term, '~') . '(?![\p{L}\p{N}])~u', $raw_title)) {
             return false;
         }
     }
@@ -97,10 +131,25 @@ function atn_lightview_archive_title_allowed($title) {
  * bookmark or a search engine. Listing/REST filtering alone is insufficient.
  * This uses only the already queried WP_Post and never edits stored records.
  */
+/**
+ * Check the archived page body and excerpt already present on WP_Post.
+ * No database reads, remote requests, writes, or new scheduled work.
+ */
+function atn_lightview_archive_content_allowed($post) {
+    if (!($post instanceof WP_Post)) { return false; }
+    foreach (array('post_content', 'post_excerpt') as $field) {
+        if (!isset($post->$field)) { continue; }
+        if (!is_string($post->$field)) { return false; }
+        if (trim($post->$field) !== '' &&
+            !atn_lightview_archive_title_allowed($post->$field)) { return false; }
+    }
+    return true;
+}
 function atn_lightview_archive_detail_blocked($post) {
     return $post instanceof WP_Post && $post->post_type === 'page' &&
         (int) $post->post_parent === 61269 &&
-        !atn_lightview_archive_title_allowed(get_the_title($post));
+        (!atn_lightview_archive_title_allowed(get_the_title($post)) ||
+         !atn_lightview_archive_content_allowed($post));
 }
 add_action('template_redirect', function () {
     if (!is_singular('page')) { return; }
@@ -160,8 +209,13 @@ function atn_lightview_archive_items() {
         ));
         $items = array();
         foreach ($q->posts as $p) {
-            $title = wp_strip_all_tags(get_the_title($p));
+            $title = get_the_title($p);
+            // The original HTML can conceal an excluded source in href/src.
+            // Validate it before stripping attributes for the display card.
             if (!atn_lightview_archive_title_allowed($title)) { continue; }
+            // Screen existing page fields before accepting a new cached card.
+            if (!atn_lightview_archive_content_allowed($p)) { continue; }
+            $title = wp_strip_all_tags($title);
             if (!atn_lightview_archive_title_supported($title)) { continue; }
             $link = get_permalink($p);
             if (!atn_lightview_archive_link_allowed($link)) { continue; }

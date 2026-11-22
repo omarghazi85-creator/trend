@@ -62,3 +62,30 @@ test('WordPress archive cards display the trend period from dated slugs, with le
  assert.match(php,/atn_lightview_latest_v9/);
  assert.doesNotMatch(php,/wp_schedule_event\s*\(/);
 });
+
+test('PHP archive HTML source attributes are checked before stripping, including direct detail requests',t=>{
+ const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
+ if(runtime.error){t.skip('PHP CLI not available');return;}
+ const policy=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+ assert.ok(policy,'actual PHP policy is executable');
+ const input=[
+  'حصيلة السودان <a href="https://onlyfans.com/creator">التفاصيل</a>',
+  'حصيلة الصومال &lt;img src="https://pornhub.com/preview.jpg"&gt;',
+  'حصيلة جيبوتي <a href="https://example.com/news">الأخبار</a>',
+  'حصيلة جزر القمر',
+  'نمو 25% في مصر'
+ ];
+ const script='function wp_strip_all_tags($s){return strip_tags($s);}\n'+policy+
+  '\n echo json_encode(array_map("atn_lightview_archive_title_allowed",json_decode(stream_get_contents(STDIN),true)));';
+ const result=spawnSync('php',['-r',script],{input:JSON.stringify(input),encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[false,false,true,true,true]);
+ const start=php.indexOf('function atn_lightview_archive_items()');
+ const end=php.indexOf("add_action('rest_api_init'",start);
+ const scope=php.slice(start,end);
+ const raw=scope.indexOf('$title = get_the_title($p);');
+ const filter=scope.indexOf('if (!atn_lightview_archive_title_allowed($title))');
+ const strip=scope.indexOf('$title = wp_strip_all_tags($title);');
+ assert.ok(raw>=0 && filter>raw && strip>filter,'raw title must be validated before attributes are stripped');
+ assert.match(php,/Version: 0\.12\.18/);
+});

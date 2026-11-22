@@ -190,7 +190,7 @@ test('common feed text and URL aliases cannot bypass pre-admission editorial fil
 
 test('structured RSS enclosures and Atom/media link arrays cannot bypass editorial admission',()=>{
  const safe={term:'أسواق السودان',source:'google',
-  enclosure:{url:'https://example.com/market.mp4',type:'video/mp4',length:1024},
+  enclosure:{url:'https://example.com/market.mp4',type:'video/mp4',length:1024,caption:''},
   links:[{href:'https://example.com/markets',rel:'alternate'}],
   'media:thumbnail':{url:'https://example.com/photo.jpg'}};
  const blocked=[

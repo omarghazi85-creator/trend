@@ -67,9 +67,20 @@ const patterns=terms.map(s=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+normalizeTrendTex
  * entity-escaped markup; strip ASCII whitespace/control inside the scheme as
  * browsers may ignore it. This validates text without fetching any URL.
  */
+/** CSS hexadecimal and single-character escapes must not conceal source schemes. */
+function decodeCssEscapes(raw:string):string {
+ return raw.replace(/\\([0-9a-f]{1,6})(?:\r\n|[\t\n\r\f ])?|\\([^\r\n\f])/giu, (_match,hex:string|undefined,plain:string|undefined)=>{
+  if(hex){
+   const point=parseInt(hex,16);
+   return point>0&&point<=0x10ffff&&(point<0xd800||point>0xdfff)?String.fromCodePoint(point):'\uFFFD';
+  }
+  return plain??'';
+ });
+}
 function hasUnsafeEmbeddedScheme(raw:string):boolean {
  const decoded=decodeEditorialText(raw);
  if(decoded===null)return true;
+ const inspected=decoded.includes('\\')?decodeCssEscapes(decoded):decoded;
  // A source can be embedded in responsive-image candidates, lazy-loading
  // attributes, a poster, or inline CSS without appearing in href/src.
  const attributes=/(?:^|[\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/giu;
@@ -77,7 +88,7 @@ function hasUnsafeEmbeddedScheme(raw:string):boolean {
    .replace(/[\u0000-\u0020\u007f\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu,'')
    .toLowerCase();
  const unsafe=(value:string):boolean=>/^(?:javascript|vbscript|data|file|blob):/u.test(normalizeDestination(value));
- for(const match of decoded.matchAll(attributes)){
+ for(const match of inspected.matchAll(attributes)){
   const name=match[1].toLowerCase();
   const value=match[2]??match[3]??match[4]??'';
   if(name==='srcset'||name==='data-srcset'){
@@ -98,7 +109,8 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
  // HTML href/src attribute disappears when tags are stripped, allowing a
  // harmless-looking headline or draft body to conceal a prohibited source.
  const normalized=normalizeTrendText(title);
- const markup=normalizeTrendText(title,true);
+ const decoded=decodeEditorialText(title);
+ const markup=normalizeTrendText(decoded===null?'':decodeCssEscapes(decoded),true);
  return normalized.length>0 &&
   !hasUnsafeEmbeddedScheme(title) &&
   !/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(normalized) &&

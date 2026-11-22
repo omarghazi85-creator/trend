@@ -169,6 +169,8 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
  if(value===undefined||value===null)return true;
  if(typeof value==='string'){
   if(value.length>4096)return false;
+  // Optional RSS captions and display labels are commonly empty.
+  if(value.trim()==='')return true;
   return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/iu.test(value)
    ? isEditorialSourceUrlAllowed(value) : isEditorialTrendAllowed(value);
  }

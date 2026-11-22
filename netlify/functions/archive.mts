@@ -15,7 +15,7 @@ const COUNTRY:Record<string,string>={
  sd:'السودان',so:'الصومال',dj:'جيبوتي',km:'جزر القمر'
 };
 const KINDS=new Set(['search','music','week']);
-type PublicPage={title?:unknown;URL?:unknown;slug?:unknown;date?:unknown;status?:unknown;parent?:{ID?:unknown}|false;};
+type PublicPage={title?:unknown;content?:unknown;excerpt?:unknown;URL?:unknown;slug?:unknown;date?:unknown;status?:unknown;parent?:{ID?:unknown}|false;};
 /** Keep title navigation on the verified internal WordPress archive path. */
 function canonicalArchiveUrl(value:string,slug:string):boolean{
  try{
@@ -32,6 +32,13 @@ function classify(page:PublicPage){
  // be concealed in href/src while the visible headline looks innocuous.
  // The same check also handles nested HTML entities and URL encoding.
  if(!isEditorialTrendAllowed(page.title))return null;
+ // A harmless archive heading must not link visitors to excluded body content
+ // or source URLs hidden inside an excerpt. Inspect only fields already present
+ // in this single public API response; do not fetch pages individually.
+ for(const field of [page.content,page.excerpt]){
+  if(field===undefined||field==='')continue;
+  if(typeof field!=='string'||!isEditorialTrendAllowed(field))return null;
+ }
  const title=decodeHtmlEntities(page.title).replace(/<[^>]{0,256}>/g,'').trim();
  if(!isEditorialTrendAllowed(title))return null;
  const slug=page.slug;

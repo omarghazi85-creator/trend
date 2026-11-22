@@ -70,12 +70,25 @@ const patterns=terms.map(s=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+normalizeTrendTex
 function hasUnsafeEmbeddedScheme(raw:string):boolean {
  const decoded=decodeEditorialText(raw);
  if(decoded===null)return true;
- const attributes=/(?:^|[\s<])(?:href|src|xlink:href|action|formaction)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/giu;
- for(const match of decoded.matchAll(attributes)){
-  const destination=(match[1]??match[2]??match[3]??'').normalize('NFKC')
-   .replace(/[\u0000-\u0020\u007f\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu,'')
+ // A source can be embedded in responsive-image candidates, lazy-loading
+ // attributes, a poster, or inline CSS without appearing in href/src.
+ const attributes=/(?:^|[\\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/giu;
+ const normalizeDestination=(value:string):string=>value.normalize('NFKC')
+   .replace(/[\\u0000-\\u0020\\u007f\\u00ad\\u061c\\u200b-\\u200f\\u202a-\\u202e\\u2066-\\u2069\\ufeff]/gu,'')
    .toLowerCase();
-  if(/^(?:javascript|vbscript|data|file|blob):/u.test(destination))return true;
+ const unsafe=(value:string):boolean=>/^(?:javascript|vbscript|data|file|blob):/u.test(normalizeDestination(value));
+ for(const match of decoded.matchAll(attributes)){
+  const name=match[1].toLowerCase();
+  const value=match[2]??match[3]??match[4]??'';
+  if(name==='srcset'||name==='data-srcset'){
+   // Each candidate is a separate URL; checking only the start of the whole
+   // attribute misses an unsafe second candidate after a legitimate first.
+   if(value.split(',').some(unsafe))return true;
+  }else if(name==='style'){
+   // CSS url() can carry an executable scheme hidden behind safe headlines.
+   const css=normalizeDestination(value);
+   if(/url\\((?:"|')?(?:javascript|vbscript|data|file|blob):/u.test(css))return true;
+  }else if(unsafe(value))return true;
  }
  return false;
 }

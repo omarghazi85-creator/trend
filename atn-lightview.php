@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.20
+ * Version: 0.12.21
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -506,6 +506,16 @@ function atn_lightview_native_topic_url($url) {
         return isset($args['atn_topic']) && is_string($args['atn_topic']) &&
             preg_match('/^[a-f0-9]{64}$/D', $args['atn_topic']) ? $url : '';
     }
+    // Use an existing, canonical daily/weekly country archive permalink if the
+    // original renderer already exposes it. Do not synthesize a page or redirect
+    // visitors to a media source, and do not allow query/fragment overrides.
+    if (isset($parts['query']) || isset($parts['fragment'])) { return ''; }
+    $countries = atn_lightview_country_codes();
+    $pattern = '~^' . preg_quote($base, '~') .
+        '/trend-archive/([a-z]{2})-(search|music|week)-(\d{4})-(\d{2})-(\d{2})(?:-[a-z0-9]+)?$~D';
+    if (preg_match($pattern, $path, $m) && isset($countries[$m[1]]) &&
+        checkdate((int) $m[4], (int) $m[5], (int) $m[3]) &&
+        atn_lightview_archive_link_allowed($url)) { return $url; }
     return preg_match('~^' . preg_quote($base, '~') . '/trend-archive/topic-[a-f0-9]{24}$~D', $path) ? $url : '';
 }
 
@@ -654,7 +664,15 @@ add_action('wp_footer', function () {
           if(u.origin!==location.origin||u.username||u.password)return '';
           var path=u.pathname.replace(/\/$/,'');
           if(path==='/arab-trends-now'&&/^[a-f0-9]{64}$/.test(u.searchParams.get('atn_topic')||''))return u.href;
-          if(/^\/trend-archive\/topic-[a-f0-9]{24}$/.test(path))return u.href;
+          if(/^\/trend-archive\/topic-[a-f0-9]{24}$/.test(path)&&!u.search&&!u.hash)return u.href;
+          // Country cards can already contain a real internal archive action.
+          // Reuse only its verified permalink; leave thumbnails and source
+          // buttons untouched, even for Sudan, Somalia, Djibouti and Comoros.
+          var m=/^\/trend-archive\/([a-z]{2})-(search|music|week)-(\d{4})-(\d{2})-(\d{2})(?:-[a-z0-9]+)?$/.exec(path);
+          if(m&&!u.search&&!u.hash&&' sa ae eg kw qa bh om jo lb iq sy sd ps ye ly tn dz ma mr so dj km '.indexOf(' '+m[1]+' ')!==-1){
+            var day=m[3]+'-'+m[4]+'-'+m[5];
+            if(new Date(day+'T00:00:00Z').toISOString().slice(0,10)===day)return u.href;
+          }
         }catch(e){}
         return '';
       }

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.19
+ * Version: 0.12.20
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -69,6 +69,28 @@ function atn_lightview_archive_title_allowed($title) {
     if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title) ||
         preg_match('/%[0-9a-f]{2}/i', $title)) { return false; }
     $raw_title = $title;
+    // Inspect media/link attributes before stripping HTML. An otherwise safe
+    // archive heading or excerpt must not conceal active URL schemes.
+    $attributes = array();
+    if (preg_match_all("~(?:^|[\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s>]+))~iu", $raw_title, $attributes, PREG_SET_ORDER)) {
+        foreach ($attributes as $attribute) {
+            $name = strtolower($attribute[1]);
+            $value = isset($attribute[2]) && $attribute[2] !== '' ? $attribute[2] :
+                (isset($attribute[3]) && $attribute[3] !== '' ? $attribute[3] : ($attribute[4] ?? ''));
+            $compact = preg_replace('~[\x00-\x20\x7f\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]~u', '', $value);
+            if (!is_string($compact)) { return false; }
+            if ($name === 'style') {
+                $css = str_replace(array('"', "'"), '', $compact);
+                if (preg_match('~url\((?:javascript|vbscript|data|file|blob):~i', $css)) { return false; }
+            } elseif ($name === 'srcset' || $name === 'data-srcset') {
+                foreach (explode(',', $compact) as $candidate) {
+                    if (preg_match('~^(?:javascript|vbscript|data|file|blob):~i', $candidate)) { return false; }
+                }
+            } elseif (preg_match('~^(?:javascript|vbscript|data|file|blob):~i', $compact)) {
+                return false;
+            }
+        }
+    }
     $title = wp_strip_all_tags($title);
     $fold = array(
         'أ'=>'ا', 'إ'=>'ا', 'آ'=>'ا', 'ٱ'=>'ا', 'ى'=>'ي', 'ة'=>'ه', 'ؤ'=>'و', 'ئ'=>'ي'

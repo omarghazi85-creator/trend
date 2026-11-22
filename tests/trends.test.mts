@@ -175,3 +175,20 @@ test('four-country snapshots reject encoded zero-width terms before digesting',a
   assert.equal(await snapshotDigest(actual),await snapshotDigest(expected),country);
  }
 });
+
+
+test('unknown provider metadata is checked before four-country snapshot aggregation and hashing',async()=>{
+ for(const country of ['sd','so','dj','km']){
+  const base={country,term:'أسواق محلية',source:'google',observedAt:'2026-11-22T09:00:00Z',
+   extra:{labels:['الاقتصاد'],trackingUrl:'https://example.com/trends'}};
+  const rejected=[
+   {...base,extra:{caption:'OnlyFans'}},
+   {...base,analytics:{destinationUrl:'https://pornhub.com/landing'}},
+   {...base,extra:{links:[{targetUrl:'https://onlyfans.com/channel'}]}}
+  ];
+  const expected=makeTrendSnapshot(country,'2026-11-22',[base]);
+  const actual=makeTrendSnapshot(country,'2026-11-22',[...rejected,base]);
+  assert.deepEqual(actual,expected,country);
+  assert.equal(await snapshotDigest(actual),await snapshotDigest(expected),country);
+ }
+});

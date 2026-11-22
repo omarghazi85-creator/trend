@@ -59,3 +59,11 @@ test('source URLs and pre-aggregation rows fail closed on percent-obfuscated pro
  assert.deepEqual(guarded,baseline);
  assert.equal(await snapshotDigest(guarded),await snapshotDigest(baseline));
 });
+
+test('WordPress draft preparation rejects excluded media destinations embedded in article HTML',()=>{
+ const base={title:'تحليل موسع لأخبار التقنية العربية',slug:'regional-tech-review-2026',
+  content:'هذا تقرير تحريري مفصل عن التطورات المهنية والتقنية '.repeat(10)};
+ assert.doesNotThrow(()=>validateCandidate({...base,content:base.content+'<p><a href="https://example.com/news">المصدر</a></p>'}));
+ assert.throws(()=>validateCandidate({...base,content:base.content+'<a href="https://onlyfans.com/creator">رابط المصدر</a>'}),/editorial_content_blocked/);
+ assert.throws(()=>validateCandidate({...base,content:base.content+'<img src="https://pornhub.com/image.jpg">'}),/editorial_content_blocked/);
+});

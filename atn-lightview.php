@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.20
+ * Version: 0.12.24
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -69,6 +69,37 @@ function atn_lightview_archive_title_allowed($title) {
     if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title) ||
         preg_match('/%[0-9a-f]{2}/i', $title)) { return false; }
     $raw_title = $title;
+    // CSS escapes such as \6a avascript: or ur\6c(...) are resolved by
+    // browsers inside style attributes. Scan their decoded form as well.
+    // Keep the public output and stored content unchanged.
+    if (strpos($raw_title, '\\') !== false) {
+        $raw_title = preg_replace_callback(
+            '~\\\\([0-9a-f]{1,6})(?:\r\n|[\x09-\x0d ])?|\\\\([^\r\n\f])~i',
+            static function ($m) {
+                if (isset($m[1]) && $m[1] !== '') {
+                    $point = hexdec($m[1]);
+                    if ($point < 1 || $point > 0x10ffff ||
+                        ($point >= 0xd800 && $point <= 0xdfff)) { return ''; }
+                    return html_entity_decode('&#' . $point . ';', ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                }
+                return $m[2] ?? '';
+            },
+            $raw_title
+        );
+        if (!is_string($raw_title)) { return false; }
+    }
+    // Refuse executable HTML in saved archive labels and bodies before
+    // cache admission or direct detail display. Inspect actual markup tags,
+    // keeping prose mentioning onload=ready as ordinary text.
+    if (preg_match('~<\s*/?\s*(?:script|object|embed|base|meta)\b~iu', $raw_title)) { return false; }
+    $html_tags = array();
+    if (preg_match_all('~<\s*[a-z][^<>]{0,4096}>~iu', $raw_title, $html_tags)) {
+        foreach ($html_tags[0] as $html_tag) {
+            if (preg_match('~\s(?:on[a-z][a-z0-9_-]*|srcdoc)\s*=~iu', $html_tag)) {
+                return false;
+            }
+        }
+    }
     // Inspect media/link attributes before stripping HTML. An otherwise safe
     // archive heading or excerpt must not conceal active URL schemes.
     // Decoding &quot; inside CSS can produce nested quote characters.
@@ -491,6 +522,12 @@ add_action('wp_footer', function () {
 function atn_lightview_native_topic_url($url) {
     if (!is_string($url) || !$url) { return ''; }
     $url = html_entity_decode($url, ENT_QUOTES, 'UTF-8');
+    // Root-relative links from the native renderer are local URLs too.
+    // Reject protocol-relative and backslash-obfuscated destinations.
+    if ($url[0] === '/' && (strlen($url) === 1 || $url[1] !== '/') &&
+        strpos($url, chr(92)) === false) {
+        $url = home_url($url);
+    }
     $parts = wp_parse_url($url);
     $home = wp_parse_url(home_url('/'));
     if (!is_array($parts) || !is_array($home) ||
@@ -501,11 +538,22 @@ function atn_lightview_native_topic_url($url) {
     $path = rtrim($parts['path'] ?? '', '/');
     $base = rtrim($home['path'] ?? '', '/');
     if ($path === $base . '/arab-trends-now') {
-        $args = array();
-        parse_str($parts['query'] ?? '', $args);
-        return isset($args['atn_topic']) && is_string($args['atn_topic']) &&
-            preg_match('/^[a-f0-9]{64}$/D', $args['atn_topic']) ? $url : '';
+        // Only the original topic key is canonical. Reject duplicate/extra
+        // parameters and fragments instead of silently retaining them.
+        $query = $parts['query'] ?? '';
+        return !isset($parts['fragment']) &&
+            preg_match('/^atn_topic=[a-f0-9]{64}$/D', $query) ? $url : '';
     }
+    // Use an existing, canonical daily/weekly country archive permalink if the
+    // original renderer already exposes it. Do not synthesize a page or redirect
+    // visitors to a media source, and do not allow query/fragment overrides.
+    if (isset($parts['query']) || isset($parts['fragment'])) { return ''; }
+    $countries = atn_lightview_country_codes();
+    $pattern = '~^' . preg_quote($base, '~') .
+        '/trend-archive/([a-z]{2})-(search|music|week)-(\d{4})-(\d{2})-(\d{2})(?:-[a-z0-9]+)?$~D';
+    if (preg_match($pattern, $path, $m) && isset($countries[$m[1]]) &&
+        checkdate((int) $m[4], (int) $m[5], (int) $m[3]) &&
+        atn_lightview_archive_link_allowed($url)) { return $url; }
     return preg_match('~^' . preg_quote($base, '~') . '/trend-archive/topic-[a-f0-9]{24}$~D', $path) ? $url : '';
 }
 
@@ -653,8 +701,17 @@ add_action('wp_footer', function () {
           var u=new URL(value,location.href);
           if(u.origin!==location.origin||u.username||u.password)return '';
           var path=u.pathname.replace(/\/$/,'');
-          if(path==='/arab-trends-now'&&/^[a-f0-9]{64}$/.test(u.searchParams.get('atn_topic')||''))return u.href;
-          if(/^\/trend-archive\/topic-[a-f0-9]{24}$/.test(path))return u.href;
+          var topic=u.searchParams.get('atn_topic')||'';
+          if(path==='/arab-trends-now'&&/^[a-f0-9]{64}$/.test(topic)&&u.search==='?atn_topic='+topic&&!u.hash)return u.href;
+          if(/^\/trend-archive\/topic-[a-f0-9]{24}$/.test(path)&&!u.search&&!u.hash)return u.href;
+          // Country cards can already contain a real internal archive action.
+          // Reuse only its verified permalink; leave thumbnails and source
+          // buttons untouched, even for Sudan, Somalia, Djibouti and Comoros.
+          var m=/^\/trend-archive\/([a-z]{2})-(search|music|week)-(\d{4})-(\d{2})-(\d{2})(?:-[a-z0-9]+)?$/.exec(path);
+          if(m&&!u.search&&!u.hash&&' sa ae eg kw qa bh om jo lb iq sy sd ps ye ly tn dz ma mr so dj km '.indexOf(' '+m[1]+' ')!==-1){
+            var day=m[3]+'-'+m[4]+'-'+m[5];
+            if(new Date(day+'T00:00:00Z').toISOString().slice(0,10)===day)return u.href;
+          }
         }catch(e){}
         return '';
       }

@@ -211,3 +211,24 @@ test('structured RSS enclosures and Atom/media link arrays cannot bypass editori
  const excessive={...safe,links:Array.from({length:25},()=>({href:'https://example.com'}))};
  assert.deepEqual(filterTrendObservations([excessive]),[]);
 });
+
+test('entity-encoded and invisible joiners cannot disguise excluded names or unsafe schemes',()=>{
+ const blocked=[
+  'Only&shy;Fans',
+  'Only&NoBreak;Fans',
+  'Only&zwj;Fans',
+  'Only&#8288;Fans',
+  'Only\u034FFans',
+  'Only\uFE0FFans',
+  'p&shy;ornhub',
+  'حصيلة السودان <a href="java&Tab;script:alert(1)">المصدر</a>',
+  'حصيلة الصومال <img src="java&NewLine;script:alert(1)">',
+  'حصيلة جيبوتي <a href="java\u2060script:alert(1)">الخبر</a>',
+ ];
+ for(const value of blocked)assert.equal(isEditorialTrendAllowed(value),false,value);
+ for(const value of ['أسواق السودان &copy; 2026','مؤشرات الصومال','أخبار جيبوتي','حالة الطقس في جزر القمر'])
+  assert.equal(isEditorialTrendAllowed(value),true,value);
+ const good={term:'أخبار محلية',source:'google'};
+ assert.deepEqual(filterTrendObservations([good,{...good,caption:'Only&shy;Fans'},{
+   ...good,media:{caption:'Only&NoBreak;Fans'}}]),[good]);
+});

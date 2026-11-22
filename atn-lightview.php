@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.16
+ * Version: 0.12.17
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -103,7 +103,9 @@ function atn_lightview_archive_detail_blocked($post) {
         !atn_lightview_archive_title_allowed(get_the_title($post));
 }
 add_action('template_redirect', function () {
-    if (!is_singular('page') || is_preview()) { return; }
+    if (!is_singular('page')) { return; }
+    // A public ?preview=true request must not bypass an excluded archive page.
+    // Editors remain exempt only through the explicit edit_post capability below.
     $post = get_queried_object();
     if (!atn_lightview_archive_detail_blocked($post) ||
         current_user_can('edit_post', $post->ID)) { return; }

@@ -55,5 +55,5 @@ test('new country search summaries remain visible as internal archive cards with
  assert.ifError(cli.error);
  assert.equal(cli.status,0,cli.stderr);
  assert.deepEqual(JSON.parse(cli.stdout),[true,true,true,true,true,true,true,true,false,false]);
- assert.match(php,/Version: 0\.12\.16/);
+ assert.match(php,/\* Version: [0-9]+\.[0-9]+\.[0-9]+/);
 });

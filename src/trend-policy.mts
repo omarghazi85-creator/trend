@@ -186,8 +186,10 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
  const entries=Object.entries(value);
  return entries.length<=32&&entries.every(([key,entry])=>{
   if(key.length>100)return false;
+  // Recognize common snake-case and camelCase destination keys.
+  // Unknown feed metadata must not smuggle source URLs into observations.
   if(typeof entry==='string' &&
-    /(?:^|[_:-])(?:url|href|src|link|uri|permalink)(?:$|[_:-])/iu.test(key))
+    /(?:url|href|src|link|uri|permalink)$/iu.test(key))
    return isEditorialSourceUrlAllowed(entry);
   return isEditorialStructuredFeedFieldAllowed(entry,budget,depth+1);
  });
@@ -223,6 +225,11 @@ export function isEditorialObservationAllowed(item:EditorialObservation):boolean
    'media_content','media_thumbnail','image','thumbnail','media:content','media:thumbnail'] as const){
   if(!isEditorialStructuredFeedFieldAllowed(item[field],budget))return false;
  }
+ // Fail closed for *every* extra provider field, not only known RSS aliases.
+ // Shadow input may contain arbitrary nested JSON metadata. Validate the full
+ // bounded envelope before a caller can persist an original observation;
+ // this does not itself connect the live WordPress collector.
+ if(!isEditorialStructuredFeedFieldAllowed(item,{nodes:0}))return false;
  return true;
 }
 export function filterTrendObservations<T extends EditorialObservation>(items:readonly T[]):T[] {

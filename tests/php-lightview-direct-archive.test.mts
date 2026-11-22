@@ -78,7 +78,7 @@ test('anonymous preview queries cannot bypass excluded details; editors keep acc
   function get_404_template(){return false;}
   function wp_die($message,$title,$args){throw new Exception("blocked:".$args["response"]);}
   `;
-  const script=stubs+policy+'\\n'+detail+'\\n'+action+`
+  const script=stubs+policy+'\n'+detail+'\n'+action+`
     $first=false;
     try{$route();}catch(Exception $e){$first=$e->getMessage()==='blocked:404';}
     $anonymousBlocked=$first && $wp_query->blocked;

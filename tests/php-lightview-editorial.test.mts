@@ -123,7 +123,7 @@ test('PHP pre-cache policy rejects escaped CSS media schemes without changing sa
  const guard=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
  assert.ok(guard);
  const samples=[
-  'حصيلة السودان <div style="background:url(ja\\76ascript:alert(1))">خبر</div>',
+  'حصيلة السودان <div style="background:url(ja\\76 ascript:alert(1))">خبر</div>',
   'حصيلة الصومال <div style="background:ur\\6c(data:text/html)">خبر</div>',
   'حصيلة جيبوتي <div style="background:url(\\64 ata:text/html)">خبر</div>',
   'حصيلة جزر القمر <div style="background:url(https://only\\66 ans.com/cover)">خبر</div>',

@@ -22,6 +22,7 @@ test('PHP blocks excluded archive child only, preserves legitimate countries and
   const version = spawnSync('php', ['-v'], {encoding:'utf8'});
   if (version.error) { t.skip('PHP CLI not present'); return; }
   const policy = php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/);
+  const contentGuard = php.match(/function atn_lightview_archive_content_allowed\(\$post\) \{[\s\S]*?\n\}/);
   const detail = php.match(/function atn_lightview_archive_detail_blocked\(\$post\) \{[\s\S]*?\n\}/);
   assert.ok(policy && detail, 'extract pure filter and archive scope guard');
   const stub = `class WP_Post {
@@ -33,7 +34,7 @@ test('PHP blocks excluded archive child only, preserves legitimate countries and
   function get_the_title($post){return $post->post_title;}
   function wp_strip_all_tags($title){return strip_tags($title);}
   `;
-  const script = stub + policy[0] + '\n' + detail[0] + '\n' +
+  const script = stub + policy[0] + '\n' + contentGuard![0] + '\n' + detail[0] + '\n' +
     'echo json_encode(array_map("atn_lightview_archive_detail_blocked",array(' +
     'new WP_Post("page",61269,"ميا خليفة | سجل الرواج"),' +
     'new WP_Post("page",61269,"سجل الرواج | OnlyFans"),' +
@@ -57,9 +58,10 @@ test('anonymous preview queries cannot bypass excluded details; editors keep acc
   const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
   if(runtime.error){t.skip('PHP CLI not present');return;}
   const policy=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+  const contentGuard=php.match(/function atn_lightview_archive_content_allowed\(\$post\) \{[\s\S]*?\n\}/)?.[0];
   const detail=php.match(/function atn_lightview_archive_detail_blocked\(\$post\) \{[\s\S]*?\n\}/)?.[0];
   const action=php.match(/add_action\('template_redirect', function \(\) \{[\s\S]*?\n\}, 2\);/)?.[0];
-  assert.ok(policy && detail && action, 'verify the actual PHP route action');
+  assert.ok(policy && contentGuard && detail && action, 'verify the actual PHP route action');
   const stubs=`class WP_Post {
     public $ID=9999; public $post_type='page'; public $post_parent=61269; public $post_title;
     function __construct($title){$this->post_title=$title;}
@@ -78,7 +80,7 @@ test('anonymous preview queries cannot bypass excluded details; editors keep acc
   function get_404_template(){return false;}
   function wp_die($message,$title,$args){throw new Exception("blocked:".$args["response"]);}
   `;
-  const script=stubs+policy+'\n'+detail+'\n'+action+`
+  const script=stubs+policy+'\n'+contentGuard+'\n'+detail+'\n'+action+`
     $first=false;
     try{$route();}catch(Exception $e){$first=$e->getMessage()==='blocked:404';}
     $anonymousBlocked=$first && $wp_query->blocked;
@@ -94,4 +96,34 @@ test('anonymous preview queries cannot bypass excluded details; editors keep acc
   const res=spawnSync('php',['-r',script],{encoding:'utf8'});
   assert.equal(res.status,0,res.stderr);
   assert.deepEqual(JSON.parse(res.stdout),[true,true,true,true]);
+});
+
+test('body and excerpt policy blocks disallowed archives but retains safe Arab country summaries', t => {
+  const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
+  if(runtime.error){t.skip('PHP CLI unavailable');return;}
+  const policy=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+  const body=php.match(/function atn_lightview_archive_content_allowed\(\$post\) \{[\s\S]*?\n\}/)?.[0];
+  const detail=php.match(/function atn_lightview_archive_detail_blocked\(\$post\) \{[\s\S]*?\n\}/)?.[0];
+  assert.ok(policy && body && detail);
+  const stubs=`class WP_Post {
+    public $post_type='page'; public $post_parent=61269; public $post_title; public $post_content; public $post_excerpt;
+    function __construct($t,$c,$e,$p=61269){$this->post_title=$t;$this->post_content=$c;$this->post_excerpt=$e;$this->post_parent=$p;}
+  }
+  function get_the_title($post){return $post->post_title;}
+  function wp_strip_all_tags($v){return strip_tags($v);}
+  `;
+  const cases=[
+    ['حصيلة كلمات البحث في السودان','<a href="https://onlyfans.com/x">تفاصيل</a>','',61269],
+    ['حصيلة كلمات البحث في الصومال','حصيلة طبيعية','p&amp;#111;rn media',61269],
+    ['حصيلة كلمات البحث في جيبوتي','نتائج التجارة والسياحة','ملخص',61269],
+    ['حصيلة كلمات البحث في جزر القمر','السياحة 25%','',61269],
+    ['كلمات البحث الرائجة في السعودية','مادة عادية','',61269],
+    ['كلمات البحث الرائجة في مصر','مادة عادية','',61269],
+    ['حصيلة كلمات البحث في السودان','onlyfans','',61258],
+  ];
+  const script=stubs+policy+'\n'+body+'\n'+detail+
+    '\n$flags=[]; foreach(json_decode(stream_get_contents(STDIN),true) as $r){$flags[]=atn_lightview_archive_detail_blocked(new WP_Post(...$r));} echo json_encode($flags);';
+  const result=spawnSync('php',['-r',script],{input:JSON.stringify(cases),encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout),[true,true,false,false,false,false,false]);
 });

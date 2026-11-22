@@ -192,3 +192,20 @@ test('unknown provider metadata is checked before four-country snapshot aggregat
   assert.equal(await snapshotDigest(actual),await snapshotDigest(expected),country);
  }
 });
+
+
+test('disallowed provider object keys never affect snapshots in the four underrepresented countries',async()=>{
+ for(const country of ['sd','so','dj','km']){
+  const safe={country,term:'الأسواق المحلية',source:'google',observedAt:'2026-11-22T10:00:00Z',
+   extra:{trackingUrl:'https://example.com/markets'}};
+  const excluded=[
+   {...safe,extra:{OnlyFans:'معلومة'}},
+   {...safe,extra:{'p%6frnhub':1}},
+   {...safe,metadata:{OnlyFansCampaign:{label:'بيانات'}}}
+  ];
+  const baseline=makeTrendSnapshot(country,'2026-11-22',[safe]);
+  const actual=makeTrendSnapshot(country,'2026-11-22',[...excluded,safe]);
+  assert.deepEqual(actual,baseline,country);
+  assert.equal(await snapshotDigest(actual),await snapshotDigest(baseline),country);
+ }
+});

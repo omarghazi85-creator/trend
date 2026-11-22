@@ -121,3 +121,20 @@ test('rejects concealed media and CSS protocols before raw trend admission, pres
  const rows=[{term:'نشرة السودان',source:'news'},{term:unsafe[0],source:'news'},{term:unsafe[6],source:'news'}];
  assert.deepEqual(filterTrendObservations(rows),[rows[0]]);
 });
+
+test('CSS-escaped external destinations and blocked terms cannot bypass source admission',()=>{
+ const bad=[
+  'حصيلة السودان <div style="background:url(ja\\76ascript:alert(1))">تفاصيل</div>',
+  'حصيلة الصومال <div style="background:ur\\6c(data:text/html;base64,QQ==)">موجز</div>',
+  'حصيلة جيبوتي <div style="background:url(\\64 ata:text/html)">موجز</div>',
+  'حصيلة جزر القمر <div style="background:url(https://only\\66 ans.com/cover)">موجز</div>',
+  'حصيلة السودان <a href="https://only\\66 ans.com/">مادة</a>'
+ ];
+ for(const value of bad)assert.equal(isEditorialTrendAllowed(value),false,value);
+ for(const value of [
+  'حصيلة السودان <div style="color:\\23 333">تقرير</div>',
+  'حصيلة الصومال <div style="background:url(https://example.com/photo.jpg)">خبر</div>'
+ ])assert.equal(isEditorialTrendAllowed(value),true,value);
+ const rows=[{term:'رواج جيبوتي',source:'news'},{term:bad[0],source:'news'}];
+ assert.deepEqual(filterTrendObservations(rows),[rows[0]]);
+});

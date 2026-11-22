@@ -124,7 +124,7 @@ test('rejects concealed media and CSS protocols before raw trend admission, pres
 
 test('CSS-escaped external destinations and blocked terms cannot bypass source admission',()=>{
  const bad=[
-  'حصيلة السودان <div style="background:url(ja\\76ascript:alert(1))">تفاصيل</div>',
+  'حصيلة السودان <div style="background:url(ja\\76 ascript:alert(1))">تفاصيل</div>',
   'حصيلة الصومال <div style="background:ur\\6c(data:text/html;base64,QQ==)">موجز</div>',
   'حصيلة جيبوتي <div style="background:url(\\64 ata:text/html)">موجز</div>',
   'حصيلة جزر القمر <div style="background:url(https://only\\66 ans.com/cover)">موجز</div>',

@@ -288,3 +288,87 @@ test('retires URL-supplied snapshots with an encoded search value and no copied 
   });
 });
 
+
+
+test('country archive titles reuse verified native internal actions for all 22 countries without changing original media links', () => {
+  const countries = 'sa ae eg kw qa bh om jo lb iq sy sd ps ye ly tn dz ma mr so dj km'.split(' ');
+  for (const code of countries) {
+    const env = setup();
+    const card = cardsOf(env.document)[2];
+    const expected = origin + '/trend-archive/' + code + '-search-2026-11-21';
+    card.querySelector('.atni-follow')!.setAttribute('data-atni-url', expected);
+    const thumb = card.querySelector('.atn-thumb')!.href;
+    const otherLinks = card.querySelectorAll('a[href]').filter(a => a !== titleOf(card)).map(a => Object.fromEntries(a.attrs));
+    env.run();
+    assert.equal(titleOf(card).href, expected, code);
+    assert.equal(titleOf(card).getAttribute('target'), null, code);
+    assert.equal(card.querySelector('.atn-thumb')!.href, thumb, code);
+    assert.deepEqual(card.querySelectorAll('a[href]').filter(a => a !== titleOf(card)).map(a => Object.fromEntries(a.attrs)), otherLinks, code);
+  }
+});
+
+test('rejects spoofed, undated and invalid country archive actions without rewriting a title', () => {
+  const bad = [
+    'https://evil.example/trend-archive/sd-search-2026-11-21',
+    'https://arabiatrend.com.evil.example/trend-archive/so-search-2026-11-21',
+    'https://user:pass@arabiatrend.com/trend-archive/dj-search-2026-11-21',
+    origin + '/trend-archive/us-search-2026-11-21',
+    origin + '/trend-archive/sd-search-2026-02-30',
+    origin + '/trend-archive/km-search-today',
+    origin + '/trend-archive/so-search-2026-11-21?redirect=https://evil.example',
+    origin + '/trend-archive/dj-week-2026-11-21#external',
+    'javascript:alert(1)'
+  ];
+  for (const url of bad) {
+    const env = setup();
+    const card = cardsOf(env.document)[2];
+    card.querySelector('.atni-follow')!.setAttribute('data-atni-url', url);
+    card.querySelector('.atn-card-actions a[href]')!.setAttribute('href', url);
+    const original = Object.fromEntries(titleOf(card).attrs);
+    env.run();
+    assert.deepEqual(Object.fromEntries(titleOf(card).attrs), original, url);
+  }
+});
+
+test('server-side PHP title routing recognizes only existing canonical country and topic detail links', (t) => {
+  const named = ['atn_lightview_country_codes', 'atn_lightview_archive_link_allowed', 'atn_lightview_native_topic_url'];
+  const extracted = named.map(name => {
+    const match = plugin.match(new RegExp('function ' + name + '\\([^)]*\\) \\{[\\s\\S]*?\\n\\}'));
+    assert.ok(match, name + ' exists');
+    return match[0];
+  });
+  const php = [
+    "function home_url($path) { return 'https://arabiatrend.com' . $path; }",
+    'function wp_parse_url($url) { return parse_url($url); }',
+    ...extracted,
+    '$urls = json_decode(stream_get_contents(STDIN), true);',
+    '$result = array();',
+    'foreach ($urls as $url) { $result[] = atn_lightview_native_topic_url($url); }',
+    'echo json_encode($result);'
+  ].join('\n');
+  const good = [
+    origin + '/trend-archive/sd-search-2026-11-21',
+    origin + '/trend-archive/so-music-2026-11-21/',
+    origin + '/trend-archive/dj-week-2026-11-21',
+    origin + '/trend-archive/km-search-2026-11-21',
+    origin + '/trend-archive/sa-search-2026-11-21',
+    origin + '/trend-archive/eg-search-2026-11-21',
+    origin + '/trend-archive/topic-' + 'f'.repeat(24)
+  ];
+  const bad = [
+    origin + '/trend-archive/us-search-2026-11-21',
+    origin + '/trend-archive/so-search-2026-02-30',
+    origin + '/trend-archive/sd-search-2026-11-21?source=external',
+    origin + '/trend-archive/km-week-2026-11-21#source',
+    'https://evil.example/trend-archive/sd-search-2026-11-21',
+    origin + '/trend-archive/dj-search-today'
+  ];
+  const result = spawnSync('php', ['-r', php], { input: JSON.stringify([...good, ...bad]), encoding: 'utf8' });
+  if (result.error && (result.error as NodeJS.ErrnoException).code === 'ENOENT') {
+    t.diagnostic('PHP CLI unavailable here; the canonical country link cases run in CI.');
+    return;
+  }
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), [...good, ...bad.map(() => '')]);
+});

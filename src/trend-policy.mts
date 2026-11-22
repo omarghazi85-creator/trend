@@ -136,6 +136,14 @@ export function isEditorialSourceUrlAllowed(value:unknown):value is string {
  let url:URL;
  try {url=new URL(value);}catch{return false;}
  if(url.protocol!=='https:'||!url.hostname||url.username||url.password)return false;
+ // An observation's original source must be an external named HTTPS site.
+ // Reject loopback, private DNS zones, IP literals (including IPv6 and
+ // alternate IPv4 spellings normalized by URL), and single-label intranet
+ // names before aggregation. These links are never fetched here.
+ const host=url.hostname.toLowerCase().replace(/\.+$/u,'');
+ if(!host.includes('.')||host.endsWith('.localhost')||
+    host.endsWith('.local')||host.endsWith('.internal')||
+    /^\d{1,3}(?:\.\d{1,3}){3}$/u.test(host)||host.startsWith('['))return false;
  const raw=[url.hostname,url.pathname,url.search,url.hash].join(' ');
  let decoded=raw;
  for(let i=0;i<6;i++){

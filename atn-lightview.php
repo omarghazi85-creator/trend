@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.17
+ * Version: 0.12.18
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -68,13 +68,18 @@ function atn_lightview_archive_title_allowed($title) {
     }
     if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title) ||
         preg_match('/%[0-9a-f]{2}/i', $title)) { return false; }
+    $raw_title = $title;
     $title = wp_strip_all_tags($title);
-    $title = strtolower(strtr($title, array(
+    $fold = array(
         'أ'=>'ا', 'إ'=>'ا', 'آ'=>'ا', 'ٱ'=>'ا', 'ى'=>'ي', 'ة'=>'ه', 'ؤ'=>'و', 'ئ'=>'ي'
-    )));
+    );
+    $title = strtolower(strtr($title, $fold));
+    $raw_title = strtolower(strtr($raw_title, $fold));
     $title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]/u', '', $title);
+    $raw_title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]/u', '', $raw_title);
     if (!is_string($title) || $title === '') { return false; }
     $title = preg_replace('/\s+/u', ' ', $title);
+    $raw_title = preg_replace('/\s+/u', ' ', $raw_title);
     $terms = array(
         'سكس', 'سيكس', 'سكسي', 'سيكسي', 'اباحي', 'اباحيه', 'اباحيات',
         'افلام اباحيه', 'مقاطع اباحيه', 'صور عاريه', 'محتوي جنسي صريح',
@@ -86,7 +91,8 @@ function atn_lightview_archive_title_allowed($title) {
         'nude', 'nudity', 'erotica', 'erotic', 'gay', 'lesbian', 'explicit sex'
     );
     foreach ($terms as $term) {
-        if (preg_match('~(?<![\p{L}\p{N}])' . preg_quote($term, '~') . '(?![\p{L}\p{N}])~u', $title)) {
+        if (preg_match('~(?<![\p{L}\p{N}])' . preg_quote($term, '~') . '(?![\p{L}\p{N}])~u', $title) ||
+            preg_match('~(?<![\p{L}\p{N}])' . preg_quote($term, '~') . '(?![\p{L}\p{N}])~u', $raw_title)) {
             return false;
         }
     }
@@ -160,8 +166,11 @@ function atn_lightview_archive_items() {
         ));
         $items = array();
         foreach ($q->posts as $p) {
-            $title = wp_strip_all_tags(get_the_title($p));
+            $title = get_the_title($p);
+            // The original HTML can conceal an excluded source in href/src.
+            // Validate it before stripping attributes for the display card.
             if (!atn_lightview_archive_title_allowed($title)) { continue; }
+            $title = wp_strip_all_tags($title);
             if (!atn_lightview_archive_title_supported($title)) { continue; }
             $link = get_permalink($p);
             if (!atn_lightview_archive_link_allowed($link)) { continue; }

@@ -1,6 +1,6 @@
 /** Deterministic, side-effect-free trend snapshot preparation. No PHP/WordPress calls. */
-import {isEditorialTrendAllowed,isEditorialSourceUrlAllowed,normalizeTrendText,decodeEditorialText} from './trend-policy.mts';
-export type TrendRecord={country:string;term:string;source:string;observedAt:string;score?:number;sourceUrl?:string;url?:string};
+import {isEditorialTrendAllowed,isEditorialObservationAllowed,normalizeTrendText,decodeEditorialText} from './trend-policy.mts';
+export type TrendRecord={country:string;term:string;source:string;observedAt:string;score?:number;sourceUrl?:string;url?:string;description?:unknown;excerpt?:unknown;summary?:unknown;caption?:unknown;content?:unknown;mediaUrl?:unknown;imageUrl?:unknown;originalUrl?:unknown;link?:unknown};
 export type TrendSnapshot={country:string;day:string;terms:Array<{key:string;term:string;sources:string[];score:number|null}>};
 const COUNTRIES=new Set('sa ae eg kw qa bh om jo lb iq sy sd ps ye ly tn dz ma mr so dj km'.split(' '));
 const DAY=/^\d{4}-\d{2}-\d{2}$/;
@@ -31,9 +31,7 @@ export function makeTrendSnapshot(country:string,day:string,rows:readonly TrendR
   const d=new Date(row.observedAt);
   if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==day)continue;
   // Reject before normalization, aggregation, hashing, or any future persistence layer.
-  if(!isEditorialTrendAllowed(row.term)||!isEditorialTrendAllowed(row.source)||
-     (row.sourceUrl!==undefined&&!isEditorialSourceUrlAllowed(row.sourceUrl))||
-     (row.url!==undefined&&!isEditorialSourceUrlAllowed(row.url)))continue;
+  if(!isEditorialObservationAllowed(row))continue;
   const display=cleanTrendDisplay(row.term);
   // Revalidate decoded display, before retaining it in any prospective raw snapshot.
   if(!isEditorialTrendAllowed(display))continue;

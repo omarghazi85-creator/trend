@@ -126,18 +126,34 @@ export function isEditorialSourceUrlAllowed(value:unknown):value is string {
  // Reject a remaining nested escape instead of accepting partially decoded input.
  return isEditorialTrendAllowed(decoded)&&!/%[0-9a-f]{2}/i.test(decoded);
 }
-/** Works on both page records (title/name) and raw observations (term/source). */
-export function filterTrendObservations<T extends {title?:unknown;name?:unknown;term?:unknown;source?:unknown;artist?:unknown;publisher?:unknown;url?:unknown;sourceUrl?:unknown}>(items:readonly T[]):T[] {
- return items.filter(item=>{
-  const title=item.title??item.name??item.term;
-  return isEditorialTrendAllowed(title) &&
-   (item.title===undefined||isEditorialTrendAllowed(item.title)) &&
-   (item.name===undefined||isEditorialTrendAllowed(item.name)) &&
-   (item.term===undefined||isEditorialTrendAllowed(item.term)) &&
-   (item.source===undefined||isEditorialTrendAllowed(item.source)) &&
-   (item.artist===undefined||isEditorialTrendAllowed(item.artist)) &&
-   (item.publisher===undefined||isEditorialTrendAllowed(item.publisher)) &&
-   (item.url===undefined||isEditorialSourceUrlAllowed(item.url)) &&
-   (item.sourceUrl===undefined||isEditorialSourceUrlAllowed(item.sourceUrl));
- });
+/** Shared pre-admission policy for source observations and archive records. */
+export type EditorialObservation={
+ title?:unknown;name?:unknown;term?:unknown;source?:unknown;artist?:unknown;publisher?:unknown;
+ description?:unknown;excerpt?:unknown;summary?:unknown;caption?:unknown;content?:unknown;
+ url?:unknown;sourceUrl?:unknown;mediaUrl?:unknown;imageUrl?:unknown;originalUrl?:unknown;link?:unknown;
+};
+export function isEditorialObservationAllowed(item:EditorialObservation):boolean {
+ if(!item||typeof item!=='object')return false;
+ const title=item.title??item.name??item.term;
+ if(!isEditorialTrendAllowed(title))return false;
+ for(const field of ['title','name','term','source','artist','publisher'] as const){
+  if(item[field]!==undefined&&!isEditorialTrendAllowed(item[field]))return false;
+ }
+ // Raw feeds often hide excluded source terms in captions, excerpts or bodies
+ // while displaying a harmless title. Check them before any aggregation or
+ // future raw persistence. Blank optional fields mean no supplied text.
+ for(const field of ['description','excerpt','summary','caption','content'] as const){
+  const value=item[field];
+  if(value!==undefined&&value!==null&&value!==''&&!isEditorialTrendAllowed(value))return false;
+ }
+ // Keep external media/source destinations distinct from the local detail URL,
+ // but never admit an unsafe one simply because the headline was legitimate.
+ for(const field of ['url','sourceUrl','mediaUrl','imageUrl','originalUrl','link'] as const){
+  const value=item[field];
+  if(value!==undefined&&value!==null&&value!==''&&!isEditorialSourceUrlAllowed(value))return false;
+ }
+ return true;
+}
+export function filterTrendObservations<T extends EditorialObservation>(items:readonly T[]):T[] {
+ return items.filter(isEditorialObservationAllowed);
 }

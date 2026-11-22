@@ -68,3 +68,14 @@ test('filter rejects encoded raw source, term, and conflicting fields without mu
  ];
  assert.deepEqual(filterTrendObservations([safe,...blocked]),[safe]);
 });
+
+test('checks excluded source URLs hidden inside HTML attributes before stripping tags',()=>{
+ const legitimate='نشرة الأسواق <a href="https://example.com/finance">التفاصيل</a>';
+ assert.equal(isEditorialTrendAllowed(legitimate),true);
+ for(const title of [
+  'نشرة الأسواق <a href="https://onlyfans.com/creator">التفاصيل</a>',
+  'نشرة الأسواق <img src="https://pornhub.com/preview.jpg">',
+  'نشرة الأسواق &lt;a href="https://onlyfans.com"&gt;المصدر&lt;/a&gt;',
+  'نشرة الأسواق <a href="https://example.com/%70ornhub">الرابط</a>'
+ ])assert.equal(isEditorialTrendAllowed(title),false,title);
+});

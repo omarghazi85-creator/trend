@@ -152,3 +152,32 @@ test('malformed dated archive slug is rejected instead of displaying a false day
   assert.deepEqual((await r.json()).items,[]);
  }finally{globalThis.fetch=original;}
 });
+
+test('archive rejects forbidden links in raw title markup before displaying decoded headline',async()=>{
+ const original=globalThis.fetch;
+ let requests=0;
+ const cases=[
+  {...payload.posts[0],ID:901,slug:'sd-search-2026-11-21',
+   URL:'https://arabiatrend.com/trend-archive/sd-search-2026-11-21',
+   title:'حصيلة السودان <a href="https://onlyfans.com/creator">التفاصيل</a>'},
+  {...payload.posts[0],ID:902,slug:'so-search-2026-11-21',
+   URL:'https://arabiatrend.com/trend-archive/so-search-2026-11-21',
+   title:'حصيلة الصومال &lt;img src="https://pornhub.com/preview.jpg"&gt;'},
+  {...payload.posts[0],ID:903,slug:'dj-search-2026-11-21',
+   URL:'https://arabiatrend.com/trend-archive/dj-search-2026-11-21',
+   title:'حصيلة جيبوتي &lt;a href="https://example.com/news"&gt;التفاصيل&lt;/a&gt;'},
+  {...payload.posts[0],ID:904,slug:'km-search-2026-11-21',
+   URL:'https://arabiatrend.com/trend-archive/km-search-2026-11-21',
+   title:'حصيلة جزر القمر'}
+ ];
+ globalThis.fetch=async()=>{requests++;return Response.json({found:4,posts:cases});};
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,200);
+  const body=await response.json();
+  assert.deepEqual(body.items.map((entry:{country:string})=>entry.country),['جيبوتي','جزر القمر']);
+  assert.equal(body.items[0].title,'حصيلة جيبوتي التفاصيل');
+  assert.equal(body.items[1].link,cases[3].URL);
+  assert.equal(requests,1,'only one bounded public WordPress API request');
+ }finally{globalThis.fetch=original;}
+});

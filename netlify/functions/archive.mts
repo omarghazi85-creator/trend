@@ -28,6 +28,10 @@ function classify(page:PublicPage){
  if(page.parent===false||!page.parent||page.parent.ID!==61269||page.status!=='publish')return null;
  if(typeof page.URL!=='string'||typeof page.slug!=='string'||!canonicalArchiveUrl(page.URL,page.slug))return null;
  if(typeof page.title!=='string'||typeof page.date!=='string')return null;
+ // Inspect the upstream HTML *before* stripping tags. A prohibited source may
+ // be concealed in href/src while the visible headline looks innocuous.
+ // The same check also handles nested HTML entities and URL encoding.
+ if(!isEditorialTrendAllowed(page.title))return null;
  const title=decodeHtmlEntities(page.title).replace(/<[^>]{0,256}>/g,'').trim();
  if(!isEditorialTrendAllowed(title))return null;
  const slug=page.slug;

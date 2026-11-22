@@ -159,3 +159,31 @@ test('blocks executable inline HTML in external observations without rejecting n
  const rows=[{term:'تقرير السودان',source:'news'},{term:blocked[0],source:'news'}];
  assert.deepEqual(filterTrendObservations(rows),[rows[0]]);
 });
+
+
+test('common feed text and URL aliases cannot bypass pre-admission editorial filtering',()=>{
+ const safe={term:'أخبار السودان',source:'google',permalink:'https://example.com/news',
+   thumbnail_url:'https://example.com/cover.jpg',provider:'مصادر محلية'};
+ const excluded=[
+  {...safe,provider:'OnlyFans'},
+  {...safe,channel:'pornhub'},
+  {...safe,author:'آمارنا ميلر'},
+  {...safe,platform:'pornography'},
+  {...safe,byline:'OnlyFans'},
+  {...safe,subtitle:'مقاطع اباحية'},
+  {...safe,body:'إعلان <a href="https://onlyfans.com">خبر</a>'},
+  {...safe,text:'pornography'},
+  {...safe,permalink:'https://onlyfans.com/profile'},
+  {...safe,canonicalUrl:'https://example.com/%70ornhub'},
+  {...safe,thumbnailUrl:'https://onlyfans.com/img.jpg'},
+  {...safe,videoUrl:'javascript:alert(1)'},
+  {...safe,postUrl:'https://pornhub.com'},
+  {...safe,source_url:'https://onlyfans.com'},
+  {...safe,media_url:'https://onlyfans.com/clip'},
+  {...safe,image_url:'https://onlyfans.com/cover'},
+  {...safe,original_url:'https://onlyfans.com/original'},
+  {...safe,video_url:'https://onlyfans.com/movie'},
+  {...safe,thumbnail_url:'https://onlyfans.com/thumb'}
+ ];
+ assert.deepEqual(filterTrendObservations([safe,...excluded]),[safe]);
+});

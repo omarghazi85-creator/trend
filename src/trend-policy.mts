@@ -154,7 +154,39 @@ export type EditorialObservation={
  url?:unknown;sourceUrl?:unknown;mediaUrl?:unknown;imageUrl?:unknown;originalUrl?:unknown;link?:unknown;
  permalink?:unknown;canonicalUrl?:unknown;thumbnailUrl?:unknown;videoUrl?:unknown;postUrl?:unknown;
  source_url?:unknown;media_url?:unknown;image_url?:unknown;original_url?:unknown;video_url?:unknown;thumbnail_url?:unknown;
+ enclosure?:unknown;enclosures?:unknown;links?:unknown;attachments?:unknown;
+ media?:unknown;media_content?:unknown;media_thumbnail?:unknown;image?:unknown;thumbnail?:unknown;
+ 'media:content'?:unknown;'media:thumbnail'?:unknown;
 };
+/**
+ * RSS enclosures and media/Atom links can hide destinations inside arrays
+ * and nested objects. Screen these before aggregation, with a strict
+ * traversal budget so malformed feeds cannot exhaust a serverless worker.
+ * This is validation only; it does not fetch or persist feed data.
+ */
+function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:number}, depth=0):boolean {
+ if(++budget.nodes>128||depth>4)return false;
+ if(value===undefined||value===null)return true;
+ if(typeof value==='string'){
+  if(value.length>4096)return false;
+  return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/iu.test(value)
+   ? isEditorialSourceUrlAllowed(value) : isEditorialTrendAllowed(value);
+ }
+ if(typeof value==='number')return Number.isFinite(value);
+ if(typeof value==='boolean')return true;
+ if(typeof value!=='object')return false;
+ if(Array.isArray(value)){
+  return value.length<=24 && value.every(entry=>isEditorialStructuredFeedFieldAllowed(entry,budget,depth+1));
+ }
+ const entries=Object.entries(value);
+ return entries.length<=32&&entries.every(([key,entry])=>{
+  if(key.length>100)return false;
+  if(typeof entry==='string' &&
+    /(?:^|[_:-])(?:url|href|src|link|uri|permalink)(?:$|[_:-])/iu.test(key))
+   return isEditorialSourceUrlAllowed(entry);
+  return isEditorialStructuredFeedFieldAllowed(entry,budget,depth+1);
+ });
+}
 export function isEditorialObservationAllowed(item:EditorialObservation):boolean {
  if(!item||typeof item!=='object')return false;
  const title=item.title??item.name??item.term;
@@ -178,6 +210,13 @@ export function isEditorialObservationAllowed(item:EditorialObservation):boolean
    'source_url','media_url','image_url','original_url','video_url','thumbnail_url'] as const){
   const value=item[field];
   if(value!==undefined&&!isEditorialSourceUrlAllowed(value))return false;
+ }
+ // Feed libraries expose media links as arrays/objects, not just flat URLs.
+ // Unknown nested markup or source destinations must fail closed as well.
+ const budget={nodes:0};
+ for(const field of ['enclosure','enclosures','links','attachments','media',
+   'media_content','media_thumbnail','image','thumbnail','media:content','media:thumbnail'] as const){
+  if(!isEditorialStructuredFeedFieldAllowed(item[field],budget))return false;
  }
  return true;
 }

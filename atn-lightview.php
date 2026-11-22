@@ -71,6 +71,12 @@ function atn_lightview_archive_title_allowed($title) {
     $raw_title = $title;
     // Inspect media/link attributes before stripping HTML. An otherwise safe
     // archive heading or excerpt must not conceal active URL schemes.
+    // Decoding &quot; inside CSS can produce nested quote characters.
+    // Inspect the entire style attribute before parsing individual HTML URLs.
+    $css_markup = preg_replace('~[\x00-\x20\x7f\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]~u', '', $raw_title);
+    if (!is_string($css_markup)) { return false; }
+    $css_markup = str_replace(array('"', "'"), '', $css_markup);
+    if (preg_match('~style=[^>]*url\((?:javascript|vbscript|data|file|blob):~i', $css_markup)) { return false; }
     $attributes = array();
     if (preg_match_all("~(?:^|[\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s>]+))~iu", $raw_title, $attributes, PREG_SET_ORDER)) {
         foreach ($attributes as $attribute) {

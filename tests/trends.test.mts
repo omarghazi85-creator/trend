@@ -124,3 +124,22 @@ test('executable markup in raw observation fields is rejected before country sna
   assert.equal(await snapshotDigest(guarded),await snapshotDigest(baseline),country);
  }
 });
+
+
+test('four-country shadow snapshots discard excluded feed aliases before aggregation and digest',async()=>{
+ for(const country of ['sd','so','dj','km']){
+  const base={country,term:'أسعار الأسواق المحلية',source:'google',observedAt:'2026-11-22T11:00:00Z',
+   permalink:'https://example.com/markets',thumbnail_url:'https://example.com/photo.jpg',provider:'نشرة محلية'};
+  const excluded=[
+   {...base,provider:'OnlyFans'},
+   {...base,body:'<a href="https://onlyfans.com">متابعة</a>'},
+   {...base,permalink:'https://onlyfans.com/profile'},
+   {...base,thumbnail_url:'https://pornhub.com/photo.jpg'},
+   {...base,source_url:'https://example.com/%70ornhub'}
+  ];
+  const expected=makeTrendSnapshot(country,'2026-11-22',[base]);
+  const actual=makeTrendSnapshot(country,'2026-11-22',[...excluded,base]);
+  assert.deepEqual(actual,expected,country);
+  assert.equal(await snapshotDigest(actual),await snapshotDigest(expected),country);
+ }
+});

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.18
+ * Version: 0.12.19
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -103,10 +103,25 @@ function atn_lightview_archive_title_allowed($title) {
  * bookmark or a search engine. Listing/REST filtering alone is insufficient.
  * This uses only the already queried WP_Post and never edits stored records.
  */
+/**
+ * Check the archived page body and excerpt already present on WP_Post.
+ * No database reads, remote requests, writes, or new scheduled work.
+ */
+function atn_lightview_archive_content_allowed($post) {
+    if (!($post instanceof WP_Post)) { return false; }
+    foreach (array('post_content', 'post_excerpt') as $field) {
+        if (!isset($post->$field)) { continue; }
+        if (!is_string($post->$field)) { return false; }
+        if (trim($post->$field) !== '' &&
+            !atn_lightview_archive_title_allowed($post->$field)) { return false; }
+    }
+    return true;
+}
 function atn_lightview_archive_detail_blocked($post) {
     return $post instanceof WP_Post && $post->post_type === 'page' &&
         (int) $post->post_parent === 61269 &&
-        !atn_lightview_archive_title_allowed(get_the_title($post));
+        (!atn_lightview_archive_title_allowed(get_the_title($post)) ||
+         !atn_lightview_archive_content_allowed($post));
 }
 add_action('template_redirect', function () {
     if (!is_singular('page')) { return; }
@@ -170,6 +185,8 @@ function atn_lightview_archive_items() {
             // The original HTML can conceal an excluded source in href/src.
             // Validate it before stripping attributes for the display card.
             if (!atn_lightview_archive_title_allowed($title)) { continue; }
+            // Screen existing page fields before accepting a new cached card.
+            if (!atn_lightview_archive_content_allowed($p)) { continue; }
             $title = wp_strip_all_tags($title);
             if (!atn_lightview_archive_title_supported($title)) { continue; }
             $link = get_permalink($p);

@@ -121,8 +121,8 @@ test('body and excerpt policy blocks disallowed archives but retains safe Arab c
     ['كلمات البحث الرائجة في مصر','مادة عادية','',61269],
     ['حصيلة كلمات البحث في السودان','onlyfans','',61258],
   ];
-  const script=stubs+policy+'\\n'+body+'\\n'+detail+
-    '\\n$flags=[]; foreach(json_decode(stream_get_contents(STDIN),true) as $r){$flags[]=atn_lightview_archive_detail_blocked(new WP_Post(...$r));} echo json_encode($flags);';
+  const script=stubs+policy+'\n'+body+'\n'+detail+
+    '\n$flags=[]; foreach(json_decode(stream_get_contents(STDIN),true) as $r){$flags[]=atn_lightview_archive_detail_blocked(new WP_Post(...$r));} echo json_encode($flags);';
   const result=spawnSync('php',['-r',script],{input:JSON.stringify(cases),encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
   assert.deepEqual(JSON.parse(result.stdout),[true,true,false,false,false,false,false]);

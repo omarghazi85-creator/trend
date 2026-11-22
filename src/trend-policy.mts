@@ -81,6 +81,13 @@ function hasUnsafeEmbeddedScheme(raw:string):boolean {
  const decoded=decodeEditorialText(raw);
  if(decoded===null)return true;
  const inspected=decoded.includes('\\')?decodeCssEscapes(decoded):decoded;
+ // Reject executable HTML even when a safe HTTPS link or innocuous title
+ // conceals an event handler, srcdoc document, or active-content element.
+ // Inspect only markup tags: ordinary text such as "onload=ready" is allowed.
+ if(/<\s*\/?\s*(?:script|object|embed|base|meta)\b/iu.test(inspected))return true;
+ for(const tag of inspected.matchAll(/<\s*[a-z][^<>]{0,4096}>/giu)){
+  if(/\s(?:on[a-z][a-z0-9_-]*|srcdoc)\s*=/iu.test(tag[0]))return true;
+ }
  // A source can be embedded in responsive-image candidates, lazy-loading
  // attributes, a poster, or inline CSS without appearing in href/src.
  const attributes=/(?:^|[\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/giu;

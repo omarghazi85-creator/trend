@@ -108,3 +108,19 @@ test('new countries discard forbidden raw descriptions and media links before sn
   assert.equal(await snapshotDigest(guarded),await snapshotDigest(baseline),country);
  }
 });
+
+test('executable markup in raw observation fields is rejected before country snapshot digest',async()=>{
+ const countries=['sd','so','dj','km'];
+ for(const country of countries){
+  const base={country,term:'الأسواق المحلية',source:'google',observedAt:'2026-11-22T09:00:00Z',description:'نشرة اقتصادية'};
+  const unsafe=[
+   {...base,term:'تقرير <img src="https://example.com/a.jpg" onerror="alert(1)">'},
+   {...base,description:'تفاصيل <svg onload="alert(1)"></svg>'},
+   {...base,summary:'<script src="https://example.com/widget.js"></script>'}
+  ];
+  const baseline=makeTrendSnapshot(country,'2026-11-22',[base]);
+  const guarded=makeTrendSnapshot(country,'2026-11-22',[...unsafe,base]);
+  assert.deepEqual(guarded,baseline,country);
+  assert.equal(await snapshotDigest(guarded),await snapshotDigest(baseline),country);
+ }
+});

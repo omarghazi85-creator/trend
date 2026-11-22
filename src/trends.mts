@@ -20,7 +20,7 @@ function cleanTrendDisplay(value:string):string {
  const decoded=decodeEditorialText(value);
  if(decoded===null)return '';
  return decoded.replace(/<[^>]{0,256}>/g,'').normalize('NFKC')
-  .replace(/[\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu,'')
+  .replace(/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufe00-\ufe0f\ufeff]/gu,'')
   .replace(/[\u0000-\u001f\u007f]/gu,' ')
   .replace(/\s+/gu,' ').trim();
 }

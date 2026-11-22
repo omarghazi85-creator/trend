@@ -61,6 +61,24 @@ export function normalizeTrendText(raw:string,keepMarkup=false):string {
 }
 // Terms contain only literal words and spaces; match exact word/phrase boundaries.
 const patterns=terms.map(s=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+normalizeTrendText(s)+'(?=$|[^\\p{L}\\p{N}])','u'));
+/**
+ * Reject executable URL schemes concealed in HTML link/media attributes.
+ * WordPress archive titles, excerpts and draft bodies can contain raw or
+ * entity-escaped markup; strip ASCII whitespace/control inside the scheme as
+ * browsers may ignore it. This validates text without fetching any URL.
+ */
+function hasUnsafeEmbeddedScheme(raw:string):boolean {
+ const decoded=decodeEditorialText(raw);
+ if(decoded===null)return true;
+ const attributes=/(?:^|[\s<])(?:href|src|xlink:href|action|formaction)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/giu;
+ for(const match of decoded.matchAll(attributes)){
+  const destination=(match[1]??match[2]??match[3]??'').normalize('NFKC')
+   .replace(/[\u0000-\u0020\u007f\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu,'')
+   .toLowerCase();
+  if(/^(?:javascript|vbscript|data|file|blob):/u.test(destination))return true;
+ }
+ return false;
+}
 export function isEditorialTrendAllowed(title:unknown):title is string {
  if(typeof title!=='string'||title.trim().length===0)return false;
  // Scan both visible text and raw markup. Otherwise an excluded URL in an
@@ -69,6 +87,7 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
  const normalized=normalizeTrendText(title);
  const markup=normalizeTrendText(title,true);
  return normalized.length>0 &&
+  !hasUnsafeEmbeddedScheme(title) &&
   !/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(normalized) &&
   !patterns.some(p=>p.test(normalized)||p.test(markup));
 }

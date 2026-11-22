@@ -88,7 +88,7 @@ test('PHP archive HTML source attributes are checked before stripping, including
  const filter=scope.indexOf('if (!atn_lightview_archive_title_allowed($title))');
  const strip=scope.indexOf('$title = wp_strip_all_tags($title);');
  assert.ok(raw>=0 && filter>raw && strip>filter,'raw title must be validated before attributes are stripped');
- assert.match(php,/Version: 0\.12\.21/);
+ assert.match(php,/Version: 0\.12\.22/);
 });
 
 test('PHP archive blocks unsafe embedded URLs in archive titles and saved bodies without dropping safe media', t=>{
@@ -115,4 +115,25 @@ test('PHP archive blocks unsafe embedded URLs in archive titles and saved bodies
  const result=spawnSync('php',['-r',script],{input:JSON.stringify(samples),encoding:'utf8'});
  assert.equal(result.status,0,result.stderr);
  assert.deepEqual(JSON.parse(result.stdout),[false,false,false,false,false,false,false,true,true,true,true,true]);
+});
+
+test('PHP pre-cache policy rejects escaped CSS media schemes without changing safe titles',t=>{
+ const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
+ if(runtime.error){t.skip('PHP CLI unavailable');return;}
+ const guard=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+ assert.ok(guard);
+ const samples=[
+  'حصيلة السودان <div style="background:url(ja\\76ascript:alert(1))">خبر</div>',
+  'حصيلة الصومال <div style="background:ur\\6c(data:text/html)">خبر</div>',
+  'حصيلة جيبوتي <div style="background:url(\\64 ata:text/html)">خبر</div>',
+  'حصيلة جزر القمر <div style="background:url(https://only\\66 ans.com/cover)">خبر</div>',
+  'حصيلة السودان <a href="https://only\\66 ans.com/">خبر</a>',
+  'حصيلة مصر <div style="color:\\23 333">خبر</div>',
+  'حصيلة السعودية <img src="https://example.com/photo.jpg">'
+ ];
+ const script='function wp_strip_all_tags($s){return strip_tags($s);}\n'+guard+
+  '\necho json_encode(array_map("atn_lightview_archive_title_allowed",json_decode(stream_get_contents(STDIN),true)));';
+ const result=spawnSync('php',['-r',script],{input:JSON.stringify(samples),encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[false,false,false,false,false,true,true]);
 });

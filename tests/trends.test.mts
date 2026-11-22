@@ -67,3 +67,27 @@ test('invisible marks and encoded HTML normalize before raw snapshot output and 
  assert.equal(await snapshotDigest(clean),await snapshotDigest(combined));
  assert.equal(normalizeTrendKey('الطقس\u200D اليوم'),normalizeTrendKey('الطقس اليوم'));
 });
+
+test('percent-obfuscated observations never enter shadow snapshots or their digest',async()=>{
+ const safe={country:'sd',term:'الطقس اليوم',source:'google',observedAt:'2026-11-21T11:00:00Z'};
+ const excluded=[
+  {...safe,term:'porn%68ub'},
+  {...safe,term:'only%252566ans'},
+  {...safe,term:'only&amp;#37;66ans'},
+  {...safe,source:'porn%68ub'}
+ ];
+ const clean=makeTrendSnapshot('sd','2026-11-21',[safe]);
+ const mixed=makeTrendSnapshot('sd','2026-11-21',[...excluded,safe]);
+ assert.deepEqual(mixed,clean);
+ assert.equal(await snapshotDigest(mixed),await snapshotDigest(clean));
+ assert.equal(JSON.stringify(mixed).includes('porn'),false);
+});
+test('valid percent-encoded benign titles are decoded before display and deduplication',async()=>{
+ const safe={country:'so',term:'الطقس اليوم',source:'google',observedAt:'2026-11-21T11:00:00Z'};
+ const encoded={...safe,term:'الطقس%20اليوم'};
+ const a=makeTrendSnapshot('so','2026-11-21',[safe]);
+ const b=makeTrendSnapshot('so','2026-11-21',[safe,encoded]);
+ assert.deepEqual(b,a);
+ assert.equal(await snapshotDigest(b),await snapshotDigest(a));
+ assert.equal(makeTrendSnapshot('km','2026-11-21',[{...safe,country:'km',term:'نمو 25% في جزر القمر'}]).terms.length,1);
+});

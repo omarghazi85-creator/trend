@@ -16,6 +16,26 @@ export function decodeHtmlEntities(raw:string):string {
  }).replace(/&([a-z]{2,10});/gi,(match,name:string)=>NAMED_ENTITIES[name.toLowerCase()]??match);
 }
 
+/**
+ * Peel bounded HTML and percent-encoding layers in raw observation labels.
+ * Return null on malformed, unfinished, or excessive encodings rather than
+ * retaining obfuscated labels in an external snapshot or future storage.
+ * Plain percentage signs such as "25%" remain valid.
+ */
+export function decodeEditorialText(raw:string):string|null {
+ let decoded=raw;
+ for(let i=0;i<6;i++){
+  let next=decodeHtmlEntities(decoded);
+  if(/%[0-9a-f]{2}/i.test(next)){
+   try{next=decodeURIComponent(next);}catch{return null;}
+  }
+  if(next===decoded)break;
+  decoded=next;
+ }
+ if(/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(decoded)||
+    /%[0-9a-f]{2}/i.test(decoded))return null;
+ return decoded;
+}
 const terms=[
  'سكس','سيكس','سكسي','سيكسي','اباحي','اباحيه','اباحيات',
  'افلام اباحيه','مقاطع اباحيه','صور عاريه','محتوى جنسي صريح',
@@ -28,12 +48,8 @@ const terms=[
  'مثلي','مثليه','المثليه','شذوذ جنسي','محتوى اباحي','محتوي اباحي',
 ];
 export function normalizeTrendText(raw:string):string {
- let decoded=raw;
- for(let i=0;i<6;i++){
-  const next=decodeHtmlEntities(decoded);
-  if(next===decoded)break;
-  decoded=next;
- }
+ const decoded=decodeEditorialText(raw);
+ if(decoded===null)return '';
  return decoded.replace(/<[^>]{0,256}>/g,'').normalize('NFKC').toLowerCase()
   // Do not erase an unresolved nested &amp; layer: the gate must fail closed.
   .replace(/&(?:nbsp|lt|gt|quot);/gi,' ')

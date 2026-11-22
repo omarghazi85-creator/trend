@@ -9,6 +9,7 @@ test('live archive excludes unsafe titles before set_transient, REST and shortco
  const preCache=php.indexOf('if (!atn_lightview_archive_title_allowed($title)) { continue; }');
  const save=php.indexOf('set_transient($key, $items, 15 * MINUTE_IN_SECONDS)');
  assert.ok(preCache>0 && save>preCache,'new transient snapshots must contain only permitted titles');
+ assert.ok(php.indexOf('if (!atn_lightview_archive_content_allowed($p)) { continue; }')>preCache, 'existing page body must be scanned before caching cards');
  assert.match(php,/\$safe = array_values\(array_filter\(\$items, static function \(\$item\) \{/);
  assert.match(php,/isset\(\$item\['title'\], \$item\['link'\]\) &&\s*atn_lightview_archive_title_allowed\(\$item\['title'\]\) &&\s*atn_lightview_archive_link_allowed\(\$item\['link'\]\)/);
  assert.equal((php.match(/function atn_lightview_archive_items\(/g)||[]).length,1);
@@ -87,5 +88,5 @@ test('PHP archive HTML source attributes are checked before stripping, including
  const filter=scope.indexOf('if (!atn_lightview_archive_title_allowed($title))');
  const strip=scope.indexOf('$title = wp_strip_all_tags($title);');
  assert.ok(raw>=0 && filter>raw && strip>filter,'raw title must be validated before attributes are stripped');
- assert.match(php,/Version: 0\.12\.18/);
+ assert.match(php,/Version: 0\.12\.19/);
 });

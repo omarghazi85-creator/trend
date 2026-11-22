@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.22
+ * Version: 0.12.23
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -87,6 +87,18 @@ function atn_lightview_archive_title_allowed($title) {
             $raw_title
         );
         if (!is_string($raw_title)) { return false; }
+    }
+    // Refuse executable HTML in saved archive labels and bodies before
+    // cache admission or direct detail display. Inspect actual markup tags,
+    // keeping prose mentioning onload=ready as ordinary text.
+    if (preg_match('~<\s*/?\s*(?:script|object|embed|base|meta)\b~iu', $raw_title)) { return false; }
+    $html_tags = array();
+    if (preg_match_all('~<\s*[a-z][^<>]{0,4096}>~iu', $raw_title, $html_tags)) {
+        foreach ($html_tags[0] as $html_tag) {
+            if (preg_match('~\s(?:on[a-z][a-z0-9_-]*|srcdoc)\s*=~iu', $html_tag)) {
+                return false;
+            }
+        }
     }
     // Inspect media/link attributes before stripping HTML. An otherwise safe
     // archive heading or excerpt must not conceal active URL schemes.

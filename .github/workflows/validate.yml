@@ -6,6 +6,10 @@ on:
     branches: [main]
 permissions:
   contents: read
+# Cancel superseded PR validations only. Preserve every main push check.
+concurrency:
+  group: worker-safety-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   test:
     runs-on: ubuntu-latest

@@ -88,5 +88,31 @@ test('PHP archive HTML source attributes are checked before stripping, including
  const filter=scope.indexOf('if (!atn_lightview_archive_title_allowed($title))');
  const strip=scope.indexOf('$title = wp_strip_all_tags($title);');
  assert.ok(raw>=0 && filter>raw && strip>filter,'raw title must be validated before attributes are stripped');
- assert.match(php,/Version: 0\.12\.19/);
+ assert.match(php,/Version: 0\.12\.20/);
+});
+
+test('PHP archive blocks unsafe embedded URLs in archive titles and saved bodies without dropping safe media', t=>{
+ const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
+ if(runtime.error){t.skip('PHP CLI unavailable');return;}
+ const policy=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+ assert.ok(policy,'run actual Light View policy');
+ const samples=[
+  'حصيلة السودان <a href="javascript:alert(1)">التفاصيل</a>',
+  'حصيلة الصومال &lt;img src="data:text/html;base64,xxx"&gt;',
+  'حصيلة جيبوتي <img srcset="https://example.com/a.jpg 1x, data:text/html 2x">',
+  'حصيلة جزر القمر <video poster="java&#115;cript:alert(1)">عرض</video>',
+  'مصر <a data-href="java%0ascript:alert(1)">مصدر</a>',
+  'السعودية <div style="background:url(&quot;vbscript:bad&quot;)">ملخص</div>',
+  'السودان <img data-srcset="https://example.com/ok 1x, blob:evil 2x">',
+  'السودان <a href="https://example.com/news">مصدر موثوق</a>',
+  'الصومال <img srcset="https://example.com/one.jpg 1x, https://example.com/two.jpg 2x">',
+  'جيبوتي <video poster="https://example.com/poster.jpg">آمن</video>',
+  'جزر القمر 25% نمو السياحة',
+  'مصر <span style="color:#333">تقرير</span>'
+ ];
+ const script='function wp_strip_all_tags($s){return strip_tags($s);}\n'+policy+
+  '\necho json_encode(array_map("atn_lightview_archive_title_allowed",json_decode(stream_get_contents(STDIN),true)));';
+ const result=spawnSync('php',['-r',script],{input:JSON.stringify(samples),encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[false,false,false,false,false,false,false,true,true,true,true,true]);
 });

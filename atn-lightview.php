@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.5
+ * Version: 0.12.15
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -13,8 +13,111 @@ require_once __DIR__ . '/includes/atn-section.php';
  * The 15-minute transient prevents repeated 320-post queries on normal traffic.
  */
 function atn_lightview_country_codes() {
-    return array('sa'=>'السعودية','ae'=>'الإمارات','eg'=>'مصر','kw'=>'الكويت','qa'=>'قطر','bh'=>'البحرين','om'=>'عُمان','jo'=>'الأردن','lb'=>'لبنان','iq'=>'العراق','sy'=>'سوريا','ps'=>'فلسطين','ye'=>'اليمن','ly'=>'ليبيا','tn'=>'تونس','dz'=>'الجزائر','ma'=>'المغرب','mr'=>'موريتانيا');
+    return array('sa'=>'السعودية','ae'=>'الإمارات','eg'=>'مصر','kw'=>'الكويت','qa'=>'قطر','bh'=>'البحرين','om'=>'عُمان','jo'=>'الأردن','lb'=>'لبنان','iq'=>'العراق','sy'=>'سوريا','sd'=>'السودان','ps'=>'فلسطين','ye'=>'اليمن','ly'=>'ليبيا','tn'=>'تونس','dz'=>'الجزائر','ma'=>'المغرب','mr'=>'موريتانيا','so'=>'الصومال','dj'=>'جيبوتي','km'=>'جزر القمر');
 }
+/**
+ * Archive card titles must stay on a local archive detail page.
+ * The media thumbnails and original-source controls are deliberately untouched.
+ * This also checks cached legacy snapshots, without any extra database query.
+ */
+function atn_lightview_archive_link_allowed($url) {
+    if (!is_string($url) || $url === '' || preg_match('/[\x00-\x20\x7f]/', $url)) { return false; }
+    $parts = wp_parse_url($url);
+    $home = wp_parse_url(home_url('/'));
+    if (!is_array($parts) || !is_array($home) ||
+        ($parts['scheme'] ?? '') !== ($home['scheme'] ?? '') ||
+        strtolower($parts['host'] ?? '') !== strtolower($home['host'] ?? '') ||
+        ($parts['port'] ?? null) !== ($home['port'] ?? null) ||
+        isset($parts['user']) || isset($parts['pass']) ||
+        isset($parts['query']) || isset($parts['fragment'])) { return false; }
+    $base = rtrim($home['path'] ?? '', '/');
+    $path = rtrim($parts['path'] ?? '', '/');
+    return (bool) preg_match('~^' . preg_quote($base, '~') .
+        '/trend-archive/[a-z0-9-]{3,130}$~D', $path);
+}
+/**
+ * Use the observation period encoded in country archive slugs, not the day
+ * on which WordPress published the page. Legacy/topic links keep publication
+ * date. This is pure parsing; it makes no database or network requests.
+ */
+function atn_lightview_archive_period($slug, $published) {
+    if (!is_string($slug) || !is_string($published) ||
+        !preg_match('~^[a-z]{2}-(?:search|music|week)-(\\d{4})-(\\d{2})-(\\d{2})(?:-[a-z0-9]+)?$~D', $slug, $matches)) {
+        return $published;
+    }
+    if (!checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
+        return $published;
+    }
+    return $matches[1] . '-' . $matches[2] . '-' . $matches[3];
+}
+/**
+ * Fail closed on archive topic titles excluded by the editorial policy.
+ * Filter before caching a new snapshot; re-check legacy cached snapshots
+ * without issuing any extra database query. This does not modify raw tables.
+ * Word-boundary checks avoid matching benign substrings (e.g. 'Essex').
+ */
+function atn_lightview_archive_title_allowed($title) {
+    if (!is_string($title) || trim($title) === '') { return false; }
+    // Old topic titles can contain nested percent escapes, HTML entities, or
+    // both (for example, p%6frnhub). Decode before checking the editorial gate.
+    // Fail closed when more than six layers remain; do not rewrite stored data.
+    for ($i = 0; $i < 6; $i++) {
+        $decoded = rawurldecode(html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($decoded === $title) { break; }
+        $title = $decoded;
+    }
+    if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title) ||
+        preg_match('/%[0-9a-f]{2}/i', $title)) { return false; }
+    $title = wp_strip_all_tags($title);
+    $title = strtolower(strtr($title, array(
+        'أ'=>'ا', 'إ'=>'ا', 'آ'=>'ا', 'ٱ'=>'ا', 'ى'=>'ي', 'ة'=>'ه', 'ؤ'=>'و', 'ئ'=>'ي'
+    )));
+    $title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]/u', '', $title);
+    if (!is_string($title) || $title === '') { return false; }
+    $title = preg_replace('/\s+/u', ' ', $title);
+    $terms = array(
+        'سكس', 'سيكس', 'سكسي', 'سيكسي', 'اباحي', 'اباحيه', 'اباحيات',
+        'افلام اباحيه', 'مقاطع اباحيه', 'صور عاريه', 'محتوي جنسي صريح',
+        'ميا خليفه', 'امارنا ميلر', 'مثلي', 'مثليه', 'المثليه', 'شذوذ جنسي',
+        'porn', 'porno', 'pornography', 'pornhub', 'xvideos', 'xnxx', 'xhamster',
+        'onlyfans', 'only fans', 'redtube', 'youporn', 'adult video', 'adult videos',
+        'xxx', 'nudes', 'nude pics', 'sex tape', 'sex video', 'sex videos',
+        'lesbian porn', 'gay porn', 'hentai', 'sex', 'sex pistols', 'nsfw',
+        'nude', 'nudity', 'erotica', 'erotic', 'gay', 'lesbian', 'explicit sex'
+    );
+    foreach ($terms as $term) {
+        if (preg_match('~(?<![\p{L}\p{N}])' . preg_quote($term, '~') . '(?![\p{L}\p{N}])~u', $title)) {
+            return false;
+        }
+    }
+    return true;
+}
+/**
+ * Hide excluded archived detail pages even when opened directly from a
+ * bookmark or a search engine. Listing/REST filtering alone is insufficient.
+ * This uses only the already queried WP_Post and never edits stored records.
+ */
+function atn_lightview_archive_detail_blocked($post) {
+    return $post instanceof WP_Post && $post->post_type === 'page' &&
+        (int) $post->post_parent === 61269 &&
+        !atn_lightview_archive_title_allowed(get_the_title($post));
+}
+add_action('template_redirect', function () {
+    if (!is_singular('page') || is_preview()) { return; }
+    $post = get_queried_object();
+    if (!atn_lightview_archive_detail_blocked($post) ||
+        current_user_can('edit_post', $post->ID)) { return; }
+
+    global $wp_query;
+    $wp_query->set_404();
+    status_header(404);
+    nocache_headers();
+    header('X-Robots-Tag: noindex', true);
+    $template = get_404_template();
+    if ($template) { include $template; exit; }
+    wp_die('هذه الصفحة غير متاحة', '', array('response' => 404));
+}, 2);
+
 function atn_lightview_archive_items() {
     $key = 'atn_lightview_latest_v9';
     $items = get_transient($key);
@@ -36,17 +139,20 @@ function atn_lightview_archive_items() {
         $items = array();
         foreach ($q->posts as $p) {
             $title = wp_strip_all_tags(get_the_title($p));
+            if (!atn_lightview_archive_title_allowed($title)) { continue; }
             if (strpos($title, 'كلمات البحث الرائجة') === false &&
                 strpos($title, 'الأغاني الأكثر تشغيلًا') === false &&
                 strpos($title, 'سجل الرواج') === false &&
                 strpos($title, 'حصيلة ترندات') === false) { continue; }
+            $link = get_permalink($p);
+            if (!atn_lightview_archive_link_allowed($link)) { continue; }
             $slug_prefix = explode('-', $p->post_name, 2)[0];
             $item_country = isset($country_codes[$slug_prefix]) ? $country_codes[$slug_prefix] : '';
             $items[] = array(
                 'country' => $item_country,
                 'title' => $title,
-                'link' => get_permalink($p),
-                'date' => get_the_date('Y-m-d', $p),
+                'link' => $link,
+                'date' => atn_lightview_archive_period($p->post_name, get_the_date('Y-m-d', $p)),
                 'date_iso' => get_the_date('c', $p),
                 'kind' => strpos($title,'سجل الرواج') !== false ? 'topic' : (strpos($title,'الأغاني الأكثر تشغيلًا') !== false ? 'music' : (strpos($title,'حصيلة ترندات') !== false ? 'weekly' : 'search')),
             );
@@ -54,7 +160,23 @@ function atn_lightview_archive_items() {
         wp_reset_postdata();
         set_transient($key, $items, 15 * MINUTE_IN_SECONDS);
     }
-    return $items;
+    // Historic transient versions may have been created before exclusion rules.
+    $safe = array_values(array_filter($items, static function ($item) {
+        return is_array($item) && isset($item['title'], $item['link']) &&
+            atn_lightview_archive_title_allowed($item['title']) &&
+            atn_lightview_archive_link_allowed($item['link']);
+    }));
+    // Recalculate display dates from the already validated local permalink
+    // even for old transient snapshots; do not invalidate the 15-minute cache.
+    foreach ($safe as &$item) {
+        $path = wp_parse_url($item['link'], PHP_URL_PATH);
+        $slug = is_string($path) ? basename(rtrim($path, '/')) : '';
+        if (isset($item['date']) && is_string($item['date'])) {
+            $item['date'] = atn_lightview_archive_period($slug, $item['date']);
+        }
+    }
+    unset($item);
+    return $safe;
 }
 add_action('rest_api_init', function () {
     register_rest_route('atn-light/v1', '/archive', array(
@@ -122,7 +244,7 @@ add_shortcode('atn_lightview', function () {
           <details><summary>بحث تفصيلي</summary><div class="atn-lite-filters"><label>نوع المادة <select class="atn-lite-type"><option value="">جميع المواد</option><option value="search">كلمات البحث</option><option value="music">الأغاني</option><option value="weekly">حصيلة أسبوعية</option><option value="topic">ملف موضوع</option></select></label><label>تاريخ النشر <select class="atn-lite-range"><option value="">جميع التواريخ المتاحة</option><option value="1">آخر 24 ساعة</option><option value="7">آخر 7 أيام</option><option value="30">آخر 30 يومًا</option></select></label></div></details>
         </div>
       </div>
-      <div class="atn-lite-heading"><h3>الدول العربية</h3><span>18 دولة ضمن أرشيف الرصد</span></div>
+      <div class="atn-lite-heading"><h3>الدول العربية</h3><span>22 دولة عربية؛ تظهر الحصائل حيث تتوفر بيانات منشورة</span></div>
       <div class="atn-lite-countries"><button type="button" class="atn-lite-country current" data-country="" aria-pressed="true">جميع الدول</button>
         <?php foreach ($countries as $c) : ?><button type="button" class="atn-lite-country" data-country="<?php echo esc_attr($c); ?>" aria-pressed="false"><?php echo esc_html($c); ?> <span class="atn-lite-country-count" aria-label="عدد الحصائل ضمن آخر السجلات المحملة">(<?php echo intval($country_counts[$c]); ?>)</span></button><?php endforeach; ?>
       </div>

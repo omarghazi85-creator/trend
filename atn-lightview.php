@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.14
+ * Version: 0.12.15
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -58,14 +58,16 @@ function atn_lightview_archive_period($slug, $published) {
  */
 function atn_lightview_archive_title_allowed($title) {
     if (!is_string($title) || trim($title) === '') { return false; }
-    // Multiple HTML entity layers can conceal excluded terms in historic titles.
-    // Keep this bounded and fail closed if entity nesting still remains.
+    // Old topic titles can contain nested percent escapes, HTML entities, or
+    // both (for example, p%6frnhub). Decode before checking the editorial gate.
+    // Fail closed when more than six layers remain; do not rewrite stored data.
     for ($i = 0; $i < 6; $i++) {
-        $decoded = html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $decoded = rawurldecode(html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         if ($decoded === $title) { break; }
         $title = $decoded;
     }
-    if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title)) { return false; }
+    if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title) ||
+        preg_match('/%[0-9a-f]{2}/i', $title)) { return false; }
     $title = wp_strip_all_tags($title);
     $title = strtolower(strtr($title, array(
         'أ'=>'ا', 'إ'=>'ا', 'آ'=>'ا', 'ٱ'=>'ا', 'ى'=>'ي', 'ة'=>'ه', 'ؤ'=>'و', 'ئ'=>'ي'

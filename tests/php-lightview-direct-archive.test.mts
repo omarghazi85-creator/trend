@@ -36,6 +36,10 @@ test('PHP blocks excluded archive child only, preserves legitimate countries and
     'echo json_encode(array_map("atn_lightview_archive_detail_blocked",array(' +
     'new WP_Post("page",61269,"ميا خليفة | سجل الرواج"),' +
     'new WP_Post("page",61269,"سجل الرواج | OnlyFans"),' +
+    'new WP_Post("page",61269,"porn%68ub | سجل الرواج"),' +
+    'new WP_Post("page",61269,"only%252566ans | سجل الرواج"),' +
+    'new WP_Post("page",61269,"only&amp;#37;66ans | سجل الرواج"),' +
+    'new WP_Post("page",61269,"نمو 25% في مصر | سجل الرواج"),' +
     'new WP_Post("page",61269,"كلمات البحث الرائجة في السودان"),' +
     'new WP_Post("page",61269,"كلمات البحث الرائجة في الصومال"),' +
     'new WP_Post("page",61269,"كلمات البحث الرائجة في جيبوتي"),' +
@@ -45,5 +49,5 @@ test('PHP blocks excluded archive child only, preserves legitimate countries and
     'null)));';
   const result = spawnSync('php',['-r',script],{encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout),[true,true,false,false,false,false,false,false,false]);
+  assert.deepEqual(JSON.parse(result.stdout),[true,true,true,true,true,false,false,false,false,false,false,false,false]);
 });

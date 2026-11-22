@@ -72,9 +72,9 @@ function hasUnsafeEmbeddedScheme(raw:string):boolean {
  if(decoded===null)return true;
  // A source can be embedded in responsive-image candidates, lazy-loading
  // attributes, a poster, or inline CSS without appearing in href/src.
- const attributes=/(?:^|[\\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))/giu;
+ const attributes=/(?:^|[\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/giu;
  const normalizeDestination=(value:string):string=>value.normalize('NFKC')
-   .replace(/[\\u0000-\\u0020\\u007f\\u00ad\\u061c\\u200b-\\u200f\\u202a-\\u202e\\u2066-\\u2069\\ufeff]/gu,'')
+   .replace(/[\u0000-\u0020\u007f\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu,'')
    .toLowerCase();
  const unsafe=(value:string):boolean=>/^(?:javascript|vbscript|data|file|blob):/u.test(normalizeDestination(value));
  for(const match of decoded.matchAll(attributes)){
@@ -87,7 +87,7 @@ function hasUnsafeEmbeddedScheme(raw:string):boolean {
   }else if(name==='style'){
    // CSS url() can carry an executable scheme hidden behind safe headlines.
    const css=normalizeDestination(value);
-   if(/url\\((?:"|')?(?:javascript|vbscript|data|file|blob):/u.test(css))return true;
+   if(/url\((?:"|')?(?:javascript|vbscript|data|file|blob):/u.test(css))return true;
   }else if(unsafe(value))return true;
  }
  return false;

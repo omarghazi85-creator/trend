@@ -1,5 +1,5 @@
 /** Deterministic, side-effect-free trend snapshot preparation. No PHP/WordPress calls. */
-import {isEditorialTrendAllowed,isEditorialSourceUrlAllowed,normalizeTrendText,decodeHtmlEntities} from './trend-policy.mts';
+import {isEditorialTrendAllowed,isEditorialSourceUrlAllowed,normalizeTrendText,decodeEditorialText} from './trend-policy.mts';
 export type TrendRecord={country:string;term:string;source:string;observedAt:string;score?:number;sourceUrl?:string;url?:string};
 export type TrendSnapshot={country:string;day:string;terms:Array<{key:string;term:string;sources:string[];score:number|null}>};
 const COUNTRIES=new Set('sa ae eg kw qa bh om jo lb iq sy sd ps ye ly tn dz ma mr so dj km'.split(' '));
@@ -10,12 +10,8 @@ export function normalizeTrendKey(value:string):string {
 }
 /** Snapshot display labels are plain Unicode text, not HTML from third-party sources. */
 function cleanTrendDisplay(value:string):string {
- let decoded=value;
- for(let i=0;i<6;i++){
-  const next=decodeHtmlEntities(decoded);
-  if(next===decoded)break;
-  decoded=next;
- }
+ const decoded=decodeEditorialText(value);
+ if(decoded===null)return '';
  return decoded.replace(/<[^>]{0,256}>/g,'').normalize('NFKC')
   .replace(/[\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu,'')
   .replace(/[\u0000-\u001f\u007f]/gu,' ')

@@ -49,3 +49,13 @@ test('source exclusions occur before snapshot aggregation and digest while keepi
  assert.equal(await snapshotDigest(clean),await snapshotDigest(mixed));
  assert.deepEqual(mixed.terms[0].sources,['google']);
 });
+test('source URLs and pre-aggregation rows fail closed on percent-obfuscated prohibited labels',async()=>{
+ for(const url of ['https://example.com/%70ornhub','https://example.com/only%252566ans'])
+  assert.equal(isEditorialSourceUrlAllowed(url),false,url);
+ const safe={country:'dj',term:'الطقس اليوم',source:'google',observedAt:'2026-11-21T11:00:00Z'};
+ const excluded={...safe,sourceUrl:'https://media.example/only%252566ans'};
+ const baseline=makeTrendSnapshot('dj','2026-11-21',[safe]);
+ const guarded=makeTrendSnapshot('dj','2026-11-21',[safe,excluded]);
+ assert.deepEqual(guarded,baseline);
+ assert.equal(await snapshotDigest(guarded),await snapshotDigest(baseline));
+});

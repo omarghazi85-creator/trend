@@ -44,6 +44,14 @@ function atn_lightview_archive_attribute($tag, $name) {
 function atn_lightview_archive_source_url_allowed($url) {
     if (!is_string($url) || $url === '') { return false; }
     for ($i = 0; $i < 5; $i++) {
+        // Only ordinary URL schemes are permitted, even after repeated
+        // percent/HTML decoding. Preserve internal anchors and source links.
+        $probe = preg_replace('/[\x00-\x20\x7f]/', '', $url);
+        if (!is_string($probe) ||
+            (preg_match('/^([a-z][a-z0-9+.-]*):/i', $probe, $scheme) &&
+             !in_array(strtolower($scheme[1]), array('http', 'https', 'mailto', 'tel'), true))) {
+            return false;
+        }
         if (!atn_lightview_archive_title_allowed($url)) { return false; }
         $decoded = rawurldecode(html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         if ($decoded === $url) { return true; }

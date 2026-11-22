@@ -72,3 +72,20 @@ test('blocked editorial candidates cause zero WordPress network calls',async()=>
   assert.equal(calls,0);
  }finally{globalThis.fetch=prev;}
 });
+
+test('oversized UTF-8 preview bodies are rejected before any WordPress request even without an accurate length header',async()=>{
+ const old=globalThis.fetch;let calls=0;
+ globalThis.fetch=async()=>{calls++;throw Error('unexpected WordPress request');};
+ try{
+  for(const declared of [null,'1']){
+   const headers:Record<string,string>={'content-type':'application/json','x-atn-worker-secret':config.ATN_WORKER_SECRET};
+   if(declared!==null)headers['content-length']=declared;
+   const tooBig=new Request(endpoint,{method:'POST',headers,
+    body:JSON.stringify({candidates:[{...candidate,content:'ا'.repeat(62000)}],writeDrafts:true})});
+   const result=await preview(tooBig);
+   assert.equal(result.status,413);
+   assert.equal((await result.json()).error,'payload_too_large');
+  }
+  assert.equal(calls,0);
+ }finally{globalThis.fetch=old;}
+});

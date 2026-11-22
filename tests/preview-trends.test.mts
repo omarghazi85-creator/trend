@@ -33,3 +33,19 @@ test('authorized shadow API rejects excluded terms before preparing response and
   assert.equal(calls,0);
  }finally{globalThis.fetch=original;}
 });
+
+test('shadow observation input enforces a byte limit when content-length is absent or understated',async()=>{
+ const old=globalThis.fetch;let calls=0;
+ globalThis.fetch=async()=>{calls++;throw Error('unexpected WordPress request');};
+ try{
+  for(const declared of [null,'1']){
+   const headers:Record<string,string>={'content-type':'application/json','x-atn-worker-secret':token};
+   if(declared!==null)headers['content-length']=declared;
+   const body={country:'sd',day:'2026-11-21',rows:[{country:'sd',term:'ا'.repeat(55000),source:'google',observedAt:'2026-11-21T10:00:00Z'}]};
+   const response=await preview(new Request(endpoint,{method:'POST',headers,body:JSON.stringify(body)}));
+   assert.equal(response.status,413);
+   assert.equal((await response.json()).error,'payload_too_large');
+  }
+  assert.equal(calls,0);
+ }finally{globalThis.fetch=old;}
+});

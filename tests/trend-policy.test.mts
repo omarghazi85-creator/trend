@@ -138,3 +138,24 @@ test('CSS-escaped external destinations and blocked terms cannot bypass source a
  const rows=[{term:'رواج جيبوتي',source:'news'},{term:bad[0],source:'news'}];
  assert.deepEqual(filterTrendObservations(rows),[rows[0]]);
 });
+
+test('blocks executable inline HTML in external observations without rejecting normal source links',()=>{
+ const blocked=[
+  'حصيلة السودان <img src="https://example.com/cover.jpg" onerror="alert(1)">',
+  'حصيلة الصومال <svg onload=alert(1)></svg>',
+  'حصيلة جيبوتي &lt;iframe srcdoc="&lt;script&gt;alert(1)&lt;/script&gt;"&gt;&lt;/iframe&gt;',
+  'حصيلة جزر القمر <script src="https://example.com/widget.js"></script>',
+  'حصيلة السودان <div on\\63lick="alert(1)">خبر</div>',
+  'حصيلة الصومال <object data="https://example.com/widget"></object>'
+ ];
+ for(const value of blocked)assert.equal(isEditorialTrendAllowed(value),false,value);
+ const allowed=[
+  'حصيلة السودان <img src="https://example.com/cover.jpg" alt="أسواق السودان">',
+  'حصيلة الصومال <a href="/trend-archive/so-search-2026-11-22">تفاصيل</a>',
+  'تقرير جيبوتي عن استخدام العبارة onload=ready في البرمجة',
+  'حصيلة جزر القمر <video poster="https://example.com/photo.jpg"></video>'
+ ];
+ for(const value of allowed)assert.equal(isEditorialTrendAllowed(value),true,value);
+ const rows=[{term:'تقرير السودان',source:'news'},{term:blocked[0],source:'news'}];
+ assert.deepEqual(filterTrendObservations(rows),[rows[0]]);
+});

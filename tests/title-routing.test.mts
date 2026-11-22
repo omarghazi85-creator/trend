@@ -168,6 +168,9 @@ test('rejects offsite, credential-bearing, malformed and unrelated destinations 
     'https://name:password@arabiatrend.com/arab-trends-now?atn_topic=' + id,
     'https://arabiatrend.com/arab-trends-now?atn_topic=short',
     'https://arabiatrend.com/other?atn_topic=' + id,
+    'https://arabiatrend.com/arab-trends-now?atn_topic=' + id + '&redirect=https://evil.example',
+    'https://arabiatrend.com/arab-trends-now?atn_topic=' + id + '&atn_topic=' + id,
+    'https://arabiatrend.com/arab-trends-now?atn_topic=' + id + '#source',
     'https://arabiatrend.com/trend-archive/topic-short',
     'javascript:alert(1)',
   ];
@@ -307,6 +310,17 @@ test('country archive titles reuse verified native internal actions for all 22 c
   }
 });
 
+test('accepts safe root-relative native country details without changing original media controls', () => {
+  const env = setup();
+  const card = cardsOf(env.document)[2];
+  const url = '/trend-archive/sd-search-2026-11-21';
+  card.querySelector('.atni-follow')!.setAttribute('data-atni-url', url);
+  const thumbnail = card.querySelector('.atn-thumb')!.href;
+  env.run();
+  assert.equal(titleOf(card).href, origin + url);
+  assert.equal(card.querySelector('.atn-thumb')!.href, thumbnail);
+});
+
 test('rejects spoofed, undated and invalid country archive actions without rewriting a title', () => {
   const bad = [
     'https://evil.example/trend-archive/sd-search-2026-11-21',
@@ -353,7 +367,10 @@ test('server-side PHP title routing recognizes only existing canonical country a
     origin + '/trend-archive/km-search-2026-11-21',
     origin + '/trend-archive/sa-search-2026-11-21',
     origin + '/trend-archive/eg-search-2026-11-21',
-    origin + '/trend-archive/topic-' + 'f'.repeat(24)
+    origin + '/trend-archive/topic-' + 'f'.repeat(24),
+    origin + '/arab-trends-now?atn_topic=' + 'f'.repeat(64),
+    '/trend-archive/sd-search-2026-11-21',
+    '/trend-archive/so-music-2026-11-21'
   ];
   const bad = [
     origin + '/trend-archive/us-search-2026-11-21',
@@ -361,7 +378,11 @@ test('server-side PHP title routing recognizes only existing canonical country a
     origin + '/trend-archive/sd-search-2026-11-21?source=external',
     origin + '/trend-archive/km-week-2026-11-21#source',
     'https://evil.example/trend-archive/sd-search-2026-11-21',
-    origin + '/trend-archive/dj-search-today'
+    origin + '/trend-archive/dj-search-today',
+    origin + '/arab-trends-now?atn_topic=' + 'f'.repeat(64) + '&return=external',
+    origin + '/arab-trends-now?atn_topic=' + 'f'.repeat(64) + '&atn_topic=' + 'f'.repeat(64),
+    origin + '/arab-trends-now?atn_topic=' + 'f'.repeat(64) + '#source',
+    '//evil.example/trend-archive/sd-search-2026-11-21'
   ];
   const result = spawnSync('php', ['-r', php], { input: JSON.stringify([...good, ...bad]), encoding: 'utf8' });
   if (result.error && (result.error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -370,5 +391,5 @@ test('server-side PHP title routing recognizes only existing canonical country a
   }
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout), [...good, ...bad.map(() => '')]);
+  assert.deepEqual(JSON.parse(result.stdout), [...good.map(url => url.startsWith('/') ? origin + url : url), ...bad.map(() => '')]);
 });

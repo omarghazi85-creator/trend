@@ -88,7 +88,7 @@ test('PHP archive HTML source attributes are checked before stripping, including
  const filter=scope.indexOf('if (!atn_lightview_archive_title_allowed($title))');
  const strip=scope.indexOf('$title = wp_strip_all_tags($title);');
  assert.ok(raw>=0 && filter>raw && strip>filter,'raw title must be validated before attributes are stripped');
- assert.match(php,/Version: 0\.12\.22/);
+ assert.match(php,/Version: 0\.12\.23/);
 });
 
 test('PHP archive blocks unsafe embedded URLs in archive titles and saved bodies without dropping safe media', t=>{
@@ -136,4 +136,28 @@ test('PHP pre-cache policy rejects escaped CSS media schemes without changing sa
  const result=spawnSync('php',['-r',script],{input:JSON.stringify(samples),encoding:'utf8'});
  assert.equal(result.status,0,result.stderr);
  assert.deepEqual(JSON.parse(result.stdout),[false,false,false,false,false,true,true]);
+});
+
+test('PHP archive rejects active HTML event handlers and embedded documents before caching',t=>{
+ const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
+ if(runtime.error){t.skip('PHP CLI unavailable');return;}
+ const guard=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+ assert.ok(guard);
+ const samples=[
+  'حصيلة السودان <img src="https://example.com/cover.jpg" onerror="alert(1)">',
+  'حصيلة الصومال <svg onload=alert(1)></svg>',
+  'حصيلة جيبوتي &lt;iframe srcdoc="&lt;script&gt;alert(1)&lt;/script&gt;"&gt;&lt;/iframe&gt;',
+  'حصيلة جزر القمر <script src="https://example.com/widget.js"></script>',
+  'حصيلة السودان <div on\\63lick="alert(1)">خبر</div>',
+  'حصيلة الصومال <object data="https://example.com/widget"></object>',
+  'حصيلة السعودية <a href="/trend-archive/sa-search-2026-11-22">مادة</a>',
+  'حصيلة مصر <img src="https://example.com/image.jpg" alt="خبر">',
+  'خبر عن استخدام العبارة onload=ready',
+  'جزر القمر <video poster="https://example.com/cover.jpg">خبر</video>'
+ ];
+ const script='function wp_strip_all_tags($s){return strip_tags($s);}\n'+guard+
+  '\necho json_encode(array_map("atn_lightview_archive_title_allowed",json_decode(stream_get_contents(STDIN),true)));';
+ const result=spawnSync('php',['-r',script],{input:JSON.stringify(samples),encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[false,false,false,false,false,false,true,true,true,true]);
 });

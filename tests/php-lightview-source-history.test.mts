@@ -41,13 +41,13 @@ test('archived topic history removes forbidden original links and their images, 
     '<a href="https://news.example.com/saudi-trends">تغطية عربية مشروعة</a>'+
     '<a href="https://onlyfans.com/creator"><img src="/thumb-blocked.jpg" alt="صورة مخالفة"></a>'+
     '<a href="https://example.com/%25256fnlyfans">مصدر مشفر</a>'+
-    '<a href="/trend-archive/topic-aaaaaaaaaaaaaaaaaaaaaaaa">تفاصيل داخلية</a>'+
+    '<a href="javascript:alert(1)"><img src="/unsafe.jpg" alt="عنصر غير آمن"></a>'+\n    '<a href="data:text/html,hello">رابط بيانات</a>'+\n    '<a href="/trend-archive/topic-aaaaaaaaaaaaaaaaaaaaaaaa">تفاصيل داخلية</a>'+
     '</td></tr></table><p>بقية السجل والمنهجية محفوظة</p></section>';
   const out=evaluate(html,'topic-aaaaaaaaaaaaaaaaaaaaaaaa');
   assert.match(out,/https:\/\/news\.example\.com\/saudi-trends/);
   assert.match(out,/href="\/trend-archive\/topic-aaaaaaaaaaaaaaaaaaaaaaaa"/);
   assert.match(out,/بقية السجل والمنهجية محفوظة/);
-  assert.doesNotMatch(out,/onlyfans|%25256fnlyfans|thumb-blocked|صورة مخالفة/i);
+  assert.doesNotMatch(out,/onlyfans|%25256fnlyfans|thumb-blocked|صورة مخالفة|javascript:|data:text|unsafe\.jpg|عنصر غير آمن|رابط بيانات/i);
   assert.match(out,/<table><tr><td>/);
 });
 test('archive source filter is limited to topic history pages and avoids new queries or jobs',t=>{

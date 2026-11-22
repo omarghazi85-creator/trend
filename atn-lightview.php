@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.21
+ * Version: 0.12.22
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -69,6 +69,25 @@ function atn_lightview_archive_title_allowed($title) {
     if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title) ||
         preg_match('/%[0-9a-f]{2}/i', $title)) { return false; }
     $raw_title = $title;
+    // CSS escapes such as \6a avascript: or ur\6c(...) are resolved by
+    // browsers inside style attributes. Scan their decoded form as well.
+    // Keep the public output and stored content unchanged.
+    if (strpos($raw_title, '\\') !== false) {
+        $raw_title = preg_replace_callback(
+            '~\\\\([0-9a-f]{1,6})(?:\r\n|[\x09-\x0d ])?|\\\\([^\r\n\f])~i',
+            static function ($m) {
+                if (isset($m[1]) && $m[1] !== '') {
+                    $point = hexdec($m[1]);
+                    if ($point < 1 || $point > 0x10ffff ||
+                        ($point >= 0xd800 && $point <= 0xdfff)) { return ''; }
+                    return html_entity_decode('&#' . $point . ';', ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                }
+                return $m[2] ?? '';
+            },
+            $raw_title
+        );
+        if (!is_string($raw_title)) { return false; }
+    }
     // Inspect media/link attributes before stripping HTML. An otherwise safe
     // archive heading or excerpt must not conceal active URL schemes.
     // Decoding &quot; inside CSS can produce nested quote characters.

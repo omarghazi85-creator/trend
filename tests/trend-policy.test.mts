@@ -187,3 +187,27 @@ test('common feed text and URL aliases cannot bypass pre-admission editorial fil
  ];
  assert.deepEqual(filterTrendObservations([safe,...excluded]),[safe]);
 });
+
+test('structured RSS enclosures and Atom/media link arrays cannot bypass editorial admission',()=>{
+ const safe={term:'أسواق السودان',source:'google',
+  enclosure:{url:'https://example.com/market.mp4',type:'video/mp4',length:1024},
+  links:[{href:'https://example.com/markets',rel:'alternate'}],
+  'media:thumbnail':{url:'https://example.com/photo.jpg'}};
+ const blocked=[
+  {...safe,enclosure:{url:'https://onlyfans.com/clip',type:'video/mp4'}},
+  {...safe,enclosures:[{url:'https://example.com/ok.jpg'},{url:'https://pornhub.com/a.jpg'}]},
+  {...safe,links:[{rel:'alternate',href:'javascript:alert(1)'}]},
+  {...safe,media:{content:[{url:'https://example.com/ok.jpg'},{url:'https://onlyfans.com/thumb'}]}},
+  {...safe,'media:content':{url:'https://example.com/%70ornhub'}},
+  {...safe,attachments:[{url:'https://example.com',caption:'OnlyFans'}]},
+  {...safe,image:{src:'http://example.com/image.jpg'}},
+  {...safe,thumbnail:'data:image/svg+xml;base64,PHN2Zz4='},
+  {...safe,links:[{href:'https://example.com',label:'OnlyFans'}]},
+  {...safe,enclosure:{url:'https://example.com',description:'<script>alert(1)</script>'}}
+ ];
+ assert.deepEqual(filterTrendObservations([safe,...blocked]),[safe]);
+ const cyclic:any={url:'https://example.com'};cyclic.child=cyclic;
+ assert.deepEqual(filterTrendObservations([{...safe,media:cyclic}]),[]);
+ const excessive={...safe,links:Array.from({length:25},()=>({href:'https://example.com'}))};
+ assert.deepEqual(filterTrendObservations([excessive]),[]);
+});

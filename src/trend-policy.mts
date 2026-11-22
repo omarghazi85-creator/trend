@@ -47,10 +47,10 @@ const terms=[
  'nude','nudity','erotica','erotic','gay','lesbian','explicit sex',
  'مثلي','مثليه','المثليه','شذوذ جنسي','محتوى اباحي','محتوي اباحي',
 ];
-export function normalizeTrendText(raw:string):string {
+export function normalizeTrendText(raw:string,keepMarkup=false):string {
  const decoded=decodeEditorialText(raw);
  if(decoded===null)return '';
- return decoded.replace(/<[^>]{0,256}>/g,'').normalize('NFKC').toLowerCase()
+ return (keepMarkup?decoded:decoded.replace(/<[^>]{0,256}>/g,'')).normalize('NFKC').toLowerCase()
   // Do not erase an unresolved nested &amp; layer: the gate must fail closed.
   .replace(/&(?:nbsp|lt|gt|quot);/gi,' ')
   .replace(/[\u064B-\u065F\u0670\u0640]/gu,'')
@@ -63,10 +63,14 @@ export function normalizeTrendText(raw:string):string {
 const patterns=terms.map(s=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+normalizeTrendText(s)+'(?=$|[^\\p{L}\\p{N}])','u'));
 export function isEditorialTrendAllowed(title:unknown):title is string {
  if(typeof title!=='string'||title.trim().length===0)return false;
+ // Scan both visible text and raw markup. Otherwise an excluded URL in an
+ // HTML href/src attribute disappears when tags are stripped, allowing a
+ // harmless-looking headline or draft body to conceal a prohibited source.
  const normalized=normalizeTrendText(title);
+ const markup=normalizeTrendText(title,true);
  return normalized.length>0 &&
   !/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(normalized) &&
-  !patterns.some(p=>p.test(normalized));
+  !patterns.some(p=>p.test(normalized)||p.test(markup));
 }
 /**
  * Source destinations must be HTTPS and safe after URL and percent decoding.

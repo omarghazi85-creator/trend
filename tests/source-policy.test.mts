@@ -67,3 +67,24 @@ test('WordPress draft preparation rejects excluded media destinations embedded i
  assert.throws(()=>validateCandidate({...base,content:base.content+'<a href="https://onlyfans.com/creator">رابط المصدر</a>'}),/editorial_content_blocked/);
  assert.throws(()=>validateCandidate({...base,content:base.content+'<img src="https://pornhub.com/image.jpg">'}),/editorial_content_blocked/);
 });
+
+test('raw feed metadata cannot conceal prohibited content or media origins before admission',()=>{
+ const safe=[
+  {title:'ملخص السودان',description:'تقرير عن المناخ',mediaUrl:'https://example.com/sudan.jpg'},
+  {title:'ملخص الصومال',excerpt:'الطقس المحلي'},
+  {title:'ملخص جيبوتي',caption:'صورة أرشيفية'},
+  {title:'ملخص جزر القمر',summary:'بيانات اقتصادية',link:'https://example.com/markets'}
+ ];
+ const rejected=[
+  {...safe[0],description:'مصدر &#79;nlyFans'},
+  {...safe[1],excerpt:'رابط إلى https://pornhub.com/creator'},
+  {...safe[2],caption:'only%252566ans'},
+  {...safe[3],summary:'خبر <a href="javascript:alert(1)">المصدر</a>'},
+  {...safe[0],mediaUrl:'https://onlyfans.com/creator'},
+  {...safe[3],link:'https://example.com/%70ornhub'},
+  {...safe[2],originalUrl:'http://example.com/image'}
+ ];
+ const original=JSON.stringify([...safe,...rejected]);
+ assert.deepEqual(filterTrendObservations([...safe,...rejected]),safe);
+ assert.equal(JSON.stringify([...safe,...rejected]),original,'do not mutate upstream records');
+});

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.23
+ * Version: 0.12.24
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -522,6 +522,12 @@ add_action('wp_footer', function () {
 function atn_lightview_native_topic_url($url) {
     if (!is_string($url) || !$url) { return ''; }
     $url = html_entity_decode($url, ENT_QUOTES, 'UTF-8');
+    // Root-relative links from the native renderer are local URLs too.
+    // Reject protocol-relative and backslash-obfuscated destinations.
+    if ($url[0] === '/' && (strlen($url) === 1 || $url[1] !== '/') &&
+        strpos($url, chr(92)) === false) {
+        $url = home_url($url);
+    }
     $parts = wp_parse_url($url);
     $home = wp_parse_url(home_url('/'));
     if (!is_array($parts) || !is_array($home) ||
@@ -532,10 +538,11 @@ function atn_lightview_native_topic_url($url) {
     $path = rtrim($parts['path'] ?? '', '/');
     $base = rtrim($home['path'] ?? '', '/');
     if ($path === $base . '/arab-trends-now') {
-        $args = array();
-        parse_str($parts['query'] ?? '', $args);
-        return isset($args['atn_topic']) && is_string($args['atn_topic']) &&
-            preg_match('/^[a-f0-9]{64}$/D', $args['atn_topic']) ? $url : '';
+        // Only the original topic key is canonical. Reject duplicate/extra
+        // parameters and fragments instead of silently retaining them.
+        $query = $parts['query'] ?? '';
+        return !isset($parts['fragment']) &&
+            preg_match('/^atn_topic=[a-f0-9]{64}$/D', $query) ? $url : '';
     }
     // Use an existing, canonical daily/weekly country archive permalink if the
     // original renderer already exposes it. Do not synthesize a page or redirect
@@ -694,7 +701,8 @@ add_action('wp_footer', function () {
           var u=new URL(value,location.href);
           if(u.origin!==location.origin||u.username||u.password)return '';
           var path=u.pathname.replace(/\/$/,'');
-          if(path==='/arab-trends-now'&&/^[a-f0-9]{64}$/.test(u.searchParams.get('atn_topic')||''))return u.href;
+          var topic=u.searchParams.get('atn_topic')||'';
+          if(path==='/arab-trends-now'&&/^[a-f0-9]{64}$/.test(topic)&&u.search==='?atn_topic='+topic&&!u.hash)return u.href;
           if(/^\/trend-archive\/topic-[a-f0-9]{24}$/.test(path)&&!u.search&&!u.hash)return u.href;
           // Country cards can already contain a real internal archive action.
           // Reuse only its verified permalink; leave thumbnails and source

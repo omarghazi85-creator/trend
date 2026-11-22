@@ -160,3 +160,18 @@ test('structured RSS media objects and links are excluded before four-country sn
   assert.equal(await snapshotDigest(observed),await snapshotDigest(clean),country);
  }
 });
+
+test('four-country snapshots reject encoded zero-width terms before digesting',async()=>{
+ for(const country of ['sd','so','dj','km']){
+  const base={country,term:'أخبار الأسواق',source:'google',observedAt:'2026-11-22T09:00:00Z'};
+  const blocked=[
+   {...base,term:'Only&shy;Fans'},
+   {...base,caption:'Only&NoBreak;Fans'},
+   {...base,'media:thumbnail':{url:'https://example.com/ok.jpg',caption:'p&zwj;ornhub'}},
+  ];
+  const expected=makeTrendSnapshot(country,'2026-11-22',[base]);
+  const actual=makeTrendSnapshot(country,'2026-11-22',[...blocked,base]);
+  assert.deepEqual(actual,expected,country);
+  assert.equal(await snapshotDigest(actual),await snapshotDigest(expected),country);
+ }
+});

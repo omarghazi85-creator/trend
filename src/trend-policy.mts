@@ -7,7 +7,10 @@
  */
 const NAMED_ENTITIES:Record<string,string>={
  amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',ndash:'–',
- mdash:'—',hellip:'…',rsquo:'’',lsquo:'‘',rdquo:'”',ldquo:'“',bull:'•'
+ mdash:'—',hellip:'…',rsquo:'’',lsquo:'‘',rdquo:'”',ldquo:'“',bull:'•',
+ // Entity-encoded invisible separators must not split excluded names or schemes.
+ shy:'\u00ad',zwnj:'\u200c',zwj:'\u200d',lrm:'\u200e',rlm:'\u200f',
+ nobreak:'\u2060',tab:'\t',newline:'\n'
 };
 export function decodeHtmlEntities(raw:string):string {
  return raw.replace(/&#(?:x([0-9a-f]{1,6})|([0-9]{1,7}));?/gi,(match,hex:string|undefined,decimal:string|undefined)=>{
@@ -56,7 +59,7 @@ export function normalizeTrendText(raw:string,keepMarkup=false):string {
   .replace(/[\u064B-\u065F\u0670\u0640]/gu,'')
   .replace(/[أإآٱ]/gu,'ا').replace(/ى/gu,'ي')
   .replace(/ؤ/gu,'و').replace(/ئ/gu,'ي').replace(/ة/gu,'ه')
-  .replace(/[\u00AD\u061C\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/gu,'')
+  .replace(/[\u00AD\u034F\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFE00-\uFE0F\uFEFF]/gu,'')
   .replace(/\s+/gu,' ').trim();
 }
 // Terms contain only literal words and spaces; match exact word/phrase boundaries.
@@ -92,7 +95,7 @@ function hasUnsafeEmbeddedScheme(raw:string):boolean {
  // attributes, a poster, or inline CSS without appearing in href/src.
  const attributes=/(?:^|[\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/giu;
  const normalizeDestination=(value:string):string=>value.normalize('NFKC')
-   .replace(/[\u0000-\u0020\u007f\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu,'')
+   .replace(/[\u0000-\u0020\u007f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufe00-\ufe0f\ufeff]/gu,'')
    .toLowerCase();
  const unsafe=(value:string):boolean=>/^(?:javascript|vbscript|data|file|blob):/u.test(normalizeDestination(value));
  for(const match of inspected.matchAll(attributes)){

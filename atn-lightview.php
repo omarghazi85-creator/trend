@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.15
+ * Version: 0.12.17
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -103,7 +103,9 @@ function atn_lightview_archive_detail_blocked($post) {
         !atn_lightview_archive_title_allowed(get_the_title($post));
 }
 add_action('template_redirect', function () {
-    if (!is_singular('page') || is_preview()) { return; }
+    if (!is_singular('page')) { return; }
+    // A public ?preview=true request must not bypass an excluded archive page.
+    // Editors remain exempt only through the explicit edit_post capability below.
     $post = get_queried_object();
     if (!atn_lightview_archive_detail_blocked($post) ||
         current_user_can('edit_post', $post->ID)) { return; }
@@ -117,6 +119,26 @@ add_action('template_redirect', function () {
     if ($template) { include $template; exit; }
     wp_die('هذه الصفحة غير متاحة', '', array('response' => 404));
 }, 2);
+
+/**
+ * The newer country archives (including Sudan, Somalia, Djibouti and Comoros)
+ * use "حصيلة كلمات البحث" rather than the original "كلمات البحث الرائجة".
+ * Keep both forms in the same read-only archive listing without touching the
+ * original WordPress collector, historic URLs, cache cadence, or DB queries.
+ */
+function atn_lightview_archive_title_supported($title) {
+    if (!is_string($title)) { return false; }
+    foreach (array(
+        'كلمات البحث الرائجة',
+        'حصيلة كلمات البحث',
+        'الأغاني الأكثر تشغيلًا',
+        'سجل الرواج',
+        'حصيلة ترندات'
+    ) as $phrase) {
+        if (strpos($title, $phrase) !== false) { return true; }
+    }
+    return false;
+}
 
 function atn_lightview_archive_items() {
     $key = 'atn_lightview_latest_v9';
@@ -140,10 +162,7 @@ function atn_lightview_archive_items() {
         foreach ($q->posts as $p) {
             $title = wp_strip_all_tags(get_the_title($p));
             if (!atn_lightview_archive_title_allowed($title)) { continue; }
-            if (strpos($title, 'كلمات البحث الرائجة') === false &&
-                strpos($title, 'الأغاني الأكثر تشغيلًا') === false &&
-                strpos($title, 'سجل الرواج') === false &&
-                strpos($title, 'حصيلة ترندات') === false) { continue; }
+            if (!atn_lightview_archive_title_supported($title)) { continue; }
             $link = get_permalink($p);
             if (!atn_lightview_archive_link_allowed($link)) { continue; }
             $slug_prefix = explode('-', $p->post_name, 2)[0];

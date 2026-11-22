@@ -248,3 +248,17 @@ test('unknown nested feed metadata and camelCase URLs cannot bypass editorial ad
  ];
  assert.deepEqual(filterTrendObservations([safe,...blocked]),[safe]);
 });
+
+
+test('provider metadata keys cannot carry prohibited names or encoded aliases',()=>{
+ const safe={term:'رصد الأسواق',source:'google',
+  extra:{trackingUrl:'https://example.com/markets','media:thumbnail':{url:'https://example.com/photo.jpg'}}};
+ const rejected=[
+  {...safe,extra:{OnlyFans:'معلومة عادية'}},
+  {...safe,analytics:{pornhubTrackingUrl:'https://example.com/markets'}},
+  {...safe,extra:{'p%6frnhub':'وصف بريء'}},
+  {...safe,extra:{'OnlyFansCampaign':2}},
+  {...safe,extra:{'Only&shy;Fans':'بيانات'}}
+ ];
+ assert.deepEqual(filterTrendObservations([safe,...rejected]),[safe]);
+});

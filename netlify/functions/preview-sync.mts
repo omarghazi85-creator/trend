@@ -1,3 +1,4 @@
+import {readBoundedJson} from '../../src/bounded-json.mts';
 import {planCandidate,validateCandidate,wordpressPayload,type RemotePost} from '../../src/core.mts';
 declare const Netlify:{env:{get(name:string):string|undefined}};
 const ORIGIN='https://arabiatrend.com';
@@ -14,7 +15,10 @@ export default async function(request:Request):Promise<Response>{
   if(!authorized(request)) return Response.json({error:'unauthorized'},{status:401});
   if(Number(request.headers.get('content-length')||0)>120000) return Response.json({error:'payload_too_large'},{status:413});
   let body:unknown;
-  try{body=await request.json();}catch{return Response.json({error:'invalid_json'},{status:400});}
+  try{body=await readBoundedJson(request,120000);}catch(error){
+    const tooLarge=error instanceof Error&&error.message==='payload_too_large';
+    return Response.json({error:tooLarge?'payload_too_large':'invalid_json'},{status:tooLarge?413:400});
+  }
   if(!body||typeof body!=='object'||!('candidates' in body)) return Response.json({error:'missing_candidates'},{status:400});
   const items=(body as {candidates?:unknown}).candidates;
   if(!Array.isArray(items)||items.length<1||items.length>MAX_ITEMS)return Response.json({error:'invalid_batch'},{status:400});

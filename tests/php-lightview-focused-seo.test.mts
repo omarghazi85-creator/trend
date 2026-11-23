@@ -84,7 +84,10 @@ function is_singular($type){return $type==='page';}
 function wp_strip_all_tags($s){return strip_tags($s);}
 `;
  const sample=String.raw`
-$graph=array('WebPage'=>array('@type'=>'WebPage','name'=>'حصيلة جيبوتي'),
+$graph=array('WebPage'=>array('@type'=>'WebPage',
+ '@id'=>'https://arabiatrend.com/trend-archive/dj-search-2026-11-22/#webpage',
+ 'url'=>'https://arabiatrend.com/trend-archive/dj-search-2026-11-22/',
+ 'name'=>'حصيلة جيبوتي','description'=>'وصف الحصيلة'),
   'ItemList'=>array('@type'=>'ItemList','itemListElement'=>array(1,2)),
   'BreadcrumbList'=>array('@type'=>'BreadcrumbList'),
   'Multi'=>array('@type'=>array('ItemList','CollectionPage')));
@@ -93,7 +96,8 @@ $_GET=array('atn_item'=>substr(hash('sha256','اقتصاد جيبوتي'),0,16))
 $focused=atn_lightview_archive_focus_schema($graph);
 $_GET=array('atn_item'=>'0000000000000000');
 $unknown=atn_lightview_archive_focus_schema($graph);
-echo json_encode(array('baseline'=>$baseline,'focused'=>$focused,'unknown'=>$unknown),JSON_UNESCAPED_UNICODE);
+echo json_encode(array('baseline'=>$baseline,'focused'=>$focused,'unknown'=>$unknown,
+ 'focus_key'=>substr(hash('sha256','اقتصاد جيبوتي'),0,16)),JSON_UNESCAPED_UNICODE);
 `;
  const r=spawnSync('php',['-r',stubs+fragments.join('\n')+'\n'+schema+'\n'+sample],{encoding:'utf8'});
  assert.equal(r.status,0,r.stderr);
@@ -101,7 +105,11 @@ echo json_encode(array('baseline'=>$baseline,'focused'=>$focused,'unknown'=>$unk
  assert.deepEqual(parsed.baseline,parsed.unknown);
  assert.deepEqual(Object.keys(parsed.baseline),['WebPage','ItemList','BreadcrumbList','Multi']);
  assert.deepEqual(Object.keys(parsed.focused),['WebPage','BreadcrumbList']);
- assert.equal(parsed.focused.WebPage.name,'حصيلة جيبوتي');
+ assert.equal(parsed.focused.WebPage.name,'اقتصاد جيبوتي');
+ assert.equal(parsed.focused.WebPage.url,
+   'https://arabiatrend.com/trend-archive/dj-search-2026-11-22/?atn_item='+parsed.focus_key);
+ assert.match(parsed.focused.WebPage.description,/اقتصاد جيبوتي ضمن حصيلة كلمات البحث في جيبوتي/);
+ assert.equal(parsed.focused.WebPage['@id'],parsed.focused.WebPage.url+'#webpage');
 });
 
 test('the primary H1 follows existing safe archive cards in six countries without changing parent URLs',t=>{

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.28
+ * Version: 0.12.29
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -312,14 +312,27 @@ foreach (array('rank_math/frontend/description',
     });
 }
 // A focused URL displays one saved card, not the parent archive's list.
-// Avoid describing the focused item as an ItemList in Rank Math's graph.
-// Leave the archived parent and all non-focused or unknown URLs untouched.
+// Avoid describing the focused item as the parent's ItemList in Rank Math.
+// Identify the existing focused WebPage consistently with its H1/canonical;
+// keep the parent graph, other nodes and unrecognized URLs untouched.
 function atn_lightview_archive_focus_schema($data) {
-    if (!is_array($data) || !atn_lightview_archive_focus_metadata()) { return $data; }
+    if (!is_array($data)) { return $data; }
+    $item = atn_lightview_archive_focus_metadata();
+    if (!$item) { return $data; }
     foreach ($data as $key => $node) {
         if (!is_array($node)) { continue; }
         $types = (array) ($node['@type'] ?? array());
-        if (in_array('ItemList', $types, true)) { unset($data[$key]); }
+        if (in_array('ItemList', $types, true)) { unset($data[$key]); continue; }
+        if (in_array('WebPage', $types, true)) {
+            $data[$key]['name'] = $item['name'];
+            $data[$key]['description'] = $item['description'];
+            $data[$key]['url'] = $item['url'];
+            // Only rewrite Rank Math's existing page identifier, not custom IDs.
+            if (isset($node['@id']) && is_string($node['@id']) &&
+                substr($node['@id'], -8) === '#webpage') {
+                $data[$key]['@id'] = $item['url'] . '#webpage';
+            }
+        }
     }
     return $data;
 }

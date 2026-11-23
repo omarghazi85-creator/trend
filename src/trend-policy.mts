@@ -103,7 +103,11 @@ function hasUnsafeEmbeddedScheme(raw:string):boolean {
  // Browsers accept <svg/onload=...> and <img/src=...> as attributes.
  // Do not let oversized tags skip the bounded event-handler scanner.
  if(/<\s*[a-z][^<>]{4097}/iu.test(inspected))return true;
- for(const tag of inspected.matchAll(/<\s*[a-z][^<>]{0,4096}>/giu)){
+ // Match whole tags even when a quoted attribute contains '>' or '<'.
+ // A simple [^<>]* scanner truncates at a quoted '>', missing later onload.
+ // This matches the public PHP archive guard without trusting unbounded tags.
+ for(const tag of inspected.matchAll(/<\s*[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu)){
+  if(tag[0].length>4096)return true;
   // Ignore quoted values: `/onload=` inside a legitimate URL is not an event.
   const attributeNames=tag[0].replace(/"[^"]*"|'[^']*'/gu,'""');
   if(/[\s/](?:on[a-z][a-z0-9_-]*|srcdoc)\s*=/iu.test(attributeNames))return true;

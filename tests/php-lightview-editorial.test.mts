@@ -62,7 +62,7 @@ test('PHP archive rejects punctuation-obfuscated prohibited source labels across
  assert.deepEqual(JSON.parse(result.stdout),[
   ...blocked.map(()=>false),...allowed.map(()=>true)
  ]);
- assert.match(php,/Version: 0\.12\.35/);
+ assert.match(php,/Version: 0\.12\.36/);
 });
 
 test('PHP archive file passes syntax check when CLI available',t=>{
@@ -119,7 +119,7 @@ test('PHP archive HTML source attributes are checked before stripping, including
  const filter=scope.indexOf('if (!atn_lightview_archive_title_allowed($title))');
  const strip=scope.indexOf('$title = wp_strip_all_tags($title);');
  assert.ok(raw>=0 && filter>raw && strip>filter,'raw title must be validated before attributes are stripped');
- assert.match(php,/Version: 0\.12\.35/);
+ assert.match(php,/Version: 0\.12\.36/);
 });
 
 test('PHP archive blocks unsafe embedded URLs in archive titles and saved bodies without dropping safe media', t=>{
@@ -219,7 +219,7 @@ test('live PHP archive rejects space-separated excluded source labels in all six
  assert.deepEqual(JSON.parse(result.stdout),[
   ...blocked.map(()=>false),...allowed.map(()=>true)
  ]);
- assert.match(php,/Version: 0\.12\.35/);
+ assert.match(php,/Version: 0\.12\.36/);
 });
 
 test('PHP archive mirrors worker: reject slash-delimited active markup across six countries',t=>{

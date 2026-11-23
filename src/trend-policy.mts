@@ -64,6 +64,12 @@ export function normalizeTrendText(raw:string,keepMarkup=false):string {
 }
 // Terms contain only literal words and spaces; match exact word/phrase boundaries.
 const patterns=terms.map(s=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+normalizeTrendText(s)+'(?=$|[^\\p{L}\\p{N}])','u'));
+// A few distinctive excluded source names are also disguised with dots,
+// underscores or hyphens between letters in feed titles and URLs. Match
+// these brands only, rather than stripping punctuation from every headline:
+// that would create false positives in ordinary Arabic and English text.
+const obfuscatedBrandPatterns=['onlyfans','pornhub','xvideos','xnxx','xhamster','redtube','youporn']
+ .map(brand=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+[...brand].join('[._·-]*')+'(?=$|[^\\p{L}\\p{N}])','u'));
 /**
  * Reject executable URL schemes concealed in HTML link/media attributes.
  * WordPress archive titles, excerpts and draft bodies can contain raw or
@@ -124,7 +130,8 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
  return normalized.length>0 &&
   !hasUnsafeEmbeddedScheme(title) &&
   !/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(normalized) &&
-  !patterns.some(p=>p.test(normalized)||p.test(markup));
+  !patterns.some(p=>p.test(normalized)||p.test(markup)) &&
+  !obfuscatedBrandPatterns.some(p=>p.test(normalized)||p.test(markup));
 }
 /**
  * Source destinations must be HTTPS and safe after URL and percent decoding.

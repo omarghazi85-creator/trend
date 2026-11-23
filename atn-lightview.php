@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.27
+ * Version: 0.12.28
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -179,7 +179,7 @@ function atn_lightview_archive_content_allowed($post) {
 function atn_lightview_archive_detail_blocked($post) {
     return $post instanceof WP_Post && $post->post_type === 'page' &&
         (int) $post->post_parent === 61269 &&
-        (!atn_lightview_archive_title_allowed(get_the_title($post)) ||
+        (!atn_lightview_archive_title_allowed($post->post_title) ||
          !atn_lightview_archive_content_allowed($post));
 }
 /**
@@ -232,12 +232,26 @@ function atn_lightview_archive_focus_metadata() {
     if (!isset($cards[$key])) { return $memo[$memo_key] = null; }
     $name = $cards[$key]['name'];
     return $memo[$memo_key] = array(
+        'name' => $name,
         'url' => add_query_arg('atn_item', $key, get_permalink($post)),
         'title' => $name . ' | الترند العربي',
-        'description' => $name . ' ضمن ' . get_the_title($post) .
+        'description' => $name . ' ضمن ' . wp_strip_all_tags($post->post_title) .
             '. اقرأ التفاصيل المحفوظة وروابط المصادر الأصلية في أرشيف الترند العربي.'
     );
 }
+/**
+ * In the primary page loop only, display the focused saved topic as the H1
+ * instead of the parent archive title. No page edit, redirect or new query.
+ * All unrecognized/blocked item keys and archive overview titles are retained.
+ */
+function atn_lightview_archive_focus_heading_title($title, $post_id) {
+    if (is_admin() || !is_singular('page') || !is_main_query() || !in_the_loop()) { return $title; }
+    $post = get_queried_object();
+    if (!($post instanceof WP_Post) || (int) $post->ID !== (int) $post_id) { return $title; }
+    $item = atn_lightview_archive_focus_metadata();
+    return $item ? $item['name'] : $title;
+}
+add_filter('the_title', 'atn_lightview_archive_focus_heading_title', 30, 2);
 add_filter('the_content', function ($content) {
     if (is_admin() || !is_singular('page') || !is_main_query()) { return $content; }
     $post = get_queried_object();
@@ -252,7 +266,7 @@ add_filter('the_content', function ($content) {
             '<a href="' . esc_url($back) . '">عرض الحصيلة الكاملة</a>' .
             '<a href="' . esc_url(home_url('/trend-archive/')) . '">أرشيف الترند العربي</a></nav>' .
             '<h2>' . esc_html($item['name']) . '</h2>' .
-            '<p>هذا العنصر من الحصيلة المنشورة بعنوان «' . esc_html(get_the_title($post)) .
+            '<p>هذا العنصر من الحصيلة المنشورة بعنوان «' . esc_html($post->post_title) .
             '». تفاصيله كما حفظت في سجل الرصد، دون استنتاجات أو مصادر جديدة.</p>' .
             '<div class="atna-grid">' . $item['html'] . '</div></section>';
     }

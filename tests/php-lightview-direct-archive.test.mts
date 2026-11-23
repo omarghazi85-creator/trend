@@ -8,7 +8,7 @@ const php = readFileSync(new URL('../atn-lightview.php', import.meta.url), 'utf8
 test('unsafe archived detail permalinks return 404 without touching stored pages', () => {
   assert.match(php, /function atn_lightview_archive_detail_blocked\(\$post\)/);
   assert.match(php, /\(int\) \$post->post_parent === 61269/);
-  assert.match(php, /!atn_lightview_archive_title_allowed\(get_the_title\(\$post\)\)/);
+  assert.match(php, /!atn_lightview_archive_title_allowed\(\$post->post_title\)/);
   assert.match(php, /if \(!is_singular\('page'\)\) \{ return; \}/);
   assert.doesNotMatch(php, /is_preview\(\)/, 'public preview queries must not bypass 404');
   assert.match(php, /current_user_can\('edit_post', \$post->ID\)/);

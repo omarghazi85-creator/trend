@@ -8,10 +8,11 @@ const policy = php.match(/function atn_lightview_archive_title_allowed\(\$title\
 const contentGuard = php.match(/function atn_lightview_archive_content_allowed\(\$post\) \{[\s\S]*?\n\}/)?.[0];
 const blocked = php.match(/function atn_lightview_archive_detail_blocked\(\$post\) \{[\s\S]*?\n\}/)?.[0];
 const cards = php.match(/function atn_lightview_archive_focus_cards\(\$content\) \{[\s\S]*?\n\}/)?.[0];
+const linkedCard = php.match(/function atn_lightview_archive_focus_linked_card\(\$entry, \$detail\) \{[\s\S]*?\n\}/)?.[0];
 const postGuard = php.match(/function atn_lightview_archive_focus_post\(\$post\) \{[\s\S]*?\n\}/)?.[0];
 const key = php.match(/function atn_lightview_archive_focus_key\(\) \{[\s\S]*?\n\}/)?.[0];
 const contentFilter = php.match(/add_filter\('the_content', function \(\$content\) \{[\s\S]*?\n\}, 25\);/)?.[0];
-assert.ok(policy&&contentGuard&&blocked&&cards&&postGuard&&key&&contentFilter);
+assert.ok(policy&&contentGuard&&blocked&&cards&&linkedCard&&postGuard&&key&&contentFilter);
 
 test('archived item links are generated only from existing stored cards, never external sources or synthesized pages',()=>{
  assert.match(php,/Version: 0\.12\.36/);
@@ -54,7 +55,7 @@ function esc_html($s){return htmlspecialchars($s, ENT_QUOTES,'UTF-8');}
 function add_query_arg($name,$value,$url){return $url.'?'.$name.'='.$value;}
 function add_filter($name,$fn,$priority){global $filters;$filters[$name]=$fn;}
 `;
- const script=stubs+policy+'\n'+contentGuard+'\n'+blocked+'\n'+cards+'\n'+postGuard+'\n'+key+'\n'+contentFilter+
+ const script=stubs+policy+'\n'+contentGuard+'\n'+blocked+'\n'+cards+'\n'+linkedCard+'\n'+postGuard+'\n'+key+'\n'+contentFilter+
  String.raw`
 $post->post_content=stream_get_contents(STDIN);
 $source=atn_lightview_archive_focus_cards($post->post_content);

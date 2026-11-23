@@ -262,3 +262,21 @@ test('provider metadata keys cannot carry prohibited names or encoded aliases',(
  ];
  assert.deepEqual(filterTrendObservations([safe,...rejected]),[safe]);
 });
+
+test('separator-obfuscated excluded brands in feed keys fail pre-admission across six countries',()=>{
+ const countries=['sd','so','dj','km','sa','eg'];
+ for(const country of countries){
+  const safe={term:'مؤشرات الأسواق',source:'google',country,
+   extra:{tracking_url:'https://example.com/markets',source_name:'إحصاءات محلية',
+    'media:thumbnail':{url:'https://example.com/cover.jpg'}}};
+  const rejected=[
+   {...safe,extra:{only_fans_campaign:'بيانات محايدة'}},
+   {...safe,extra:{'Only-Fans-Placement':'بيانات محايدة'}},
+   {...safe,extra:{'Only.Fans':'بيانات محايدة'}},
+   {...safe,extra:{'x_videos_channel':'بيانات محايدة'}},
+   {...safe,extra:{'x.n.x.x':'بيانات محايدة'}},
+   {...safe,media:{items:[{'only_fans_ref':'https://example.com/markets'}]}}
+  ];
+  assert.deepEqual(filterTrendObservations([safe,...rejected]),[safe],country);
+ }
+});

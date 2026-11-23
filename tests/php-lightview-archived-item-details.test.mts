@@ -56,6 +56,9 @@ function add_filter($name,$fn,$priority){global $filters;$filters[$name]=$fn;}
  String.raw`
 $post->post_content=stream_get_contents(STDIN);
 $source=atn_lightview_archive_focus_cards($post->post_content);
+// The full page is correctly blocked if even one stored card is prohibited.
+// Test the read-only links on a safe archive, after separately testing extraction.
+$post->post_content=str_replace('<article class="atna-item"><div><h3 dir="auto">onlyfans</h3></div></article>','',$post->post_content);
 $_GET=array();
 $overview=$filters['the_content']($post->post_content);
 $firstKey=array_key_first($source);

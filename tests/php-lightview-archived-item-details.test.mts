@@ -14,7 +14,7 @@ const contentFilter = php.match(/add_filter\('the_content', function \(\$content
 assert.ok(policy&&contentGuard&&blocked&&cards&&postGuard&&key&&contentFilter);
 
 test('archived item links are generated only from existing stored cards, never external sources or synthesized pages',()=>{
- assert.match(php,/Version: 0\.12\.31/);
+ assert.match(php,/Version: 0\.12\.32/);
  assert.match(contentFilter!,/add_query_arg\('atn_item', \$key, get_permalink\(\$post\)\)/);
  assert.match(contentFilter!,/str_replace\(\$item\['html'\], \$linked, \$content\)/);
  assert.match(contentFilter!,/atn_lightview_archive_focus_post\(\$post\)/);

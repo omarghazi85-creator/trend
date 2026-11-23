@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import archive from '../netlify/functions/archive.mts';
-const upstream='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/?type=page&number=100&offset=0';
+const upstream='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/?type=page&parent_id=61269&number=100&offset=0';
 const payload={found:982,posts:[
  {ID:86289,title:'كلمات البحث الرائجة في المغرب يوم 2026-11-16',URL:'https://arabiatrend.com/trend-archive/ma-search-2026-11-16',slug:'ma-search-2026-11-16',status:'publish',parent:{ID:61269},date:'2026-11-16T14:10:53+00:00'},
  {ID:86291,title:'حصيلة ترندات المغرب',URL:'https://arabiatrend.com/trend-archive/ma-week-2026-11-09',slug:'ma-week-2026-11-09',status:'publish',parent:{ID:61269},date:'2026-11-16T14:10:55+00:00'},
@@ -51,6 +51,7 @@ test('bounded pagination advances WordPress.com offset and retains filters',asyn
   assert.equal(response.status,200);
   assert.equal((await response.json()).page,2);
   const u=new URL(requested);
+  assert.equal(u.searchParams.get('parent_id'),'61269');
   assert.equal(u.searchParams.get('offset'),'100');
   assert.equal(u.searchParams.get('number'),'100');
  }finally{globalThis.fetch=original;}
@@ -285,5 +286,20 @@ test('archive advertises only reachable pages even when public pages exceed the 
   const invalid=await archive(new Request('https://preview.example/.netlify/functions/archive?page=11'));
   assert.equal(invalid.status,400);
   assert.equal(requests,2);
+ }finally{globalThis.fetch=original;}
+});
+
+
+test('archive rejects impossible upstream counts and excess rows with no retries',async()=>{
+ const original=globalThis.fetch;
+ try{
+  for(const data of [{found:-1,posts:[]},{found:1.5,posts:[]},{found:101,posts:Array(101).fill(payload.posts[0])}]){
+   let calls=0;
+   globalThis.fetch=async()=>{calls++;return Response.json(data);};
+   const result=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+   assert.equal(result.status,503);
+   assert.deepEqual((await result.json()).items,[]);
+   assert.equal(calls,1);
+  }
  }finally{globalThis.fetch=original;}
 });

@@ -95,7 +95,7 @@ function atn_lightview_archive_title_allowed($title) {
     // Match the external worker: oversized tags must not evade the bounded scanner.
     if (preg_match('~<\s*[a-z][^<>]{4097}~iu', $raw_title)) { return false; }
     $html_tags = array();
-    if (preg_match_all('~<\s*[a-z](?:"[^"]*"|\'[^\']*\'|[^<>"\']){0,4096}>~iu', $raw_title, $html_tags)) {
+    if (preg_match_all('~<\s*[a-z](?:"[^"]*"|\'[^\']*\'|[^<>"\'])*>~iu', $raw_title, $html_tags)) {
         foreach ($html_tags[0] as $html_tag) {
             // A quoted value containing '<' or '>' must not evade the bound.
             if (strlen($html_tag) > 4096) { return false; }

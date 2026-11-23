@@ -235,7 +235,7 @@ test('archive transport bounds streamed upstream JSON even with missing or under
     const body=new ReadableStream<Uint8Array>({
      pull(controller){pulled++;controller.enqueue(new Uint8Array(1024*1024));},
      cancel(){cancelled=true;}
-    });
+    },{highWaterMark:0});
     return new Response(body,{headers:declared===null?{}:{'content-length':declared}});
    };
    const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));

@@ -68,7 +68,7 @@ test('focused item schema drops parent ItemList only, retaining unrelated graph 
  if(check.error){t.skip('PHP CLI unavailable');return;}
  const schema=extract('atn_lightview_archive_focus_schema');
  assert.ok(schema && php.includes("add_filter('rank_math/json_ld', 'atn_lightview_archive_focus_schema', 99)"));
- const stubs=String.raw\`class WP_Post {
+ const stubs=String.raw`class WP_Post {
  public $ID=123;public $post_type='page';public $post_status='publish';public $post_parent=61269;
  public $post_name='dj-search-2026-11-22';public $post_title='حصيلة كلمات البحث في جيبوتي';
  public $post_content='<section class="atna"><article class="atna-item"><h3>اقتصاد جيبوتي</h3></article></section>';
@@ -82,8 +82,8 @@ function add_query_arg($key,$value,$url){return $url.'?'.$key.'='.$value;}
 function is_admin(){return false;}
 function is_singular($type){return $type==='page';}
 function wp_strip_all_tags($s){return strip_tags($s);}
-\`;
- const sample=String.raw\`
+`;
+ const sample=String.raw`
 $graph=array('WebPage'=>array('@type'=>'WebPage','name'=>'حصيلة جيبوتي'),
   'ItemList'=>array('@type'=>'ItemList','itemListElement'=>array(1,2)),
   'BreadcrumbList'=>array('@type'=>'BreadcrumbList'),
@@ -94,7 +94,7 @@ $focused=atn_lightview_archive_focus_schema($graph);
 $_GET=array('atn_item'=>'0000000000000000');
 $unknown=atn_lightview_archive_focus_schema($graph);
 echo json_encode(array('baseline'=>$baseline,'focused'=>$focused,'unknown'=>$unknown),JSON_UNESCAPED_UNICODE);
-\`;
+`;
  const r=spawnSync('php',['-r',stubs+fragments.join('\n')+'\n'+schema+'\n'+sample],{encoding:'utf8'});
  assert.equal(r.status,0,r.stderr);
  const parsed=JSON.parse(r.stdout);

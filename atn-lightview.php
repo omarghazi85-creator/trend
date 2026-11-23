@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.34
+ * Version: 0.12.35
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -208,16 +208,24 @@ function atn_lightview_archive_focus_cards($content) {
     $found = array();
     preg_match_all('~<article\b[^>]*class="[^"]*\batna-item\b[^"]*"[^>]*>[\s\S]*?</article>~iu', $content, $found);
     $items = array();
+    $occurrences = array();
     foreach (array_slice($found[0] ?? array(), 0, 80) as $article) {
         $heading = array();
         if (!preg_match('~<h3\b[^>]*>([\s\S]*?)</h3>~iu', $article, $heading)) { continue; }
         if (preg_match('~<a\b~iu', $heading[1])) { continue; } // already linked
         $name = trim(wp_strip_all_tags($heading[1]));
         if (!atn_lightview_archive_title_allowed($name)) { continue; }
-        $key = substr(hash('sha256', $name), 0, 16);
-        if (!isset($items[$key])) {
-            $items[$key] = array('name' => $name, 'html' => $article);
+        // Keep first-occurrence links unchanged; same headings can have
+        // different saved source/media records and need separate detail URLs.
+        $ordinal = $occurrences[$name] ?? 0;
+        $key = $ordinal === 0 ? substr(hash('sha256', $name), 0, 16) :
+            substr(hash('sha256', $name . "\n" . $ordinal), 0, 16);
+        while (isset($items[$key])) {
+            $ordinal++;
+            $key = substr(hash('sha256', $name . "\n" . $ordinal), 0, 16);
         }
+        $occurrences[$name] = $ordinal + 1;
+        $items[$key] = array('name' => $name, 'html' => $article);
     }
     return $items;
 }
@@ -286,18 +294,29 @@ add_filter('the_content', function ($content) {
             '». تفاصيله كما حفظت في سجل الرصد، دون استنتاجات أو مصادر جديدة.</p>' .
             '<div class="atna-grid">' . $item['html'] . '</div></section>';
     }
-    // Heading-only archive cards must not send visitors directly off-site.
-    // Link each label to its own read-only internal state, retaining the
-    // original card's media/source links and the existing page permalink.
+    // One sequential replacement per saved article: identical HTML must not
+    // inherit an earlier duplicate heading's source link or detail key.
+    // The existing thumbnail and external source anchors remain untouched.
+    $ordered = array();
     foreach ($cards as $key => $item) {
-        $detail = add_query_arg('atn_item', $key, get_permalink($post));
-        $linked = preg_replace('~(<h3\b[^>]*>)([\s\S]*?)(</h3>)~iu',
-            '$1<a href="' . esc_url($detail) . '">$2</a>$3', $item['html'], 1);
-        if (is_string($linked)) {
-            $content = str_replace($item['html'], $linked, $content);
-        }
+        $ordered[] = array('key' => $key, 'html' => $item['html']);
     }
-    return $content;
+    $next = 0;
+    $linked_content = preg_replace_callback(
+        '~<article\b[^>]*class="[^"]*\batna-item\b[^"]*"[^>]*>[\s\S]*?</article>~iu',
+        static function ($match) use ($ordered, &$next, $post) {
+            if (!isset($ordered[$next]) || $match[0] !== $ordered[$next]['html']) {
+                return $match[0];
+            }
+            $entry = $ordered[$next++];
+            $detail = add_query_arg('atn_item', $entry['key'], get_permalink($post));
+            $linked = preg_replace('~(<h3\b[^>]*>)([\s\S]*?)(</h3>)~iu',
+                '$1<a href="' . esc_url($detail) . '">$2</a>$3', $match[0], 1);
+            return is_string($linked) ? $linked : $match[0];
+        },
+        $content
+    );
+    return is_string($linked_content) ? $linked_content : $content;
 }, 25);
 // The item URL has distinct read-only content: keep a self-canonical URL,
 // without affecting the parent archive permalink or other Rank Math pages.

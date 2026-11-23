@@ -50,6 +50,7 @@ function is_main_query(){return true;}
 function get_queried_object(){global $post;return $post;}
 function get_permalink($post){return 'https://arabiatrend.com/trend-archive/sd-search-2026-11-22';}
 function home_url($path){return 'https://arabiatrend.com'.$path;}
+function wp_parse_url($url){return parse_url($url);}
 function esc_url($url){return htmlspecialchars($url, ENT_QUOTES,'UTF-8');}
 function esc_html($s){return htmlspecialchars($s, ENT_QUOTES,'UTF-8');}
 function add_query_arg($name,$value,$url){return $url.'?'.$name.'='.$value;}

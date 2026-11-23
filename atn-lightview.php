@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.24
+ * Version: 0.12.25
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -182,6 +182,81 @@ function atn_lightview_archive_detail_blocked($post) {
         (!atn_lightview_archive_title_allowed(get_the_title($post)) ||
          !atn_lightview_archive_content_allowed($post));
 }
+/**
+ * Reuse already saved archive cards as lightweight, shareable item details.
+ * This does not create posts, infer a topic ID, fetch media, or touch the
+ * original collector. Existing external/source links inside cards are kept.
+ */
+function atn_lightview_archive_focus_cards($content) {
+    if (!is_string($content) || strlen($content) > 300000) { return array(); }
+    $found = array();
+    preg_match_all('~<article\b[^>]*class="[^"]*\batna-item\b[^"]*"[^>]*>[\s\S]*?</article>~iu', $content, $found);
+    $items = array();
+    foreach (array_slice($found[0] ?? array(), 0, 80) as $article) {
+        $heading = array();
+        if (!preg_match('~<h3\b[^>]*>([\s\S]*?)</h3>~iu', $article, $heading)) { continue; }
+        if (preg_match('~<a\b~iu', $heading[1])) { continue; } // already linked
+        $name = trim(wp_strip_all_tags($heading[1]));
+        if (!atn_lightview_archive_title_allowed($name)) { continue; }
+        $key = substr(hash('sha256', $name), 0, 16);
+        if (!isset($items[$key])) {
+            $items[$key] = array('name' => $name, 'html' => $article);
+        }
+    }
+    return $items;
+}
+function atn_lightview_archive_focus_post($post) {
+    return $post instanceof WP_Post && $post->post_type === 'page' &&
+        $post->post_status === 'publish' && (int) $post->post_parent === 61269 &&
+        preg_match('~^[a-z]{2}-(?:search|music|week)-\d{4}-\d{2}-\d{2}(?:-[a-z0-9]+)?$~D',
+            $post->post_name) && !atn_lightview_archive_detail_blocked($post);
+}
+function atn_lightview_archive_focus_key() {
+    $key = $_GET['atn_item'] ?? null;
+    return is_string($key) && preg_match('/^[a-f0-9]{16}$/D', $key) ? $key : '';
+}
+add_filter('the_content', function ($content) {
+    if (is_admin() || !is_singular('page') || !is_main_query()) { return $content; }
+    $post = get_queried_object();
+    if (!atn_lightview_archive_focus_post($post)) { return $content; }
+    $cards = atn_lightview_archive_focus_cards($content);
+    if (!$cards) { return $content; }
+    $requested = atn_lightview_archive_focus_key();
+    if ($requested && isset($cards[$requested])) {
+        $item = $cards[$requested];
+        $back = get_permalink($post);
+        return '<section class="atna atna-focus" dir="rtl"><nav class="atna-nav" aria-label="روابط الأرشيف">' .
+            '<a href="' . esc_url($back) . '">عرض الحصيلة الكاملة</a>' .
+            '<a href="' . esc_url(home_url('/trend-archive/')) . '">أرشيف الترند العربي</a></nav>' .
+            '<h2>' . esc_html($item['name']) . '</h2>' .
+            '<p>هذا العنصر من الحصيلة المنشورة بعنوان «' . esc_html(get_the_title($post)) .
+            '». تفاصيله كما حفظت في سجل الرصد، دون استنتاجات أو مصادر جديدة.</p>' .
+            '<div class="atna-grid">' . $item['html'] . '</div></section>';
+    }
+    // Heading-only archive cards must not send visitors directly off-site.
+    // Link each label to its own read-only internal state, retaining the
+    // original card's media/source links and the existing page permalink.
+    foreach ($cards as $key => $item) {
+        $detail = add_query_arg('atn_item', $key, get_permalink($post));
+        $linked = preg_replace('~(<h3\b[^>]*>)([\s\S]*?)(</h3>)~iu',
+            '$1<a href="' . esc_url($detail) . '">$2</a>$3', $item['html'], 1);
+        if (is_string($linked)) {
+            $content = str_replace($item['html'], $linked, $content);
+        }
+    }
+    return $content;
+}, 25);
+// The item URL has distinct read-only content: keep a self-canonical URL,
+// without affecting the parent archive permalink or other Rank Math pages.
+add_filter('rank_math/frontend/canonical', function ($canonical) {
+    if (!is_singular('page')) { return $canonical; }
+    $key = atn_lightview_archive_focus_key();
+    if (!$key) { return $canonical; }
+    $post = get_queried_object();
+    if (!atn_lightview_archive_focus_post($post)) { return $canonical; }
+    $cards = atn_lightview_archive_focus_cards($post->post_content);
+    return isset($cards[$key]) ? add_query_arg('atn_item', $key, get_permalink($post)) : $canonical;
+});
 add_action('template_redirect', function () {
     if (!is_singular('page')) { return; }
     // A public ?preview=true request must not bypass an excluded archive page.

@@ -15,7 +15,7 @@ assert.ok(policy&&contentGuard&&blocked&&cards&&postGuard&&key&&contentFilter);
 
 test('archived item links are generated only from existing stored cards, never external sources or synthesized pages',()=>{
  assert.match(php,/Version: 0\.12\.35/);
- assert.match(contentFilter!,/add_query_arg\('atn_item', \$key, get_permalink\(\$post\)\)/);
+ assert.match(contentFilter!,/add_query_arg\('atn_item', \$entry\['key'\], get_permalink\(\$post\)\)/);
  assert.match(contentFilter!,/preg_replace_callback/);
  assert.match(contentFilter!,/atn_lightview_archive_focus_post\(\$post\)/);
  assert.match(php,/add_filter\('rank_math\/frontend\/canonical'/);

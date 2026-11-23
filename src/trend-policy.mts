@@ -198,8 +198,8 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   // values before the observation can enter a snapshot or future raw store.
   // Split common camelCase names to catch "OnlyFansCampaign" while keeping
   // normal metadata keys such as trackingUrl and media:thumbnail valid.
-  const spacedKey=key.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[_\\-.]+/g,' ');
-  const compactKey=spacedKey.replace(/\\s+/gu,'');
+  const spacedKey=key.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[_.-]+/g,' ');
+  const compactKey=spacedKey.replace(/\s+/gu,'');
   if(key.length>100||!isEditorialTrendAllowed(spacedKey)||
      (compactKey!==spacedKey&&!isEditorialTrendAllowed(compactKey)))return false;
   // Recognize common snake-case and camelCase destination keys.

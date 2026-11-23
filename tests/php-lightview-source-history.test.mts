@@ -61,3 +61,18 @@ test('archive source filter is limited to topic history pages and avoids new que
   assert.match(evaluate(html,'topic-bbbbbbbbbbbbbbbbbbbbbbbb'),/نص محفوظ/);
   assert.doesNotMatch(evaluate(html,'topic-bbbbbbbbbbbbbbbbbbbbbbbb'),/onlyfans/);
 });
+
+test('quoted angle brackets cannot conceal excluded archived-source hrefs',t=>{
+  if(!hasPhp){t.skip('PHP CLI unavailable');return;}
+  const html='<section class="atna"><table><tr><td>'+
+    '<a href="https://onlyfans.com/profile?marker=>hidden" title="safe > marker">مصدر مستبعد</a>'+
+    '<a href="https://example.com/%25256fnlyfans?marker=>hidden">مصدر مشفر</a>'+
+    '<a href="https://news.example.com/markets?compare=1>0" title="context > text">مصدر خبري مشروع</a>'+
+    '<a href="/trend-archive/topic-cccccccccccccccccccccccc" title="1 > 0">تفاصيل داخلية</a>'+
+    '</td></tr></table><p>سجل الرصد التاريخي باقٍ</p></section>';
+  const result=evaluate(html,'topic-cccccccccccccccccccccccc');
+  assert.doesNotMatch(result,/onlyfans|%25256fnlyfans|مصدر مستبعد|مصدر مشفر/i);
+  assert.match(result,/href="https:\/\/news\.example\.com\/markets\?compare=1>0"/);
+  assert.match(result,/href="\/trend-archive\/topic-cccccccccccccccccccccccc"/);
+  assert.match(result,/سجل الرصد التاريخي باقٍ/);
+});

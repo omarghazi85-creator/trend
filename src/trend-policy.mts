@@ -100,12 +100,17 @@ function hasUnsafeEmbeddedScheme(raw:string):boolean {
  // conceals an event handler, srcdoc document, or active-content element.
  // Inspect only markup tags: ordinary text such as "onload=ready" is allowed.
  if(/<\s*\/?\s*(?:script|object|embed|base|meta)\b/iu.test(inspected))return true;
+ // Browsers accept <svg/onload=...> and <img/src=...> as attributes.
+ // Do not let oversized tags skip the bounded event-handler scanner.
+ if(/<\s*[a-z][^<>]{4097}/iu.test(inspected))return true;
  for(const tag of inspected.matchAll(/<\s*[a-z][^<>]{0,4096}>/giu)){
-  if(/\s(?:on[a-z][a-z0-9_-]*|srcdoc)\s*=/iu.test(tag[0]))return true;
+  // Ignore quoted values: `/onload=` inside a legitimate URL is not an event.
+  const attributeNames=tag[0].replace(/"[^"]*"|'[^']*'/gu,'""');
+  if(/[\s/](?:on[a-z][a-z0-9_-]*|srcdoc)\s*=/iu.test(attributeNames))return true;
  }
  // A source can be embedded in responsive-image candidates, lazy-loading
  // attributes, a poster, or inline CSS without appearing in href/src.
- const attributes=/(?:^|[\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/giu;
+ const attributes=/(?:^|[\s</])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/giu;
  const normalizeDestination=(value:string):string=>value.normalize('NFKC')
    .replace(/[\u0000-\u0020\u007f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufe00-\ufe0f\ufeff]/gu,'')
    .toLowerCase();

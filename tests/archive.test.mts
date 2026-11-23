@@ -264,3 +264,26 @@ test('archive rejects oversized declared upstream JSON without reading the body'
   assert.equal(cancelled,false);
  }finally{globalThis.fetch=old;}
 });
+
+test('archive advertises only reachable pages even when public pages exceed the bounded window',async()=>{
+ const original=globalThis.fetch;
+ let requests=0;
+ globalThis.fetch=async()=>{requests++;return Response.json({found:1038,posts:[]});};
+ try{
+  const ninth=await archive(new Request('https://preview.example/.netlify/functions/archive?page=9'));
+  assert.equal(ninth.status,200);
+  const before=await ninth.json();
+  assert.equal(before.has_more,true);
+  assert.equal(before.window_truncated,true);
+  const tenth=await archive(new Request('https://preview.example/.netlify/functions/archive?page=10'));
+  assert.equal(tenth.status,200);
+  const last=await tenth.json();
+  assert.equal(last.has_more,false);
+  assert.equal(last.window_truncated,true);
+  assert.equal(last.total_public_pages,1038);
+  assert.equal(last.max_candidates,1000);
+  const invalid=await archive(new Request('https://preview.example/.netlify/functions/archive?page=11'));
+  assert.equal(invalid.status,400);
+  assert.equal(requests,2);
+ }finally{globalThis.fetch=original;}
+});

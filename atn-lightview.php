@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.35
+ * Version: 0.12.36
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -212,7 +212,25 @@ function atn_lightview_archive_focus_cards($content) {
     foreach (array_slice($found[0] ?? array(), 0, 80) as $article) {
         $heading = array();
         if (!preg_match('~<h3\b[^>]*>([\s\S]*?)</h3>~iu', $article, $heading)) { continue; }
-        if (preg_match('~<a\b~iu', $heading[1])) { continue; } // already linked
+        // Preserve established internal heading links (notably SA/EG).
+        // External heading links need a local detail, with their original
+        // destinations kept as separate source controls.
+        $source_url = '';
+        if (preg_match('~<a\b~iu', $heading[1])) {
+            $existing = array();
+            if (!preg_match('~^\s*<a\b[^>]*\bhref\s*=\s*(["\'])(.*?)\1[^>]*>[\s\S]*?</a>\s*$~iu',
+                $heading[1], $existing)) { continue; }
+            $candidate = html_entity_decode($existing[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $parsed = wp_parse_url($candidate);
+            $home = wp_parse_url(home_url('/'));
+            if (!is_array($parsed) || !is_array($home) ||
+                !in_array(strtolower($parsed['scheme'] ?? ''), array('https', 'http'), true) ||
+                empty($parsed['host']) ||
+                strtolower($parsed['host']) === strtolower($home['host'] ?? '') ||
+                isset($parsed['user']) || isset($parsed['pass']) ||
+                !atn_lightview_archive_title_allowed($candidate)) { continue; }
+            $source_url = $candidate;
+        }
         $name = trim(wp_strip_all_tags($heading[1]));
         if (!atn_lightview_archive_title_allowed($name)) { continue; }
         // Keep first-occurrence links unchanged; same headings can have
@@ -225,9 +243,29 @@ function atn_lightview_archive_focus_cards($content) {
             $key = substr(hash('sha256', $name . "\n" . $ordinal), 0, 16);
         }
         $occurrences[$name] = $ordinal + 1;
-        $items[$key] = array('name' => $name, 'html' => $article);
+        $items[$key] = array('name' => $name, 'html' => $article, 'source_url' => $source_url);
     }
     return $items;
+}
+/**
+ * Replace only the heading; original media anchors in the saved card stay put.
+ * When the heading itself was an outbound source link, expose that exact
+ * destination as a separate, clearly labelled source control instead.
+ */
+function atn_lightview_archive_focus_linked_card($entry, $detail) {
+    $linked = preg_replace_callback(
+        '~(<h3\b[^>]*>)([\s\S]*?)(</h3>)~iu',
+        static function ($match) use ($entry, $detail) {
+            $title = empty($entry['source_url']) ? $match[2] : esc_html($entry['name']);
+            $source = empty($entry['source_url']) ? '' :
+                '<a class="atna-original-source" href="' . esc_url($entry['source_url']) .
+                '" target="_blank" rel="noopener noreferrer">المصدر الأصلي</a>';
+            return $match[1] . '<a href="' . esc_url($detail) . '">' .
+                $title . '</a>' . $match[3] . $source;
+        },
+        $entry['html'], 1
+    );
+    return is_string($linked) ? $linked : $entry['html'];
 }
 function atn_lightview_archive_focus_post($post) {
     return $post instanceof WP_Post && $post->post_type === 'page' &&
@@ -286,20 +324,23 @@ add_filter('the_content', function ($content) {
     if ($requested && isset($cards[$requested])) {
         $item = $cards[$requested];
         $back = get_permalink($post);
+        $item_html = empty($item['source_url']) ? $item['html'] :
+            atn_lightview_archive_focus_linked_card($item, add_query_arg('atn_item', $requested, $back));
         return '<section class="atna atna-focus" dir="rtl"><nav class="atna-nav" aria-label="روابط الأرشيف">' .
             '<a href="' . esc_url($back) . '">عرض الحصيلة الكاملة</a>' .
             '<a href="' . esc_url(home_url('/trend-archive/')) . '">أرشيف الترند العربي</a></nav>' .
             '<h2>' . esc_html($item['name']) . '</h2>' .
             '<p>هذا العنصر من الحصيلة المنشورة بعنوان «' . esc_html($post->post_title) .
             '». تفاصيله كما حفظت في سجل الرصد، دون استنتاجات أو مصادر جديدة.</p>' .
-            '<div class="atna-grid">' . $item['html'] . '</div></section>';
+            '<div class="atna-grid">' . $item_html . '</div></section>';
     }
     // One sequential replacement per saved article: identical HTML must not
     // inherit an earlier duplicate heading's source link or detail key.
     // The existing thumbnail and external source anchors remain untouched.
     $ordered = array();
     foreach ($cards as $key => $item) {
-        $ordered[] = array('key' => $key, 'html' => $item['html']);
+        $ordered[] = array('key' => $key, 'html' => $item['html'],
+            'name' => $item['name'], 'source_url' => $item['source_url']);
     }
     $next = 0;
     $linked_content = preg_replace_callback(
@@ -310,9 +351,7 @@ add_filter('the_content', function ($content) {
             }
             $entry = $ordered[$next++];
             $detail = add_query_arg('atn_item', $entry['key'], get_permalink($post));
-            $linked = preg_replace('~(<h3\b[^>]*>)([\s\S]*?)(</h3>)~iu',
-                '$1<a href="' . esc_url($detail) . '">$2</a>$3', $match[0], 1);
-            return is_string($linked) ? $linked : $match[0];
+            return atn_lightview_archive_focus_linked_card($entry, $detail);
         },
         $content
     );

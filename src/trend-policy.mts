@@ -23,6 +23,15 @@ export function decodeHtmlEntities(raw:string):string {
  }).replace(/&([a-z]{2,10});/gi,(match,name:string)=>NAMED_ENTITIES[name.toLowerCase()]??match);
 }
 
+/** Resolve literal JSON/JavaScript \uNNNN and \xNN escapes sometimes
+ * double-serialized by feed aggregators. Treat these as data, never as code.
+ * This only runs inside the existing six-pass bounded editorial decoder.
+ */
+function decodeUnicodeEscapes(raw:string):string {
+ return raw.replace(/\\(?:u([0-9a-f]{4})|x([0-9a-f]{2}))/giu,
+  (_match,unicode:string|undefined,hex:string|undefined)=>
+   String.fromCharCode(parseInt(unicode??hex??'',16)));
+}
 /**
  * Peel bounded HTML and percent-encoding layers in raw observation labels.
  * Return null on malformed, unfinished, or excessive encodings rather than
@@ -32,7 +41,7 @@ export function decodeHtmlEntities(raw:string):string {
 export function decodeEditorialText(raw:string):string|null {
  let decoded=raw;
  for(let i=0;i<6;i++){
-  let next=decodeHtmlEntities(decoded);
+  let next=decodeUnicodeEscapes(decodeHtmlEntities(decoded));
   if(/%[0-9a-f]{2}/i.test(next)){
    try{next=decodeURIComponent(next);}catch{return null;}
   }

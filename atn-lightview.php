@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.31
+ * Version: 0.12.32
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -92,10 +92,17 @@ function atn_lightview_archive_title_allowed($title) {
     // cache admission or direct detail display. Inspect actual markup tags,
     // keeping prose mentioning onload=ready as ordinary text.
     if (preg_match('~<\s*/?\s*(?:script|object|embed|base|meta)\b~iu', $raw_title)) { return false; }
+    // Match the external worker: oversized tags must not evade the bounded scanner.
+    if (preg_match('~<\s*[a-z][^<>]{4097}~iu', $raw_title)) { return false; }
     $html_tags = array();
-    if (preg_match_all('~<\s*[a-z][^<>]{0,4096}>~iu', $raw_title, $html_tags)) {
+    if (preg_match_all('~<\s*[a-z](?:"[^"]*"|\'[^\']*\'|[^<>"\'])*>~iu', $raw_title, $html_tags)) {
         foreach ($html_tags[0] as $html_tag) {
-            if (preg_match('~\s(?:on[a-z][a-z0-9_-]*|srcdoc)\s*=~iu', $html_tag)) {
+            // A quoted value containing '<' or '>' must not evade the bound.
+            if (strlen($html_tag) > 4096) { return false; }
+            // Event-like text inside a quoted HTTPS URL is not an attribute.
+            $attribute_names = preg_replace('~"[^"]*"|\'[^\']*\'~u', '""', $html_tag);
+            if (!is_string($attribute_names) ||
+                preg_match('~[\s/](?:on[a-z][a-z0-9_-]*|srcdoc)\s*=~iu', $attribute_names)) {
                 return false;
             }
         }
@@ -109,7 +116,7 @@ function atn_lightview_archive_title_allowed($title) {
     $css_markup = str_replace(array('"', "'"), '', $css_markup);
     if (preg_match('~style=[^>]*url\((?:javascript|vbscript|data|file|blob):~i', $css_markup)) { return false; }
     $attributes = array();
-    if (preg_match_all("~(?:^|[\s<])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s>]+))~iu", $raw_title, $attributes, PREG_SET_ORDER)) {
+    if (preg_match_all("~(?:^|[\s</])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^\s>]+))~iu", $raw_title, $attributes, PREG_SET_ORDER)) {
         foreach ($attributes as $attribute) {
             $name = strtolower($attribute[1]);
             $value = isset($attribute[2]) && $attribute[2] !== '' ? $attribute[2] :

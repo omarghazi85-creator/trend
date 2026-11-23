@@ -88,3 +88,31 @@ test('raw feed metadata cannot conceal prohibited content or media origins befor
  assert.deepEqual(filterTrendObservations([...safe,...rejected]),safe);
  assert.equal(JSON.stringify([...safe,...rejected]),original,'do not mutate upstream records');
 });
+
+
+test('separator-obfuscated source names are blocked in observations and URLs before six-country snapshots',async()=>{
+ const countries=['sd','so','dj','km','sa','eg'];
+ for(const country of countries){
+  const safe={country,term:'مؤشرات الأسواق',source:'google',observedAt:'2026-11-23T06:00:00Z',
+   sourceUrl:'https://example.com/markets',extra:{note:'التجارة المحلية'}};
+  const excluded=[
+   {...safe,provider:'Only-Fans'},
+   {...safe,description:'إحالة إلى p.o.r.n.h.u.b'},
+   {...safe,extra:{partner:'x_videos'}},
+   {...safe,media:{caption:'x.n.x.x'}},
+   {...safe,sourceUrl:'https://example.com/ref/only_fans'},
+   {...safe,originalUrl:'https://example.com/links/x-hamster'},
+   {...safe,summary:'red·tube'},
+   {...safe,media:{link:{href:'https://example.com/y.o.u.p.o.r.n'}}}
+  ];
+  assert.deepEqual(filterTrendObservations([safe,...excluded]),[safe],country);
+  const baseline=makeTrendSnapshot(country,'2026-11-23',[safe]);
+  const filtered=makeTrendSnapshot(country,'2026-11-23',[...excluded,safe]);
+  assert.deepEqual(filtered,baseline,country);
+  assert.equal(await snapshotDigest(filtered),await snapshotDigest(baseline),country);
+ }
+ for(const url of ['https://example.com/ref/only.fans','https://example.com/p.o.r.n.h.u.b',
+  'https://example.com/x_videos'])assert.equal(isEditorialSourceUrlAllowed(url),false,url);
+ for(const url of ['https://example.com/fans','https://example.com/essex-county'])
+  assert.equal(isEditorialSourceUrlAllowed(url),true,url);
+});

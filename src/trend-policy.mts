@@ -10,7 +10,11 @@ const NAMED_ENTITIES:Record<string,string>={
  mdash:'—',hellip:'…',rsquo:'’',lsquo:'‘',rdquo:'”',ldquo:'“',bull:'•',
  // Entity-encoded invisible separators must not split excluded names or schemes.
  shy:'\u00ad',zwnj:'\u200c',zwj:'\u200d',lrm:'\u200e',rlm:'\u200f',
- nobreak:'\u2060',tab:'\t',newline:'\n'
+ nobreak:'\u2060',tab:'\t',newline:'\n',
+ // HTML5 named punctuation is interpreted by browsers inside attributes.
+ // Decode before source and executable-scheme checks, not after admission.
+ colon:':',sol:'/',bsol:'\\',period:'.',lowbar:'_',hyphen:'-',
+ lpar:'(',rpar:')'
 };
 export function decodeHtmlEntities(raw:string):string {
  return raw.replace(/&#(?:x([0-9a-f]{1,6})|([0-9]{1,7}));?/gi,(match,hex:string|undefined,decimal:string|undefined)=>{

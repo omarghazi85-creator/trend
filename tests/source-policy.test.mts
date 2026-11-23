@@ -165,3 +165,21 @@ test('spaced excluded source names never enter six-country shadow snapshots or d
  for(const destination of ['https://example.com/markets','https://example.com/fans','https://example.com/sports'])
   assert.equal(isEditorialSourceUrlAllowed(destination),true,destination);
 });
+
+test('slash-separated HTML attributes and oversized tags cannot bypass admission for six countries',async()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const safe={country,term:'بيانات الأسواق العربية',source:'google',observedAt:'2026-11-23T08:00:00Z',
+   sourceUrl:'https://example.com/markets',description:'خبر <a href="https://example.com/path/onload=ready">السوق</a>'};
+  const unsafe=[
+   {...safe,description:'خبر <svg/onload=alert(1)>بيانات</svg>'},
+   {...safe,caption:'خبر <img/src="javascript:alert(1)">'},
+   {...safe,content:'خبر <iframe/srcdoc="<script>alert(1)</script>"></iframe>'},
+   {...safe,description:'خبر <a data-padding="'+ 'x'.repeat(4100) +'" onmouseover="alert(1)">السوق</a>'}
+  ];
+  assert.deepEqual(filterTrendObservations([...unsafe,safe]),[safe],country);
+  const baseline=makeTrendSnapshot(country,'2026-11-23',[safe]);
+  const guarded=makeTrendSnapshot(country,'2026-11-23',[...unsafe,safe]);
+  assert.deepEqual(guarded,baseline,country);
+  assert.equal(await snapshotDigest(guarded),await snapshotDigest(baseline),country);
+ }
+});

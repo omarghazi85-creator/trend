@@ -324,3 +324,13 @@ test('quoted angle brackets do not conceal later executable attributes in six-co
  const oversized='أخبار السودان <img alt=">" data-note="'+ 'a'.repeat(4100) +'">';
  assert.equal(isEditorialTrendAllowed(oversized),false);
 });
+
+test('slash plus and bullet source aliases are blocked in six-country observations and URLs',()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const safe={country,term:'مؤشرات الأسواق المحلية',source:'google',observedAt:'2026-11-23T10:00:00Z',sourceUrl:'https://example.org/markets'};
+  const masks=['p/o/r/n/h/u/b','o+n+l+y+f+a+n+s','x•v•i•d•e•o•s','r/e/d/t/u/b/e','x/n/x/x','y/o/u/p/o/r/n','x/h/a/m/s/t/e/r'];
+  const blocked=[...masks.map(label=>({...safe,description:'مصدر '+label})),{...safe,sourceUrl:'https://example.org/refs/p%2Fo%2Fr%2Fn%2Fh%2Fu%2Fb'}];
+  assert.deepEqual(filterTrendObservations([safe,...blocked]),[safe],country);
+ }
+ for(const text of ['السعودية / الأسواق','جيبوتي + التجارة','الصومال • الأخبار','Essex county'])assert.equal(isEditorialTrendAllowed(text),true,text);
+});

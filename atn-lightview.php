@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.26
+ * Version: 0.12.27
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -297,6 +297,19 @@ foreach (array('rank_math/frontend/description',
         return $item ? $item['description'] : $description;
     });
 }
+// A focused URL displays one saved card, not the parent archive's list.
+// Avoid describing the focused item as an ItemList in Rank Math's graph.
+// Leave the archived parent and all non-focused or unknown URLs untouched.
+function atn_lightview_archive_focus_schema($data) {
+    if (!is_array($data) || !atn_lightview_archive_focus_metadata()) { return $data; }
+    foreach ($data as $key => $node) {
+        if (!is_array($node)) { continue; }
+        $types = (array) ($node['@type'] ?? array());
+        if (in_array('ItemList', $types, true)) { unset($data[$key]); }
+    }
+    return $data;
+}
+add_filter('rank_math/json_ld', 'atn_lightview_archive_focus_schema', 99);
 // End focused archive item metadata.
 add_action('template_redirect', function () {
     if (!is_singular('page')) { return; }

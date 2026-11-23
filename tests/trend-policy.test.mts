@@ -300,3 +300,27 @@ test('HTML5 punctuation entities cannot conceal executable markup or excluded br
   'مسار &sol; الأسواق المحلية'
  ])assert.equal(isEditorialTrendAllowed(title),true,title);
 });
+
+
+test('quoted angle brackets do not conceal later executable attributes in six-country feeds',()=>{
+ const cases=[
+  ['السعودية','<img alt=">" onerror=alert(1)>'],
+  ['مصر',"<img alt='>' onload=alert(1)>"],
+  ['السودان','<svg data-note="المقارنة > أمس" onload=alert(1)>'],
+  ['الصومال','<a href="https://example.com/search?q=a>b" onclick="alert(1)">قراءة</a>'],
+  ['جيبوتي',"<iframe title='لقطة > تفاصيل' onload=alert(1)></iframe>"],
+  ['جزر القمر','<img alt="أسعار > توقعات" onerror = alert(1)>']
+ ] as const;
+ for(const [country,markup] of cases){
+  const unsafe=country+' '+markup;
+  assert.equal(isEditorialTrendAllowed(unsafe),false,country);
+  const normal=country+' <img alt="سعر > توقع" src="https://example.com/cover.jpg">';
+  assert.equal(isEditorialTrendAllowed(normal),true,country+' safe quoted comparison');
+  const safe={term:country+' نتائج الأسواق',source:'news'};
+  assert.deepEqual(filterTrendObservations([safe,{...safe,term:unsafe}]),[safe],country);
+ }
+ // The 4 KiB bound applies to a complete quote-aware tag, not only the
+ // truncated portion preceding an angle bracket inside an attribute value.
+ const oversized='أخبار السودان <img alt=">" data-note="'+ 'a'.repeat(4100) +'">';
+ assert.equal(isEditorialTrendAllowed(oversized),false);
+});

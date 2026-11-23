@@ -75,7 +75,7 @@ const patterns=terms.map(s=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+normalizeTrendTex
 const obfuscatedBrandPatterns=['onlyfans','pornhub','xvideos','xnxx','xhamster','redtube','youporn']
  // Some feeds separate every letter with whitespace rather than punctuation.
  // Keep this limited to distinctive source names to avoid broad false positives.
- .map(brand=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+[...brand].join('[._·\\s-]*')+'(?=$|[^\\p{L}\\p{N}])','u'));
+ .map(brand=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+[...brand].join('[._·•/+\\s-]*')+'(?=$|[^\\p{L}\\p{N}])','u'));
 /**
  * Reject executable URL schemes concealed in HTML link/media attributes.
  * WordPress archive titles, excerpts and draft bodies can contain raw or

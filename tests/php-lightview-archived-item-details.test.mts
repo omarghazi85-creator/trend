@@ -14,7 +14,7 @@ const contentFilter = php.match(/add_filter\('the_content', function \(\$content
 assert.ok(policy&&contentGuard&&blocked&&cards&&postGuard&&key&&contentFilter);
 
 test('archived item links are generated only from existing stored cards, never external sources or synthesized pages',()=>{
- assert.match(php,/Version: 0\.12\.35/);
+ assert.match(php,/Version: 0\.12\.36/);
  assert.match(contentFilter!,/add_query_arg\('atn_item', \$entry\['key'\], get_permalink\(\$post\)\)/);
  assert.match(contentFilter!,/preg_replace_callback/);
  assert.match(contentFilter!,/atn_lightview_archive_focus_post\(\$post\)/);
@@ -32,6 +32,7 @@ test('six country cards get stable unique internal read-only destinations; origi
    '<article class="atna-item"><div><h3 dir="auto">onlyfans</h3></div></article>'+
    '<article class="atna-item"><div><h3><a href="https://arabiatrend.com/trend-archive/topic-123">عنوان مرتبط أصلاً</a></h3></div></article>'+
    '<article class="atna-item"><div><h3 dir="auto">أخبار الاقتصاد السودان</h3><a class="source" href="https://media.example.com/duplicate">المصدر الأصلي الثاني</a></div></article>'+ 
+   '<article class="atna-item"><div><h3><a href="https://media.example.com/title-only">اقتصاد السودان: تقرير موثق</a></h3><a class="source" href="https://media.example.com/video-only">فيديو أصلي</a></div></article>'+
    '</div></section>';
  const stubs=String.raw`class WP_Post {
  public $ID=123; public $post_type='page';public $post_status='publish';
@@ -65,20 +66,24 @@ $overview=$filters['the_content']($post->post_content);
 $firstKey=array_key_first($source);
 $_GET=array('atn_item'=>$firstKey);
 $focused=$filters['the_content']($post->post_content);
-$_GET=array('atn_item'=>array_key_last($source));
+$sourceKeys=array_keys($source);
+$_GET=array('atn_item'=>$sourceKeys[6]);
 $focusedDuplicate=$filters['the_content']($post->post_content);
+$_GET=array('atn_item'=>$sourceKeys[7]);
+$focusedExternal=$filters['the_content']($post->post_content);
 echo json_encode(array(
  'count'=>count($source),'keys'=>array_keys($source),
- 'overview'=>$overview,'focused'=>$focused,'focusedDuplicate'=>$focusedDuplicate,'first'=>$firstKey
+ 'overview'=>$overview,'focused'=>$focused,'focusedDuplicate'=>$focusedDuplicate,
+ 'focusedExternal'=>$focusedExternal,'first'=>$firstKey
 ),JSON_UNESCAPED_UNICODE);
 `;
  const result=spawnSync('php',['-r',script],{input:html,encoding:'utf8'});
  assert.equal(result.status,0,result.stderr);
  const data=JSON.parse(result.stdout);
- assert.equal(data.count,7);
+ assert.equal(data.count,8);
  assert.equal(new Set(data.keys).size,7);
  assert.notEqual(data.keys[2],data.keys[6]);
- assert.equal((data.overview.match(/\?atn_item=[a-f0-9]{16}/g)||[]).length,7);
+ assert.equal((data.overview.match(/\?atn_item=[a-f0-9]{16}/g)||[]).length,8);
  for(let i=0;i<6;i++){
    assert.ok(data.overview.includes('https://media.example.com/'+i),'original media '+i);
  }
@@ -93,5 +98,12 @@ echo json_encode(array(
  assert.ok(data.focusedDuplicate.includes('أخبار الاقتصاد السودان'));
  assert.ok(data.overview.includes('https://media.example.com/duplicate'));
  assert.ok(data.overview.includes('https://media.example.com/2'));
+ assert.ok(data.overview.includes('class="atna-original-source" href="https://media.example.com/title-only"'));
+ assert.ok(data.overview.includes('https://media.example.com/video-only'));
+ assert.ok(data.overview.includes('<h3><a href="https://arabiatrend.com/trend-archive/topic-123">'));
+ assert.ok(data.focusedExternal.includes('اقتصاد السودان: تقرير موثق'));
+ assert.ok(data.focusedExternal.includes('class="atna-original-source" href="https://media.example.com/title-only"'));
+ assert.ok(data.focusedExternal.includes('https://media.example.com/video-only'));
+ assert.ok(!data.focusedExternal.includes('https://media.example.com/duplicate'));
 
 });

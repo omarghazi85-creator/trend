@@ -7,6 +7,7 @@ import {decodeHtmlEntities,isEditorialTrendAllowed} from '../../src/trend-policy
 import {readBoundedJsonStream} from '../../src/bounded-json.mts';
 const ORIGIN='https://arabiatrend.com';
 const API='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/';
+const ARCHIVE_PARENT_ID=61269;
 const PAGE_SIZE=100;
 const MAX_PAGE=10;
 // Bound untrusted upstream JSON even when Content-Length is absent or understated.
@@ -29,7 +30,7 @@ function canonicalArchiveUrl(value:string,slug:string):boolean{
  }catch{return false;}
 }
 function classify(page:PublicPage){
- if(page.parent===false||!page.parent||page.parent.ID!==61269||page.status!=='publish')return null;
+ if(page.parent===false||!page.parent||page.parent.ID!==ARCHIVE_PARENT_ID||page.status!=='publish')return null;
  if(typeof page.URL!=='string'||typeof page.slug!=='string'||!canonicalArchiveUrl(page.URL,page.slug))return null;
  if(typeof page.title!=='string'||typeof page.date!=='string')return null;
  // Inspect the upstream HTML *before* stripping tags. A prohibited source may
@@ -72,7 +73,7 @@ export default async(request:Request):Promise<Response>=>{
  const rawPage=new URL(request.url).searchParams.get('page') ?? '1';
  if(!/^[1-9][0-9]{0,1}$/.test(rawPage)||Number(rawPage)>MAX_PAGE)return Response.json({error:'invalid_page'},{status:400,headers:{'cache-control':'no-store'}});
  const page=Number(rawPage);
- const u=new URL(API);u.searchParams.set('type','page');u.searchParams.set('number',String(PAGE_SIZE));u.searchParams.set('offset',String((page-1)*PAGE_SIZE));
+ const u=new URL(API);u.searchParams.set('type','page');u.searchParams.set('parent_id',String(ARCHIVE_PARENT_ID));u.searchParams.set('number',String(PAGE_SIZE));u.searchParams.set('offset',String((page-1)*PAGE_SIZE));
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8500);
  try{
    const response=await fetch(u.toString(),{method:'GET',signal:controller.signal,headers:{accept:'application/json'}});
@@ -80,10 +81,10 @@ export default async(request:Request):Promise<Response>=>{
    const payload:unknown=await readBoundedJsonStream(response.body,response.headers.get('content-length'),MAX_UPSTREAM_JSON_BYTES);
    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('bad_wpcom_payload');
    const record=payload as Record<string,unknown>;
-   if(!Array.isArray(record.posts)||typeof record.found!=='number'||!Number.isFinite(record.found))throw new Error('no_pages');
+   if(!Array.isArray(record.posts)||record.posts.length>PAGE_SIZE||typeof record.found!=='number'||!Number.isSafeInteger(record.found)||record.found<0)throw new Error('no_pages');
    const items=record.posts.map(p=>p&&typeof p==='object'?classify(p as PublicPage):null).filter((p):p is NonNullable<typeof p>=>p!==null);
    return Response.json({scope:'latest_archived_pages_only',items,available_in_window:items.length,
-     page,per_page:PAGE_SIZE,total_public_pages:record.found,
+     page,per_page:PAGE_SIZE,total_public_pages:record.found, // count of public children of archive parent
      has_more:page<MAX_PAGE && page*PAGE_SIZE<record.found,
      window_truncated:record.found>PAGE_SIZE*MAX_PAGE,
      source:'wordpress_com_public_jetpack',max_candidates:PAGE_SIZE*MAX_PAGE},{

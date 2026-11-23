@@ -62,7 +62,7 @@ test('PHP archive rejects punctuation-obfuscated prohibited source labels across
  assert.deepEqual(JSON.parse(result.stdout),[
   ...blocked.map(()=>false),...allowed.map(()=>true)
  ]);
- assert.match(php,/Version: 0\.12\.30/);
+ assert.match(php,/Version: 0\.12\.31/);
 });
 
 test('PHP archive file passes syntax check when CLI available',t=>{
@@ -119,7 +119,7 @@ test('PHP archive HTML source attributes are checked before stripping, including
  const filter=scope.indexOf('if (!atn_lightview_archive_title_allowed($title))');
  const strip=scope.indexOf('$title = wp_strip_all_tags($title);');
  assert.ok(raw>=0 && filter>raw && strip>filter,'raw title must be validated before attributes are stripped');
- assert.match(php,/Version: 0\.12\.30/);
+ assert.match(php,/Version: 0\.12\.31/);
 });
 
 test('PHP archive blocks unsafe embedded URLs in archive titles and saved bodies without dropping safe media', t=>{
@@ -191,4 +191,33 @@ test('PHP archive rejects active HTML event handlers and embedded documents befo
  const result=spawnSync('php',['-r',script],{input:JSON.stringify(samples),encoding:'utf8'});
  assert.equal(result.status,0,result.stderr);
  assert.deepEqual(JSON.parse(result.stdout),[false,false,false,false,false,false,true,true,true,true]);
+});
+
+test('live PHP archive rejects space-separated excluded source labels in all six priority countries',t=>{
+ const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
+ if(runtime.error){t.skip('PHP CLI unavailable');return;}
+ const guard=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+ assert.ok(guard,'test the deployed archive gate, not a duplicate implementation');
+ const blocked=[
+  'السودان O n l y F a n s',
+  'الصومال p o r n h u b',
+  'جيبوتي x v i d e o s',
+  'جزر القمر x n x x',
+  'السعودية x h a m s t e r',
+  'مصر r e d t u b e',
+  'السودان y o u p o r n',
+  'الصومال <a href="https://o n l y f a n s.com">مصدر</a>'
+ ];
+ const allowed=[
+  'السودان', 'الصومال', 'جيبوتي', 'جزر القمر', 'السعودية', 'مصر',
+  'Essex county', 'OnlyFansville ليست منصة', 'الأخبار الاقتصادية'
+ ];
+ const script='function wp_strip_all_tags($s){return strip_tags($s);}\n'+guard+
+  '\necho json_encode(array_map("atn_lightview_archive_title_allowed",json_decode(stream_get_contents(STDIN),true)));';
+ const result=spawnSync('php',['-r',script],{input:JSON.stringify([...blocked,...allowed]),encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[
+  ...blocked.map(()=>false),...allowed.map(()=>true)
+ ]);
+ assert.match(php,/Version: 0\.12\.31/);
 });

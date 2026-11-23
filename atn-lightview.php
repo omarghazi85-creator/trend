@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.29
+ * Version: 0.12.30
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -154,6 +154,15 @@ function atn_lightview_archive_title_allowed($title) {
             preg_match('~(?<![\p{L}\p{N}])' . preg_quote($term, '~') . '(?![\p{L}\p{N}])~u', $raw_title)) {
             return false;
         }
+    }
+    // Match only distinctive excluded source names split by punctuation.
+    // Archive pages and legacy cache entries must use the same admission
+    // standard as the external worker, without matching ordinary substrings.
+    // The source names are ASCII; the label has already been entity-decoded.
+    foreach (array('onlyfans', 'pornhub', 'xvideos', 'xnxx', 'xhamster', 'redtube', 'youporn') as $source) {
+        $split_name = implode('[._·-]*', str_split($source));
+        $pattern = '~(?<![\p{L}\p{N}])' . $split_name . '(?![\p{L}\p{N}])~u';
+        if (preg_match($pattern, $title) || preg_match($pattern, $raw_title)) { return false; }
     }
     return true;
 }

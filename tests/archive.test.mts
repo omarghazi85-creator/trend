@@ -257,7 +257,7 @@ test('archive rejects oversized declared upstream JSON without reading the body'
   globalThis.fetch=async()=>new Response(new ReadableStream<Uint8Array>({
    pull(controller){reads++;controller.enqueue(new Uint8Array(1));},
    cancel(){cancelled=true;}
-  }),{headers:{'content-length':'8000001'}});
+  },{highWaterMark:0}),{headers:{'content-length':'8000001'}});
   const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
   assert.equal(response.status,503);
   assert.equal(reads,0);

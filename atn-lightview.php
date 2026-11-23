@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.25
+ * Version: 0.12.26
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -215,6 +215,29 @@ function atn_lightview_archive_focus_key() {
     $key = $_GET['atn_item'] ?? null;
     return is_string($key) && preg_match('/^[a-f0-9]{16}$/D', $key) ? $key : '';
 }
+/**
+ * Read-only SEO identity for an existing saved archive card.
+ * Uses the queried page only: no extra queries, writes or remote fetches.
+ */
+function atn_lightview_archive_focus_metadata() {
+    if (is_admin() || !is_singular('page')) { return null; }
+    $key = atn_lightview_archive_focus_key();
+    if (!$key) { return null; }
+    $post = get_queried_object();
+    if (!atn_lightview_archive_focus_post($post)) { return null; }
+    static $memo = array();
+    $memo_key = (int) $post->ID . ':' . $key;
+    if (array_key_exists($memo_key, $memo)) { return $memo[$memo_key]; }
+    $cards = atn_lightview_archive_focus_cards($post->post_content);
+    if (!isset($cards[$key])) { return $memo[$memo_key] = null; }
+    $name = $cards[$key]['name'];
+    return $memo[$memo_key] = array(
+        'url' => add_query_arg('atn_item', $key, get_permalink($post)),
+        'title' => $name . ' | الترند العربي',
+        'description' => $name . ' ضمن ' . get_the_title($post) .
+            '. اقرأ التفاصيل المحفوظة وروابط المصادر الأصلية في أرشيف الترند العربي.'
+    );
+}
 add_filter('the_content', function ($content) {
     if (is_admin() || !is_singular('page') || !is_main_query()) { return $content; }
     $post = get_queried_object();
@@ -248,15 +271,33 @@ add_filter('the_content', function ($content) {
 }, 25);
 // The item URL has distinct read-only content: keep a self-canonical URL,
 // without affecting the parent archive permalink or other Rank Math pages.
+// Focused archive item metadata: align canonical, search and social previews.
+// Unknown/blocked item keys retain the original page metadata.
 add_filter('rank_math/frontend/canonical', function ($canonical) {
-    if (!is_singular('page')) { return $canonical; }
-    $key = atn_lightview_archive_focus_key();
-    if (!$key) { return $canonical; }
-    $post = get_queried_object();
-    if (!atn_lightview_archive_focus_post($post)) { return $canonical; }
-    $cards = atn_lightview_archive_focus_cards($post->post_content);
-    return isset($cards[$key]) ? add_query_arg('atn_item', $key, get_permalink($post)) : $canonical;
+    $item = atn_lightview_archive_focus_metadata();
+    return $item ? $item['url'] : $canonical;
 });
+add_filter('rank_math/opengraph/url', function ($url) {
+    $item = atn_lightview_archive_focus_metadata();
+    return $item ? $item['url'] : $url;
+});
+foreach (array('rank_math/frontend/title',
+               'rank_math/opengraph/facebook/og_title',
+               'rank_math/opengraph/twitter/twitter_title') as $filter_name) {
+    add_filter($filter_name, static function ($title) {
+        $item = atn_lightview_archive_focus_metadata();
+        return $item ? $item['title'] : $title;
+    });
+}
+foreach (array('rank_math/frontend/description',
+               'rank_math/opengraph/facebook/og_description',
+               'rank_math/opengraph/twitter/twitter_description') as $filter_name) {
+    add_filter($filter_name, static function ($description) {
+        $item = atn_lightview_archive_focus_metadata();
+        return $item ? $item['description'] : $description;
+    });
+}
+// End focused archive item metadata.
 add_action('template_redirect', function () {
     if (!is_singular('page')) { return; }
     // A public ?preview=true request must not bypass an excluded archive page.

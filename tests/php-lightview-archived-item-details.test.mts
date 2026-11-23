@@ -83,7 +83,7 @@ echo json_encode(array(
  assert.equal(result.status,0,result.stderr);
  const data=JSON.parse(result.stdout);
  assert.equal(data.count,8);
- assert.equal(new Set(data.keys).size,7);
+ assert.equal(new Set(data.keys).size,8);
  assert.notEqual(data.keys[2],data.keys[6]);
  assert.equal((data.overview.match(/\?atn_item=[a-f0-9]{16}/g)||[]).length,8);
  for(let i=0;i<6;i++){

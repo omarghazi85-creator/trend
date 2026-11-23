@@ -183,3 +183,25 @@ test('slash-separated HTML attributes and oversized tags cannot bypass admission
   assert.equal(await snapshotDigest(guarded),await snapshotDigest(baseline),country);
  }
 });
+
+test('escaped Unicode aliases never enter six-country shadow snapshots',async()=>{
+ const slash=String.fromCharCode(92);
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const safe={country,term:'أخبار الأسواق',source:'google',
+   observedAt:'2026-11-23T09:00:00Z',sourceUrl:'https://example.com/market'};
+  const unsafe=[
+   {...safe,term:'only'+slash+'u0066ans'},
+   {...safe,provider:'p'+slash+'x6frnhub'},
+   {...safe,description:'p'+slash+'u006frnhub'},
+   {...safe,sourceUrl:'https://example.com/ref/only%5Cu0066ans'},
+   {...safe,extra:{publisher:'only'+slash+'u0066ans'}}
+  ];
+  assert.deepEqual(filterTrendObservations([safe,...unsafe]),[safe],country);
+  const baseline=makeTrendSnapshot(country,'2026-11-23',[safe]);
+  const filtered=makeTrendSnapshot(country,'2026-11-23',[...unsafe,safe]);
+  assert.deepEqual(filtered,baseline,country);
+  assert.equal(await snapshotDigest(filtered),await snapshotDigest(baseline),country);
+ }
+ assert.equal(isEditorialSourceUrlAllowed('https://example.com/ref/only%5Cu0066ans'),false);
+ assert.equal(isEditorialSourceUrlAllowed('https://example.com/news'),true);
+});

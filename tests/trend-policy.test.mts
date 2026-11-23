@@ -334,3 +334,13 @@ test('slash plus and bullet source aliases are blocked in six-country observatio
  }
  for(const text of ['السعودية / الأسواق','جيبوتي + التجارة','الصومال • الأخبار','Essex county'])assert.equal(isEditorialTrendAllowed(text),true,text);
 });
+
+test('literal Unicode and hex escapes in untrusted feed labels fail closed',()=>{
+ const slash=String.fromCharCode(92);
+ const blocked=['p'+slash+'u006frnhub','only'+slash+'u0066ans',
+  'p'+slash+'x6frnhub','only%255Cu0066ans','only'+slash+'u0026#102;ans'];
+ for(const value of blocked)assert.equal(isEditorialTrendAllowed(value),false,value);
+ for(const value of ['أخبار السودان','نتائج الصومال','تقرير جيبوتي',
+  'تقرير '+slash+'u0627قتصادي'])
+  assert.equal(isEditorialTrendAllowed(value),true,value);
+});

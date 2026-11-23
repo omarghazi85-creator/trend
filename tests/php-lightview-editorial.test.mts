@@ -62,7 +62,7 @@ test('PHP archive rejects punctuation-obfuscated prohibited source labels across
  assert.deepEqual(JSON.parse(result.stdout),[
   ...blocked.map(()=>false),...allowed.map(()=>true)
  ]);
- assert.match(php,/Version: 0\.12\.36/);
+ assert.match(php,/Version: 0\.12\.37/);
 });
 
 test('PHP archive file passes syntax check when CLI available',t=>{
@@ -119,7 +119,7 @@ test('PHP archive HTML source attributes are checked before stripping, including
  const filter=scope.indexOf('if (!atn_lightview_archive_title_allowed($title))');
  const strip=scope.indexOf('$title = wp_strip_all_tags($title);');
  assert.ok(raw>=0 && filter>raw && strip>filter,'raw title must be validated before attributes are stripped');
- assert.match(php,/Version: 0\.12\.36/);
+ assert.match(php,/Version: 0\.12\.37/);
 });
 
 test('PHP archive blocks unsafe embedded URLs in archive titles and saved bodies without dropping safe media', t=>{
@@ -219,7 +219,7 @@ test('live PHP archive rejects space-separated excluded source labels in all six
  assert.deepEqual(JSON.parse(result.stdout),[
   ...blocked.map(()=>false),...allowed.map(()=>true)
  ]);
- assert.match(php,/Version: 0\.12\.36/);
+ assert.match(php,/Version: 0\.12\.37/);
 });
 
 test('PHP archive mirrors worker: reject slash-delimited active markup across six countries',t=>{
@@ -265,4 +265,24 @@ test('bundled installable ZIP exactly matches PHP and required section file',t=>
  assert.equal(main.status,0,main.stderr);assert.equal(main.stdout,php);
  const include=unpack('includes/atn-section.php');assert.equal(include.status,0,include.stderr);
  assert.equal(include.stdout,readFileSync(new URL('../includes/atn-section.php',import.meta.url),'utf8'));
+});
+
+test('archive admission decodes literal Unicode and hex source aliases in six priority countries',t=>{
+ const guard=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+ assert.ok(guard);
+ const slash=String.fromCharCode(92);
+ const bad=[], good=[];
+ for(const country of ['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر']){
+  bad.push(country+' only'+slash+'u0066ans',country+' p'+slash+'x6frnhub',
+   country+' <a href="https://example.com/only%255Cu0066ans">مصدر</a>',
+   country+' only'+slash+'u0026#102;ans');
+  good.push(country+' أخبار الأسواق',country+' '+slash+'u0627قتصاد',
+   country+' <a href="https://example.com/news">مصدر</a>');
+ }
+ const script='function wp_strip_all_tags($s){return strip_tags($s);}\n'+guard+
+  '\necho json_encode(array_map("atn_lightview_archive_title_allowed",json_decode(stream_get_contents(STDIN),true)));';
+ const result=spawnSync('php',['-r',script],{input:JSON.stringify([...bad,...good]),encoding:'utf8'});
+ if(result.error && (result.error as NodeJS.ErrnoException).code==='ENOENT'){t.skip('PHP unavailable');return;}
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[...bad.map(()=>false),...good.map(()=>true)]);
 });

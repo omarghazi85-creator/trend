@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.36
+ * Version: 0.12.37
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -62,12 +62,31 @@ function atn_lightview_archive_title_allowed($title) {
     // both (for example, p%6frnhub). Decode before checking the editorial gate.
     // Fail closed when more than six layers remain; do not rewrite stored data.
     for ($i = 0; $i < 6; $i++) {
-        $decoded = rawurldecode(html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $decoded = html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // Feed aggregators can leave literal JSON or hex escapes in archived labels.
+        // Resolve before the CSS scanner can consume their leading backslashes.
+        if (strpos($decoded, '\\') !== false) {
+            $decoded = preg_replace_callback(
+                '~\\\\(?:u([0-9a-f]{4})|x([0-9a-f]{2}))~i',
+                static function ($m) {
+                    $point = hexdec($m[1] !== '' ? $m[1] : $m[2]);
+                    if ($point < 1 || ($point >= 0xd800 && $point <= 0xdfff)) {
+                        return $m[0];
+                    }
+                    if ($point < 128) { return chr($point); }
+                    return html_entity_decode('&#' . $point . ';', ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                },
+                $decoded
+            );
+            if (!is_string($decoded)) { return false; }
+        }
+        $decoded = rawurldecode($decoded);
         if ($decoded === $title) { break; }
         $title = $decoded;
     }
     if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title) ||
-        preg_match('/%[0-9a-f]{2}/i', $title)) { return false; }
+        preg_match('/%[0-9a-f]{2}/i', $title) ||
+        preg_match('~\\\\(?:u[0-9a-f]{4}|x[0-9a-f]{2})~i', $title)) { return false; }
     $raw_title = $title;
     // CSS escapes such as \6a avascript: or ur\6c(...) are resolved by
     // browsers inside style attributes. Scan their decoded form as well.

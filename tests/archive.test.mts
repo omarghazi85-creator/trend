@@ -224,3 +224,43 @@ test('archive excludes executable source protocols in the title and body without
   assert.equal(requests,1);
  }finally{globalThis.fetch=original;}
 });
+
+test('archive transport bounds streamed upstream JSON even with missing or understated length',async()=>{
+ const old=globalThis.fetch;
+ try{
+  for(const declared of [null,'1']){
+   let calls=0,pulled=0,cancelled=false;
+   globalThis.fetch=async()=>{
+    calls++;
+    const body=new ReadableStream<Uint8Array>({
+     pull(controller){pulled++;controller.enqueue(new Uint8Array(1024*1024));},
+     cancel(){cancelled=true;}
+    });
+    return new Response(body,{headers:declared===null?{}:{'content-length':declared}});
+   };
+   const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+   assert.equal(response.status,503);
+   const data=await response.json();
+   assert.equal(data.error,'archive_temporarily_unavailable');
+   assert.deepEqual(data.items,[]);
+   assert.equal(calls,1,'one upstream read, no additional WordPress requests');
+   assert.equal(cancelled,true,'oversized stream must be cancelled');
+   assert.ok(pulled<=9,'stop before reading any unbounded body');
+  }
+ }finally{globalThis.fetch=old;}
+});
+
+test('archive rejects oversized declared upstream JSON without reading the body',async()=>{
+ const old=globalThis.fetch;
+ try{
+  let cancelled=false,reads=0;
+  globalThis.fetch=async()=>new Response(new ReadableStream<Uint8Array>({
+   pull(controller){reads++;controller.enqueue(new Uint8Array(1));},
+   cancel(){cancelled=true;}
+  }),{headers:{'content-length':'8000001'}});
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,503);
+  assert.equal(reads,0);
+  assert.equal(cancelled,false);
+ }finally{globalThis.fetch=old;}
+});

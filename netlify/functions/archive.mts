@@ -4,10 +4,14 @@
  * One bounded request; no WordPress writes, cron jobs or credentials.
  */
 import {decodeHtmlEntities,isEditorialTrendAllowed} from '../../src/trend-policy.mts';
+import {readBoundedJsonStream} from '../../src/bounded-json.mts';
 const ORIGIN='https://arabiatrend.com';
 const API='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/';
 const PAGE_SIZE=100;
 const MAX_PAGE=10;
+// Bound untrusted upstream JSON even when Content-Length is absent or understated.
+// This does not change the number of WordPress requests or fetch individual pages.
+const MAX_UPSTREAM_JSON_BYTES=8_000_000;
 const COUNTRY:Record<string,string>={
  sa:'السعودية',ae:'الإمارات',eg:'مصر',kw:'الكويت',qa:'قطر',bh:'البحرين',
  om:'عُمان',jo:'الأردن',lb:'لبنان',iq:'العراق',sy:'سوريا',ps:'فلسطين',
@@ -73,7 +77,7 @@ export default async(request:Request):Promise<Response>=>{
  try{
    const response=await fetch(u.toString(),{method:'GET',signal:controller.signal,headers:{accept:'application/json'}});
    if(!response.ok)throw new Error('upstream_unavailable');
-   const payload:unknown=await response.json();
+   const payload:unknown=await readBoundedJsonStream(response.body,response.headers.get('content-length'),MAX_UPSTREAM_JSON_BYTES);
    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('bad_wpcom_payload');
    const record=payload as Record<string,unknown>;
    if(!Array.isArray(record.posts)||typeof record.found!=='number'||!Number.isFinite(record.found))throw new Error('no_pages');

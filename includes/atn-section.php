@@ -31,7 +31,26 @@ add_filter('body_class', function ($classes) {
 
 /** Read a quoted attribute from the opening tag of existing stored markup. */
 function atn_lightview_archive_attribute($tag, $name) {
-    $tag = substr($tag, 0, strpos($tag, '>') + 1);
+    // HTML allows a literal > inside quoted attribute values. Truncating
+    // at the first > can hide the true href of an excluded source link.
+    // Stop only at the closing > outside either quote type.
+    if (!is_string($tag) || !is_string($name)) { return ''; }
+    $quote = '';
+    $end = null;
+    $length = strlen($tag);
+    for ($i = 0; $i < $length; $i++) {
+        $char = $tag[$i];
+        if ($quote !== '') {
+            if ($char === $quote) { $quote = ''; }
+        } elseif ($char === '"' || $char === "'") {
+            $quote = $char;
+        } elseif ($char === '>') {
+            $end = $i;
+            break;
+        }
+    }
+    if ($end === null) { return ''; }
+    $tag = substr($tag, 0, $end + 1);
     $pattern = '~(?<![\w:-])' . preg_quote($name, '~') . '\s*=\s*(?:"([^"]*)"|\x27([^\x27]*)\x27)~i';
     if (!preg_match($pattern, $tag, $match)) { return ''; }
     return html_entity_decode($match[1] !== '' ? $match[1] : ($match[2] ?? ''), ENT_QUOTES, 'UTF-8');

@@ -83,7 +83,9 @@ export default async(request:Request):Promise<Response>=>{
    if(!Array.isArray(record.posts)||typeof record.found!=='number'||!Number.isFinite(record.found))throw new Error('no_pages');
    const items=record.posts.map(p=>p&&typeof p==='object'?classify(p as PublicPage):null).filter((p):p is NonNullable<typeof p>=>p!==null);
    return Response.json({scope:'latest_archived_pages_only',items,available_in_window:items.length,
-     page,per_page:PAGE_SIZE,total_public_pages:record.found,has_more:page*PAGE_SIZE<record.found,
+     page,per_page:PAGE_SIZE,total_public_pages:record.found,
+     has_more:page<MAX_PAGE && page*PAGE_SIZE<record.found,
+     window_truncated:record.found>PAGE_SIZE*MAX_PAGE,
      source:'wordpress_com_public_jetpack',max_candidates:PAGE_SIZE*MAX_PAGE},{
        headers:{'cache-control':'public, max-age=300, s-maxage=600','x-content-type-options':'nosniff'}
      });

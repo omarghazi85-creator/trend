@@ -139,3 +139,29 @@ test('named HTML5 entities in source links are rejected before six-country shado
  assert.equal(isEditorialSourceUrlAllowed('https://example.com/ref/only&hyphen;fans'),false);
  assert.equal(isEditorialSourceUrlAllowed('https://example.com/economy'),true);
 });
+
+test('spaced excluded source names never enter six-country shadow snapshots or digests',async()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const safe={country,term:'مؤشرات الأسواق المحلية',source:'google',
+   observedAt:'2026-11-23T08:00:00Z',sourceUrl:'https://example.com/markets'};
+  const excluded=[
+   {...safe,term:'p o r n h u b'},
+   {...safe,description:'مروج o n l y f a n s'},
+   {...safe,provider:'x v i d e o s'},
+   {...safe,extra:{partner:'x h a m s t e r'}},
+   {...safe,sourceUrl:'https://example.com/ref/p%20o%20r%20n%20h%20u%20b'},
+   {...safe,media:{label:'r e d t u b e'}}
+  ];
+  assert.deepEqual(filterTrendObservations([...excluded,safe]),[safe],country);
+  const baseline=makeTrendSnapshot(country,'2026-11-23',[safe]);
+  const guarded=makeTrendSnapshot(country,'2026-11-23',[...excluded,safe]);
+  assert.deepEqual(guarded,baseline,country);
+  assert.equal(await snapshotDigest(guarded),await snapshotDigest(baseline),country);
+ }
+ for(const destination of [
+  'https://example.com/ref/p%20o%20r%20n%20h%20u%20b',
+  'https://example.com/ref/o%20n%20l%20y%20f%20a%20n%20s'
+ ])assert.equal(isEditorialSourceUrlAllowed(destination),false,destination);
+ for(const destination of ['https://example.com/markets','https://example.com/fans','https://example.com/sports'])
+  assert.equal(isEditorialSourceUrlAllowed(destination),true,destination);
+});

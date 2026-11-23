@@ -280,3 +280,23 @@ test('separator-obfuscated excluded brands in feed keys fail pre-admission acros
   assert.deepEqual(filterTrendObservations([safe,...rejected]),[safe],country);
  }
 });
+
+
+test('HTML5 punctuation entities cannot conceal executable markup or excluded brands',()=>{
+ const blocked=[
+  'حصيلة السودان <a href="javascript&colon;alert(1)">التفاصيل</a>',
+  'حصيلة الصومال <img src="data&colon;text/html;base64,QQ==">',
+  'حصيلة جيبوتي <div style="background:url&lpar;data&colon;text/html;base64,QQ==&rpar;">موجز</div>',
+  'حصيلة جزر القمر <a href="https&colon;&sol;&sol;only&period;fans.com">المصدر</a>',
+  'مصادر السعودية only&lowbar;fans',
+  'مصادر مصر only&hyphen;fans',
+  'تقرير الأسواق p&period;o&period;r&period;n&period;h&period;u&period;b'
+ ];
+ for(const title of blocked)assert.equal(isEditorialTrendAllowed(title),false,title);
+ for(const title of [
+  'المؤشر &colon; ارتفاع الأسعار في السودان',
+  'نسبة 25% في جزر القمر',
+  'التجارة &amp; الاقتصاد',
+  'مسار &sol; الأسواق المحلية'
+ ])assert.equal(isEditorialTrendAllowed(title),true,title);
+});

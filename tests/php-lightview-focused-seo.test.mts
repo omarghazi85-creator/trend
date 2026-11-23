@@ -103,3 +103,61 @@ echo json_encode(array('baseline'=>$baseline,'focused'=>$focused,'unknown'=>$unk
  assert.deepEqual(Object.keys(parsed.focused),['WebPage','BreadcrumbList']);
  assert.equal(parsed.focused.WebPage.name,'حصيلة جيبوتي');
 });
+
+test('the primary H1 follows existing safe archive cards in six countries without changing parent URLs',t=>{
+ const check=spawnSync('php',['-v'],{encoding:'utf8'});
+ if(check.error){t.skip('PHP CLI unavailable');return;}
+ const heading=extract('atn_lightview_archive_focus_heading_title');
+ assert.ok(heading && php.includes("add_filter('the_title', 'atn_lightview_archive_focus_heading_title', 30, 2)"));
+ const stubs=String.raw`class WP_Post {
+ public $ID=123;public $post_type='page';public $post_status='publish';public $post_parent=61269;
+ public $post_name='sd-search-2026-11-22';public $post_title='';public $post_content='';public $post_excerpt='';
+}
+$post=new WP_Post;
+$GLOBALS['main']=true;$GLOBALS['loop']=true;
+function is_admin(){return false;}
+function is_singular($type){return $type==='page';}
+function is_main_query(){return $GLOBALS['main'];}
+function in_the_loop(){return $GLOBALS['loop'];}
+function get_queried_object(){global $post;return $post;}
+function get_permalink($post){return 'https://arabiatrend.com/trend-archive/'.$post->post_name;}
+function add_query_arg($key,$value,$url){return $url.'?'.$key.'='.$value;}
+function wp_strip_all_tags($s){return strip_tags($s);}
+`;
+ const script=String.raw`
+$results=array();
+foreach(array('sa'=>'السعودية','eg'=>'مصر','sd'=>'السودان','so'=>'الصومال','dj'=>'جيبوتي','km'=>'جزر القمر') as $code=>$country){
+ $post->ID++;
+ $post->post_name=$code.'-search-2026-11-22';
+ $post->post_title='حصيلة كلمات البحث في '.$country;
+ $topic='اقتصاد '.$country;
+ $post->post_content='<section class="atna"><article class="atna-item"><h3>'.$topic.'</h3><a href="https://media.example.com/report">المصدر الأصلي</a></article></section>';
+ $_GET=array('atn_item'=>substr(hash('sha256',$topic),0,16));
+ $focused=atn_lightview_archive_focus_heading_title($post->post_title,$post->ID);
+ $_GET=array('atn_item'=>'0000000000000000');
+ $unknown=atn_lightview_archive_focus_heading_title($post->post_title,$post->ID);
+ $_GET=array();
+ $parent=atn_lightview_archive_focus_heading_title($post->post_title,$post->ID);
+ $_GET=array('atn_item'=>substr(hash('sha256',$topic),0,16));
+ $other=atn_lightview_archive_focus_heading_title($post->post_title,$post->ID+1);
+ $GLOBALS['loop']=false;
+ $outside=atn_lightview_archive_focus_heading_title($post->post_title,$post->ID);
+ $GLOBALS['loop']=true;
+ $GLOBALS['main']=false;
+ $secondary=atn_lightview_archive_focus_heading_title($post->post_title,$post->ID);
+ $GLOBALS['main']=true;
+ $results[]=array('topic'=>$topic,'focused'=>$focused,'parentTitle'=>$post->post_title,
+  'unknown'=>$unknown,'parent'=>$parent,'other'=>$other,'outside'=>$outside,'secondary'=>$secondary);
+}
+echo json_encode($results,JSON_UNESCAPED_UNICODE);
+`;
+ const result=spawnSync('php',['-r',stubs+fragments.join('\n')+'\n'+heading+'\n'+script],{encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ const rows=JSON.parse(result.stdout);
+ assert.equal(rows.length,6);
+ for(const row of rows){
+  assert.equal(row.focused,row.topic);
+  for(const key of ['unknown','parent','other','outside','secondary'])
+   assert.equal(row[key],row.parentTitle,key);
+ }
+});

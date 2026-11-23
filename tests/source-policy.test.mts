@@ -116,3 +116,26 @@ test('separator-obfuscated source names are blocked in observations and URLs bef
  for(const url of ['https://example.com/fans','https://example.com/essex-county'])
   assert.equal(isEditorialSourceUrlAllowed(url),true,url);
 });
+
+
+test('named HTML5 entities in source links are rejected before six-country shadow snapshots',async()=>{
+ const countries=['sa','eg','sd','so','dj','km'];
+ for(const country of countries){
+  const base={country,term:'أخبار الأسواق المحلية',source:'google',
+   observedAt:'2026-11-23T07:00:00Z',sourceUrl:'https://example.com/economy'};
+  const rejected=[
+   {...base,sourceUrl:'https://example.com/ref/only&period;fans'},
+   {...base,originalUrl:'https://example.com/ref/only&hyphen;fans'},
+   {...base,caption:'تقرير <a href="javascript&colon;alert(1)">الرابط</a>'},
+   {...base,extra:{sponsor:'p&period;o&period;r&period;n&period;h&period;u&period;b'}}
+  ];
+  assert.deepEqual(filterTrendObservations([base,...rejected]),[base],country);
+  const expected=makeTrendSnapshot(country,'2026-11-23',[base]);
+  const filtered=makeTrendSnapshot(country,'2026-11-23',[...rejected,base]);
+  assert.deepEqual(filtered,expected,country);
+  assert.equal(await snapshotDigest(filtered),await snapshotDigest(expected),country);
+ }
+ assert.equal(isEditorialSourceUrlAllowed('https://example.com/ref/only&period;fans'),false);
+ assert.equal(isEditorialSourceUrlAllowed('https://example.com/ref/only&hyphen;fans'),false);
+ assert.equal(isEditorialSourceUrlAllowed('https://example.com/economy'),true);
+});

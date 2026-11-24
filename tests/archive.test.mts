@@ -433,3 +433,27 @@ test('archive rejects malformed full publication timestamps while preserving ori
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test('archive returns plain decoded headlines across priority countries without changing canonical links',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const make=(country:string,index:number,title:string)=>{
+  const slug=country+'-search-2026-11-21-'+index;
+  return {...payload.posts[0],ID:9000+index,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+(index%2?'/':''),title};
+ };
+ const good=countries.map((c,i)=>make(c,i,'&amp;lt;b&amp;gt;حصيلة البحث&amp;lt;/b&amp;gt; &amp;#8211; '+c.toUpperCase()));
+ const invalid=countries.map((c,i)=>make(c,i+10,'&amp;lt;b&amp;gt; &amp;lt;/b&amp;gt;'));
+ const excluded=countries.map((c,i)=>make(c,i+20,'حصيلة البحث &amp;#112;ornhub'));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:18,posts:[...invalid,...excluded,...good]});};
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  const result=await r.json();
+  assert.deepEqual(result.items.map((x:{title:string})=>x.title),countries.map(c=>'حصيلة البحث – '+c.toUpperCase()));
+  assert.deepEqual(result.items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.equal(result.available_in_window,6);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

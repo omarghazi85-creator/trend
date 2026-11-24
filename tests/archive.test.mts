@@ -303,3 +303,24 @@ test('archive rejects impossible upstream counts and excess rows with no retries
   }
  }finally{globalThis.fetch=original;}
 });
+
+
+test('archive links remain single-segment and have visible headlines across priority countries',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const good=countries.map((c,i)=>({...payload.posts[0],ID:3000+i,slug:c+'-search-2026-11-21',URL:'https://arabiatrend.com/trend-archive/'+c+'-search-2026-11-21',title:'حصيلة كلمات البحث'}));
+ const bad=[
+  {...good[2],slug:'sd-search-2026-11-21/other',URL:good[2].URL+'/other'},
+  {...good[3],slug:'so-search-2026-11-21%2fother',URL:good[3].URL+'%2fother'},
+  {...good[4],title:'&lt;b&gt; &lt;/b&gt;'},
+  {...good[5],title:'   '}
+ ];
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:10,posts:[...good,...bad]});};
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  assert.deepEqual((await r.json()).items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.37
+ * Version: 0.12.38
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -237,9 +237,14 @@ function atn_lightview_archive_focus_cards($content) {
         $source_url = '';
         if (preg_match('~<a\b~iu', $heading[1])) {
             $existing = array();
-            if (!preg_match('~^\s*<a\b[^>]*\bhref\s*=\s*(["\'])(.*?)\1[^>]*>[\s\S]*?</a>\s*$~iu',
+            // Read the opening tag as a whole, respecting quoted attribute values.
+            // A tracking data-href or href text within a title is not the link.
+            if (!preg_match("~^\\s*<a\\b((?:\"[^\"]*\"|'[^']*'|[^<>\"'])*)>[\\s\\S]*?</a>\\s*$~iu",
                 $heading[1], $existing)) { continue; }
-            $candidate = html_entity_decode($existing[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $href = array();
+            if (!preg_match("~(?:\"[^\"]*\"|'[^']*')(*SKIP)(*F)|\\s+href\\s*=\\s*([\"'])(.*?)\\1~isu",
+                $existing[1], $href)) { continue; }
+            $candidate = html_entity_decode($href[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
             $parsed = wp_parse_url($candidate);
             $home = wp_parse_url(home_url('/'));
             if (!is_array($parsed) || !is_array($home) ||

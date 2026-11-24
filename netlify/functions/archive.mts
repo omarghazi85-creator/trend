@@ -42,10 +42,12 @@ function classify(page:PublicPage){
  // A harmless archive heading must not link visitors to excluded body content
  // or source URLs hidden inside an excerpt. Inspect only fields already present
  // in this single public API response; do not fetch pages individually.
- for(const field of [page.content,page.excerpt]){
-  if(field===undefined||field==='')continue;
-  if(typeof field!=='string'||!isEditorialTrendAllowed(field))return null;
- }
+ // A missing or empty body is not evidence of editorial clearance. The
+ // canonical Jetpack list includes page content; fail closed on partial rows
+ // instead of exposing an unscreened detail link or fetching it separately.
+ if(typeof page.content!=='string'||!isEditorialTrendAllowed(page.content))return null;
+ if(page.excerpt!==undefined&&page.excerpt!==''&&
+    (typeof page.excerpt!=='string'||!isEditorialTrendAllowed(page.excerpt)))return null;
  const title=decodeHtmlEntities(page.title).replace(/<[^>]{0,256}>/g,'').trim();
  if(!title||!isEditorialTrendAllowed(title))return null;
  const slug=page.slug;

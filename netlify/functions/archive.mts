@@ -78,7 +78,7 @@ export default async(request:Request):Promise<Response>=>{
  const u=new URL(API);u.searchParams.set('type','page');u.searchParams.set('parent_id',String(ARCHIVE_PARENT_ID));u.searchParams.set('number',String(PAGE_SIZE));u.searchParams.set('offset',String((page-1)*PAGE_SIZE));
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8500);
  try{
-   const response=await fetch(u.toString(),{method:'GET',signal:controller.signal,headers:{accept:'application/json'}});
+   const response=await fetch(u.toString(),{method:'GET',redirect:'error',signal:controller.signal,headers:{accept:'application/json'}});
    if(!response.ok)throw new Error('upstream_unavailable');
    const payload:unknown=await readBoundedJsonStream(response.body,response.headers.get('content-length'),MAX_UPSTREAM_JSON_BYTES);
    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('bad_wpcom_payload');

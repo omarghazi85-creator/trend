@@ -163,7 +163,7 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
  * Pure validation: never dereferences the URL.
  */
 export function isEditorialSourceUrlAllowed(value:unknown):value is string {
- if(typeof value!=='string'||value.length>2048||/\s/u.test(value))return false;
+ if(typeof value!=='string'||value.length>2048||/[\s\u0000-\u001f\u007f]/u.test(value))return false;
  let url:URL;
  try {url=new URL(value);}catch{return false;}
  if(url.protocol!=='https:'||!url.hostname||url.username||url.password)return false;
@@ -213,7 +213,16 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   if(value.length>4096)return false;
   // Optional RSS captions and display labels are commonly empty.
   if(value.trim()==='')return true;
-  return /^(?:[a-z][a-z0-9+.-]*:|\/\/)/iu.test(value)
+  // An unknown provider field can carry a destination with leading spaces,
+  // invisible controls, or an encoded scheme. Detect it after decoding, but
+  // validate the original value so disguised destinations cannot be retained.
+  const decoded=decodeEditorialText(value);
+  if(decoded===null)return false;
+  const schemeProbe=decoded.normalize('NFKC')
+   .replace(/[\u0000-\u0020\u007f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufeff]/gu,'');
+  const looksLikeDestination=/^(?:[a-z][a-z0-9+.-]*:|\/\/)/iu.test(value)||
+   /^(?:(?:https?|javascript|vbscript|data|file|blob|ftp|mailto):|\/\/)/iu.test(schemeProbe);
+  return looksLikeDestination
    ? isEditorialSourceUrlAllowed(value) : isEditorialTrendAllowed(value);
  }
  if(typeof value==='number')return Number.isFinite(value);

@@ -205,3 +205,30 @@ test('escaped Unicode aliases never enter six-country shadow snapshots',async()=
  assert.equal(isEditorialSourceUrlAllowed('https://example.com/ref/only%5Cu0066ans'),false);
  assert.equal(isEditorialSourceUrlAllowed('https://example.com/news'),true);
 });
+
+
+test('concealed destinations in arbitrary metadata never alter six-country shadow snapshots',async()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'نتائج الأسواق المحلية',source:'google',
+   observedAt:'2026-11-24T05:00:00Z',sourceUrl:'https://example.com/markets',
+   extra:{destination:'https://example.com/economy',note:'البيانات: نمو 25%'}};
+  const bad=[
+   {...base,extra:{destination:' javascript:alert(1)'}},
+   {...base,extra:{destination:'java&Tab;script:alert(1)'}},
+   {...base,extra:{destination:'java%73cript%3Aalert(1)'}},
+   {...base,extra:{destination:'\u200Bhttp://example.com/unsafe'}},
+   {...base,extra:{destination:' https://example.com/markets'}},
+   {...base,extra:{destination:'data&colon;text/plain,unsafe'}},
+   {...base,extra:{destination:'\u0000https://example.com/markets'}},
+   {...base,extra:{destination:'%2F%2Fexample.com/markets'}},
+   {...base,sourceUrl:'\u0000https://example.com/markets'}
+  ];
+  assert.deepEqual(filterTrendObservations([...bad,base]),[base],country);
+  const expected=makeTrendSnapshot(country,'2026-11-24',[base]);
+  const actual=makeTrendSnapshot(country,'2026-11-24',[...bad,base]);
+  assert.deepEqual(actual,expected,country);
+  assert.equal(await snapshotDigest(actual),await snapshotDigest(expected),country);
+ }
+ assert.equal(isEditorialSourceUrlAllowed('\u0000https://example.com/markets'),false);
+ assert.equal(isEditorialSourceUrlAllowed('https://example.com/markets'),true);
+});

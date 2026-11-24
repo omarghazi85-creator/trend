@@ -135,7 +135,7 @@ function hasUnsafeEmbeddedScheme(raw:string):boolean {
  // attributes, a poster, or inline CSS without appearing in href/src.
  const attributes=/(?:^|[\s</])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/giu;
  const normalizeDestination=(value:string):string=>value.normalize('NFKC')
-   .replace(/[\u0000-\u0020\u007f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufe00-\ufe0f\ufeff]/gu,'')
+   .replace(/[\u0000-\u0020\u007f]|\p{Default_Ignorable_Code_Point}/gu,'')
    .toLowerCase();
  const unsafe=(value:string):boolean=>/^(?:javascript|vbscript|data|file|blob):/u.test(normalizeDestination(value));
  for(const match of inspected.matchAll(attributes)){
@@ -233,7 +233,7 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   const decoded=decodeEditorialText(value);
   if(decoded===null)return false;
   const schemeProbe=decoded.normalize('NFKC')
-   .replace(/[\u0000-\u0020\u007f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/gu,'');
+   .replace(/[\u0000-\u0020\u007f]|\p{Default_Ignorable_Code_Point}/gu,'');
   const looksLikeDestination=/^(?:[a-z][a-z0-9+.-]*:|\/\/)/iu.test(value)||
    /^(?:(?:https?|javascript|vbscript|data|file|blob|ftp|mailto):|\/\/)/iu.test(schemeProbe);
   return looksLikeDestination

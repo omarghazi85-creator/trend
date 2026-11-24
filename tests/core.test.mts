@@ -37,3 +37,11 @@ test('editorial gate preserves unrelated topics and substrings',()=>{
  const legitimate={...base,title:'تطور النشاط البحري في مقاطعة Essex'};
  assert.equal(validateCandidate(legitimate).slug,base.slug);
 });
+
+test('draft slug gate preserves legitimate country URLs and unrelated substrings',()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  for(const slug of [country+'-technology-news',country+'-essex-research']){
+   assert.equal(validateCandidate({...base,slug}).slug,slug);
+  }
+ }
+});

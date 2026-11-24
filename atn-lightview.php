@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.39
+ * Version: 0.12.40
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -131,7 +131,8 @@ function atn_lightview_archive_title_allowed($title) {
     // archive heading or excerpt must not conceal active URL schemes.
     // Decoding &quot; inside CSS can produce nested quote characters.
     // Inspect the entire style attribute before parsing individual HTML URLs.
-    $css_markup = preg_replace('~[\x00-\x20\x7f\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]~u', '', $raw_title);
+    // Match the worker's Default_Ignorable_Code_Point coverage using explicit PCRE ranges.
+    $css_markup = preg_replace('~[\x00-\x20\x7f\x{00AD}\x{034F}\x{061C}\x{115F}-\x{1160}\x{17B4}-\x{17B5}\x{180B}-\x{180F}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{3164}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFA0}\x{FFF0}-\x{FFF8}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E0FFF}]~u', '', $raw_title);
     if (!is_string($css_markup)) { return false; }
     $css_markup = str_replace(array('"', "'"), '', $css_markup);
     if (preg_match('~style=[^>]*url\((?:javascript|vbscript|data|file|blob):~i', $css_markup)) { return false; }
@@ -141,7 +142,7 @@ function atn_lightview_archive_title_allowed($title) {
             $name = strtolower($attribute[1]);
             $value = isset($attribute[2]) && $attribute[2] !== '' ? $attribute[2] :
                 (isset($attribute[3]) && $attribute[3] !== '' ? $attribute[3] : ($attribute[4] ?? ''));
-            $compact = preg_replace('~[\x00-\x20\x7f\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]~u', '', $value);
+            $compact = preg_replace('~[\x00-\x20\x7f\x{00AD}\x{034F}\x{061C}\x{115F}-\x{1160}\x{17B4}-\x{17B5}\x{180B}-\x{180F}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{3164}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFA0}\x{FFF0}-\x{FFF8}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E0FFF}]~u', '', $value);
             if (!is_string($compact)) { return false; }
             if ($name === 'style') {
                 $css = str_replace(array('"', "'"), '', $compact);
@@ -161,9 +162,9 @@ function atn_lightview_archive_title_allowed($title) {
     );
     $title = strtolower(strtr($title, $fold));
     $raw_title = strtolower(strtr($raw_title, $fold));
-    $title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]/u', '', $title);
-    $raw_title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{061C}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}\x{FEFF}]/u', '', $raw_title);
-    if (!is_string($title) || $title === '') { return false; }
+    $title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{034F}\x{061C}\x{115F}-\x{1160}\x{17B4}-\x{17B5}\x{180B}-\x{180F}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{3164}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFA0}\x{FFF0}-\x{FFF8}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E0FFF}]/u', '', $title);
+    $raw_title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{034F}\x{061C}\x{115F}-\x{1160}\x{17B4}-\x{17B5}\x{180B}-\x{180F}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{3164}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFA0}\x{FFF0}-\x{FFF8}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E0FFF}]/u', '', $raw_title);
+    if (!is_string($title) || !is_string($raw_title) || $title === '') { return false; }
     $title = preg_replace('/\s+/u', ' ', $title);
     $raw_title = preg_replace('/\s+/u', ' ', $raw_title);
     $terms = array(

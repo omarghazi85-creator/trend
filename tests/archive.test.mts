@@ -408,3 +408,28 @@ test('archive screens retained slugs without changing legitimate country links o
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test('archive rejects malformed full publication timestamps while preserving original dates and URLs across six countries',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const valid=['2026-11-22T00:30:00+03:00','2026-11-22T19:30:00-05:00','2026-11-22T00:30:00.123Z'];
+ const invalid=['2026-11-22','2026-11-22T00:30:00','2026-11-22T24:00:00Z','2026-11-22T00:60:00Z','2026-11-22T00:30:60Z','2026-11-22T00:30:00+25:00','2026-11-22T00:30:00-00:90','2026-11-22T00:30:00Zjunk','2026-11-22T00:30:00Z\n','2026-02-30T00:30:00Z'];
+ const make=(country:string,date:string,i:number)=> {
+  const slug=country+'-search-2026-11-21-'+i;
+  return {...payload.posts[0],ID:7000+i,slug,URL:'https://arabiatrend.com/trend-archive/'+slug,title:'حصيلة البحث المحلية',date};
+ };
+ const good=countries.flatMap((c,i)=>valid.map((date,j)=>make(c,date,100+i*3+j)));
+ const bad=countries.flatMap((c,i)=>invalid.map((date,j)=>make(c,date,200+i*10+j)));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:good.length+bad.length,posts:[...bad,...good]});};
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  const result=await r.json();
+  assert.deepEqual(result.items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.deepEqual(result.items.map((x:{date_iso:string})=>x.date_iso),good.map(x=>x.date));
+  assert.ok(result.items.every((x:{date:string})=>x.date==='2026-11-21'));
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

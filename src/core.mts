@@ -36,6 +36,8 @@ export function validateCandidate(input:unknown):Candidate {
   // Prevent even draft-sync candidates from bypassing the shared trend editorial gate.
   // Reject the entire batch before any WordPress read or write in preview-sync.
   if(!isEditorialTrendAllowed(x.title)) throw new Error('editorial_title_blocked');
+  // A draft slug is retained in WordPress and may later become a public URL.
+  if(!isEditorialTrendAllowed(x.slug)) throw new Error('editorial_slug_blocked');
   if(!isEditorialTrendAllowed(x.content)) throw new Error('editorial_content_blocked');
   if(typeof x.excerpt==='string' && x.excerpt.trim()!=='' && !isEditorialTrendAllowed(x.excerpt)) throw new Error('editorial_excerpt_blocked');
   if(x.excerpt!==undefined && (typeof x.excerpt!=='string'||x.excerpt.length>500)) throw new Error('invalid_excerpt');

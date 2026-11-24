@@ -276,3 +276,24 @@ test('named invisible HTML entities cannot conceal excluded media sources before
  const clean={title:'الأسواق&ZeroWidthSpace; المحلية',url:'https://example.com/news?a=1&amp;b=2'};
  assert.deepEqual(filterTrendObservations([clean]),[clean]);
 });
+
+
+test('complete numeric HTML references are screened without truncating zero-padded code points',()=>{
+ const hidden=['only&#000000102;ans','p&#x00000006f;rnhub',
+  'only&#0000000102;ans','porn&#x0000000200b;hub'];
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'الأسواق المحلية',source:'google',
+   observedAt:'2026-11-24T08:00:00Z',sourceUrl:'https://example.com/news'};
+  const clean={...base,term:'السوق &#000000065; اليوم'};
+  const bad=hidden.flatMap(label=>[
+   {...base,term:label},
+   {...base,sourceUrl:'https://example.com/'+label},
+   {...base,metadata:{caption:label}}
+  ]);
+  assert.deepEqual(filterTrendObservations([base,clean,...bad]),[base,clean],country);
+  assert.deepEqual(makeTrendSnapshot(country,'2026-11-24',[base,clean,...bad]),
+   makeTrendSnapshot(country,'2026-11-24',[base,clean]),country);
+ }
+ for(const label of ['خبر &#999999999999999999999999;','خبر &#x110000;','خبر &#000000000;'])
+  assert.deepEqual(filterTrendObservations([{title:label}]),[]);
+});

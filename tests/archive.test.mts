@@ -324,3 +324,28 @@ test('archive links remain single-segment and have visible headlines across prio
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test('archive rejects normalized lookalikes but preserves exact links for six priority countries',async()=>{
+ const original=globalThis.fetch;
+ const good=['sa','eg','sd','so','dj','km'].map((c,i)=>{
+  const slug=c+'-search-2026-11-21';
+  return {...payload.posts[0],ID:4000+i,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+(i%2?'/':''),title:'حصيلة البحث'};
+ });
+ const bad=[
+  {...good[0],URL:good[0].URL.replace('/trend-archive/','/other/../trend-archive/')},
+  {...good[1],URL:good[1].URL.replace('/trend-archive/','/trend-archive/%2e/')},
+  {...good[2],URL:good[2].URL.replace('/trend-archive/','\\trend-archive\\')},
+  {...good[3],URL:' '+good[3].URL},
+  {...good[4],URL:good[4].URL+'#'},
+  {...good[5],URL:good[5].URL+'?'}
+ ];
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:12,posts:[...good,...bad]});};
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  assert.deepEqual((await r.json()).items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

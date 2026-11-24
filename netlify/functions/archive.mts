@@ -34,6 +34,9 @@ function canonicalArchiveUrl(value:string,slug:string):boolean{
 function classify(page:PublicPage){
  if(page.parent===false||!page.parent||page.parent.ID!==ARCHIVE_PARENT_ID||page.status!=='publish')return null;
  if(typeof page.URL!=='string'||typeof page.slug!=='string'||!canonicalArchiveUrl(page.URL,page.slug))return null;
+ // Screen the retained archive slug too: a neutral title/body must not
+ // expose an excluded source name through a public detail destination.
+ if(!isEditorialTrendAllowed(page.slug))return null;
  if(typeof page.title!=='string'||typeof page.date!=='string')return null;
  // Inspect the upstream HTML *before* stripping tags. A prohibited source may
  // be concealed in href/src while the visible headline looks innocuous.

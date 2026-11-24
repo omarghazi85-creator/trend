@@ -232,3 +232,26 @@ test('concealed destinations in arbitrary metadata never alter six-country shado
  assert.equal(isEditorialSourceUrlAllowed('\u0000https://example.com/markets'),false);
  assert.equal(isEditorialSourceUrlAllowed('https://example.com/markets'),true);
 });
+
+
+test('raw source paths cannot conceal excluded labels removed by URL normalization',async()=>{
+ const rejected=[
+  'https:example.com/news','https:///example.com/news',
+  'https:\\example.com\\news','https://example.com\\news',
+  'https://example.com/porn/../news',
+  'https://example.com/%70orn/%2e%2e/news',
+  'https://example.com/onlyfans/../news'
+ ];
+ for(const url of rejected)assert.equal(isEditorialSourceUrlAllowed(url),false,url);
+ for(const url of ['https://example.com/news','HTTPS://example.com/news',
+  'https://example.com/a/../news','https://example.com/news?q=%D8%A7%D9%84%D9%8A%D9%88%D9%85'])
+  assert.equal(isEditorialSourceUrlAllowed(url),true,url);
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'الأسواق المحلية',source:'google',
+   observedAt:'2026-11-24T07:00:00Z',sourceUrl:'https://example.com/news'};
+  const mixed=[...rejected.map(sourceUrl=>({...base,sourceUrl})),base];
+  assert.deepEqual(filterTrendObservations(mixed),[base],country);
+  assert.deepEqual(makeTrendSnapshot(country,'2026-11-24',mixed),
+   makeTrendSnapshot(country,'2026-11-24',[base]),country);
+ }
+});

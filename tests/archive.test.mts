@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import archive from '../netlify/functions/archive.mts';
 const upstream='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/?type=page&parent_id=61269&number=100&offset=0';
 const payload={found:982,posts:[
- {ID:86289,title:'كلمات البحث الرائجة في المغرب يوم 2026-11-16',URL:'https://arabiatrend.com/trend-archive/ma-search-2026-11-16',slug:'ma-search-2026-11-16',status:'publish',parent:{ID:61269},date:'2026-11-16T14:10:53+00:00'},
- {ID:86291,title:'حصيلة ترندات المغرب',URL:'https://arabiatrend.com/trend-archive/ma-week-2026-11-09',slug:'ma-week-2026-11-09',status:'publish',parent:{ID:61269},date:'2026-11-16T14:10:55+00:00'},
+ {ID:86289,content:'حصيلة البحث المحلية والطقس والاقتصاد',title:'كلمات البحث الرائجة في المغرب يوم 2026-11-16',URL:'https://arabiatrend.com/trend-archive/ma-search-2026-11-16',slug:'ma-search-2026-11-16',status:'publish',parent:{ID:61269},date:'2026-11-16T14:10:53+00:00'},
+ {ID:86291,content:'حصيلة البحث المحلية والطقس والاقتصاد',title:'حصيلة ترندات المغرب',URL:'https://arabiatrend.com/trend-archive/ma-week-2026-11-09',slug:'ma-week-2026-11-09',status:'publish',parent:{ID:61269},date:'2026-11-16T14:10:55+00:00'},
  {ID:999,title:'Unrelated',URL:'https://arabiatrend.com/test',slug:'test',status:'publish',parent:false,date:'2026-11-16T00:00:00+00:00'},
  {ID:991,title:'Spoofed',URL:'https://malicious.example.net/trend-archive/ma-search-2026-11-16',slug:'ma-search-2026-11-16',status:'publish',parent:{ID:61269},date:'2026-11-16T00:00:00+00:00'}
 ]};
@@ -367,5 +367,25 @@ test('archive never follows upstream redirects to another host or makes a second
    assert.deepEqual((await response.json()).items,[]);
    assert.equal(calls,1);
   }
+ }finally{globalThis.fetch=original;}
+});
+
+
+test('archive hides unverified body links and preserves screened pages for six priority countries',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const good=countries.map((country,i)=>{
+  const slug=country+'-search-2026-11-21';
+  return {...payload.posts[0],ID:5000+i,slug,URL:'https://arabiatrend.com/trend-archive/'+slug,title:'حصيلة البحث',content:'<p>متابعة الاقتصاد والطقس</p>'};
+ });
+ const missing=good.map(({content,...page})=>page);
+ const invalid=[{...good[0],content:''},{...good[1],content:null},{...good[2],content:'   '},{...good[3],content:'<p> </p>'},{...good[4],content:42},{...good[5],content:'<p><a href="https://onlyfans.com/creator">المصدر</a></p>'}];
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:18,posts:[...missing,...invalid,...good]});};
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  assert.deepEqual((await r.json()).items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });

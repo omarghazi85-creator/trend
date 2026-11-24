@@ -229,3 +229,19 @@ test('supplementary invisible feed variants produce the same display and digest 
   }
  }
 });
+
+
+test('invalid or ambiguous timestamps cannot enter the UTC archive day in six countries',async()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'أخبار الأسواق المحلية',source:'google',observedAt:'2026-03-02T00:30:00Z',score:10};
+  const baseline=makeTrendSnapshot(country,'2026-03-02',[base]);
+  for(const observedAt of ['2026-02-30T00:30:00Z','2026-03-02T00:30:00','2026-03-02','2026-03-02 00:30:00Z','2026-03-01T24:30:00Z','2026-03-01T24:00:00Z','2026-03-02T00:30:00+25:00','2026-03-02T00:30:60Z','2026-03-02T00:30:00-00:90','2026-03-02T00:30:00+03:00']){
+   const actual=makeTrendSnapshot(country,'2026-03-02',[base,{...base,observedAt,score:99}]);
+   assert.deepEqual(actual,baseline,country+' '+observedAt);
+   assert.equal(await snapshotDigest(actual),await snapshotDigest(baseline));
+  }
+  for(const observedAt of ['2026-03-02T03:30:00+03:00','2026-03-01T19:30:00-05:00','2026-03-02T00:30:00.123Z']){
+   assert.deepEqual(makeTrendSnapshot(country,'2026-03-02',[{...base,observedAt}]),baseline,country+' '+observedAt);
+  }
+ }
+});

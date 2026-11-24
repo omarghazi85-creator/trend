@@ -393,3 +393,40 @@ test('server-side PHP title routing recognizes only existing canonical country a
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), [...good.map(url => url.startsWith('/') ? origin + url : url), ...bad.map(() => '')]);
 });
+
+test('rejects browser-normalized detail destinations for six priority countries and retains media links', (t) => {
+  const countries = ['sa','eg','sd','so','dj','km'];
+  const malformed = countries.flatMap(code => {
+    const path = '/trend-archive/' + code + '-search-2026-11-21';
+    return [origin + '/unused/..' + path, origin + '/unused/%2e%2e' + path,
+      origin + path + '//', origin + path + '\n', '//' + new URL(origin).host + path,
+      origin + path.replace('/trend-archive/', '/trend-archive' + String.fromCharCode(92))];
+  });
+  for (const url of malformed) {
+    const env = setup();
+    const card = cardsOf(env.document)[2];
+    card.querySelector('.atni-follow')!.setAttribute('data-atni-url', url);
+    card.querySelector('.atn-card-actions a[href]')!.setAttribute('href', url);
+    const before = card.querySelectorAll('a[href]').map(a => Object.fromEntries(a.attrs));
+    env.run();
+    assert.deepEqual(card.querySelectorAll('a[href]').map(a => Object.fromEntries(a.attrs)), before, url);
+  }
+  const named = ['atn_lightview_country_codes','atn_lightview_archive_link_allowed','atn_lightview_native_topic_url'];
+  const extracted = named.map(name => {
+    const match = plugin.match(new RegExp('function ' + name + '\\([^)]*\\) \\{[\\s\\S]*?\\n\\}'));
+    assert.ok(match, name);
+    return match[0];
+  });
+  const php = [
+    "function home_url($path) { return 'https://arabiatrend.com' . $path; }",
+    'function wp_parse_url($url) { return parse_url($url); }',
+    ...extracted,
+    '$result = array(); foreach (json_decode(stream_get_contents(STDIN), true) as $url) { $result[] = atn_lightview_native_topic_url($url); } echo json_encode($result);'
+  ].join('\n');
+  const good = countries.flatMap(code => [origin + '/trend-archive/' + code + '-search-2026-11-21', '/trend-archive/' + code + '-music-2026-11-21/']);
+  const result = spawnSync('php', ['-r', php], {input: JSON.stringify([...malformed,...good]), encoding:'utf8'});
+  if(result.error && (result.error as NodeJS.ErrnoException).code==='ENOENT'){t.diagnostic('PHP runs in CI');return;}
+  assert.ifError(result.error);
+  assert.equal(result.status,0,result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), [...malformed.map(()=>''),...good.map(url=>url.startsWith('/')?origin+url:url)]);
+});

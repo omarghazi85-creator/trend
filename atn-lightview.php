@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.38
+ * Version: 0.12.39
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -21,7 +21,7 @@ function atn_lightview_country_codes() {
  * This also checks cached legacy snapshots, without any extra database query.
  */
 function atn_lightview_archive_link_allowed($url) {
-    if (!is_string($url) || $url === '' || preg_match('/[\x00-\x20\x7f]/', $url)) { return false; }
+    if (!is_string($url) || $url === '' || preg_match('/[\x00-\x20\x7f?#]/', $url)) { return false; }
     $parts = wp_parse_url($url);
     $home = wp_parse_url(home_url('/'));
     if (!is_array($parts) || !is_array($home) ||
@@ -31,9 +31,10 @@ function atn_lightview_archive_link_allowed($url) {
         isset($parts['user']) || isset($parts['pass']) ||
         isset($parts['query']) || isset($parts['fragment'])) { return false; }
     $base = rtrim($home['path'] ?? '', '/');
-    $path = rtrim($parts['path'] ?? '', '/');
+    // Match the original path: repeated trailing slashes are not canonical.
+    $path = $parts['path'] ?? '';
     return (bool) preg_match('~^' . preg_quote($base, '~') .
-        '/trend-archive/[a-z0-9-]{3,130}$~D', $path);
+        '/trend-archive/[a-z0-9-]{3,130}/?$~D', $path);
 }
 /**
  * Use the observation period encoded in country archive slugs, not the day

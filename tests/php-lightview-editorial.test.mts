@@ -62,7 +62,7 @@ test('PHP archive rejects punctuation-obfuscated prohibited source labels across
  assert.deepEqual(JSON.parse(result.stdout),[
   ...blocked.map(()=>false),...allowed.map(()=>true)
  ]);
- assert.match(php,/Version: 0\.12\.38/);
+ assert.match(php,/Version: 0\.12\.39/);
 });
 
 test('PHP archive file passes syntax check when CLI available',t=>{
@@ -119,7 +119,7 @@ test('PHP archive HTML source attributes are checked before stripping, including
  const filter=scope.indexOf('if (!atn_lightview_archive_title_allowed($title))');
  const strip=scope.indexOf('$title = wp_strip_all_tags($title);');
  assert.ok(raw>=0 && filter>raw && strip>filter,'raw title must be validated before attributes are stripped');
- assert.match(php,/Version: 0\.12\.38/);
+ assert.match(php,/Version: 0\.12\.39/);
 });
 
 test('PHP archive blocks unsafe embedded URLs in archive titles and saved bodies without dropping safe media', t=>{
@@ -219,7 +219,7 @@ test('live PHP archive rejects space-separated excluded source labels in all six
  assert.deepEqual(JSON.parse(result.stdout),[
   ...blocked.map(()=>false),...allowed.map(()=>true)
  ]);
- assert.match(php,/Version: 0\.12\.38/);
+ assert.match(php,/Version: 0\.12\.39/);
 });
 
 test('PHP archive mirrors worker: reject slash-delimited active markup across six countries',t=>{
@@ -285,4 +285,20 @@ test('archive admission decodes literal Unicode and hex source aliases in six pr
  if(result.error && (result.error as NodeJS.ErrnoException).code==='ENOENT'){t.skip('PHP unavailable');return;}
  assert.equal(result.status,0,result.stderr);
  assert.deepEqual(JSON.parse(result.stdout),[...bad.map(()=>false),...good.map(()=>true)]);
+});
+
+
+test('live archive link guard rejects noncanonical URL variants across six countries',t=>{
+ const guard=php.match(/function atn_lightview_archive_link_allowed\(\$url\) \{[\s\S]*?\n\}/)?.[0];assert.ok(guard);
+ const good=['sa','eg','sd','so','dj','km'].flatMap(c=>{
+  const u='https://arabiatrend.com/trend-archive/'+c+'-search-2026-11-22';
+  return [u,u+'/'];
+ });
+ const bad=good.filter((_,i)=>i%2===0).flatMap(u=>[u+'//',u+'?',u+'#',u+'?tracking=1',u.replace('/trend-archive/','/trend-archive/%2e/'),u.replace('/trend-archive/','/other/../trend-archive/')]);
+ const script='function wp_parse_url($s){return parse_url($s);} function home_url($s){return "https://arabiatrend.com/";}'+guard+
+  '\necho json_encode(array_map("atn_lightview_archive_link_allowed",json_decode(stream_get_contents(STDIN),true)));';
+ const result=spawnSync('php',['-r',script],{input:JSON.stringify([...good,...bad]),encoding:'utf8'});
+ if(result.error && (result.error as NodeJS.ErrnoException).code==='ENOENT'){t.skip('PHP unavailable');return;}
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[...good.map(()=>true),...bad.map(()=>false)]);
 });

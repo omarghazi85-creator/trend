@@ -140,7 +140,7 @@ test('public archive slug policy covers six countries, direct routes and cached 
   assert.ok(policy && body && detail && link && filter);
   assert.match(php,/if \(!atn_lightview_archive_title_allowed\(\$p->post_name\)\) \{ continue; \}/);
   const stubs='class WP_Post {public $post_type="page"; public $post_parent=61269; public $post_title="حصيلة البحث المحلية"; public $post_content="نتائج محلية"; public $post_name; function __construct($s){$this->post_name=$s;}}\n'+
-    'function wp_parse_url($s,$component=-1){return parse_url($s,$component);} function home_url($p){return "https://arabiatrend.com".$p;}\n';
+    'function wp_strip_all_tags($s){return strip_tags($s);} function wp_parse_url($s,$component=-1){return parse_url($s,$component);} function home_url($p){return "https://arabiatrend.com".$p;}\n';
   const countries=['sa','eg','sd','so','dj','km'];
   const good=countries.flatMap(c=>[c+'-search-2026-11-21',c+'-week-2026-11-21']);
   const bad=countries.flatMap(c=>[c+'-search-onlyfans',c+'-search-pornhub']);

@@ -255,3 +255,24 @@ test('raw source paths cannot conceal excluded labels removed by URL normalizati
    makeTrendSnapshot(country,'2026-11-24',[base]),country);
  }
 });
+
+
+test('named invisible HTML entities cannot conceal excluded media sources before aggregation',()=>{
+ const hidden=['only&ZeroWidthSpace;fans','porn&NegativeVeryThinSpace;hub',
+  'only&InvisibleTimes;fans','porn&ApplyFunction;hub','only&#x2063;fans',
+  'only\u2064fans','porn&amp;NegativeMediumSpace;hub'];
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'الأسواق المحلية',source:'google',
+   observedAt:'2026-11-24T08:00:00Z',sourceUrl:'https://example.com/news'};
+  const mixed=[base,...hidden.flatMap(label=>[
+   {...base,term:label},
+   {...base,sourceUrl:'https://example.com/'+label},
+   {...base,metadata:{caption:label}}
+  ])];
+  assert.deepEqual(filterTrendObservations(mixed),[base],country);
+  assert.deepEqual(makeTrendSnapshot(country,'2026-11-24',mixed),
+   makeTrendSnapshot(country,'2026-11-24',[base]),country);
+ }
+ const clean={title:'الأسواق&ZeroWidthSpace; المحلية',url:'https://example.com/news?a=1&amp;b=2'};
+ assert.deepEqual(filterTrendObservations([clean]),[clean]);
+});

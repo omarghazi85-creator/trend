@@ -11,7 +11,7 @@ const payload={found:982,posts:[
 test('uses official public WordPress.com API, one GET, exact archive parent, safe URLs and country codes',async()=>{
  const original=globalThis.fetch;
  const calls:string[]=[];
- globalThis.fetch=async(input:RequestInfo|URL,init?:RequestInit)=>{calls.push(String(input));assert.equal(init?.method,'GET');return Response.json(payload);};
+ globalThis.fetch=async(input:RequestInfo|URL,init?:RequestInit)=>{calls.push(String(input));assert.equal(init?.method,'GET');assert.equal(init?.redirect,'error');return Response.json(payload);};
  try{
   const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
   assert.equal(response.status,200);
@@ -347,5 +347,25 @@ test('archive rejects normalized lookalikes but preserves exact links for six pr
   assert.equal(r.status,200);
   assert.deepEqual((await r.json()).items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
   assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});
+
+test('archive never follows upstream redirects to another host or makes a second request',async()=>{
+ const original=globalThis.fetch;
+ try{
+  for(const status of [301,302,307,308]){
+   let calls=0;
+   globalThis.fetch=async(input:RequestInfo|URL,init?:RequestInit)=>{
+    calls++;
+    assert.equal(String(input),upstream);
+    assert.equal(init?.redirect,'error');
+    return new Response(null,{status,headers:{location:'https://example.invalid/other'}});
+   };
+   const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+   assert.equal(response.status,503);
+   assert.equal(response.headers.get('cache-control'),'no-store');
+   assert.deepEqual((await response.json()).items,[]);
+   assert.equal(calls,1);
+  }
  }finally{globalThis.fetch=original;}
 });

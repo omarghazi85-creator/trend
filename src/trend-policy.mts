@@ -21,7 +21,9 @@ const NAMED_ENTITIES:Record<string,string>={
  lpar:'(',rpar:')'
 };
 export function decodeHtmlEntities(raw:string):string {
- return raw.replace(/&#(?:x([0-9a-f]{1,6})|([0-9]{1,7}));?/gi,(match,hex:string|undefined,decimal:string|undefined)=>{
+ // Consume the complete numeric reference, including arbitrary leading zeros.
+ // A fixed digit cap can decode a prefix and hide the remaining character.
+ return raw.replace(/&#(?:x([0-9a-f]+)|([0-9]+));?/gi,(match,hex:string|undefined,decimal:string|undefined)=>{
   const n=parseInt(hex??decimal??'',hex?16:10);
   return Number.isFinite(n)&&n>0&&n<=0x10ffff&&(n<0xd800||n>0xdfff)?String.fromCodePoint(n):match;
  }).replace(/&([a-z]{2,24});/gi,(match,name:string)=>{

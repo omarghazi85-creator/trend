@@ -314,3 +314,20 @@ test('supplementary and filler Unicode code points cannot conceal excluded sourc
    makeTrendSnapshot(country,'2026-11-24',[base,safe]),country);
  }
 });
+
+test('invisible Unicode cannot hide unsafe destinations in markup or unknown feed metadata',()=>{
+ const hidden=[0xE0100,0xE007F,0x2065,0xFE0F].map(point=>'java'+String.fromCodePoint(point)+'script:alert(1)');
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'الأسواق المحلية',source:'google',
+   observedAt:'2026-11-24T11:00:00Z',sourceUrl:'https://example.com/news'};
+  const safe={...base,metadata:{caption:'مؤشر السوق'+String.fromCodePoint(0xE0100)}};
+  const bad=hidden.flatMap(destination=>[
+   {...base,description:'<a href="'+destination+'">خبر موثوق</a>'},
+   {...base,description:'<img srcset="https://example.com/image.jpg 1x, '+destination+' 2x"> خبر موثوق'},
+   {...base,metadata:{caption:destination}}
+  ]);
+  assert.deepEqual(filterTrendObservations([base,safe,...bad]),[base,safe],country);
+  assert.deepEqual(makeTrendSnapshot(country,'2026-11-24',[base,safe,...bad]),
+   makeTrendSnapshot(country,'2026-11-24',[base,safe]),country);
+ }
+});

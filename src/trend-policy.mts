@@ -11,6 +11,10 @@ const NAMED_ENTITIES:Record<string,string>={
  // Entity-encoded invisible separators must not split excluded names or schemes.
  shy:'\u00ad',zwnj:'\u200c',zwj:'\u200d',lrm:'\u200e',rlm:'\u200f',
  nobreak:'\u2060',tab:'\t',newline:'\n',
+ zerowidthspace:'\u200b',negativethinspace:'\u200b',negativeverythinspace:'\u200b',
+ negativemediumspace:'\u200b',negativethickspace:'\u200b',
+ applyfunction:'\u2061',invisibletimes:'\u2062',invisiblecomma:'\u2063',
+ af:'\u2061',it:'\u2062',ic:'\u2063',
  // HTML5 named punctuation is interpreted by browsers inside attributes.
  // Decode before source and executable-scheme checks, not after admission.
  colon:':',sol:'/',bsol:'\\',period:'.',lowbar:'_',hyphen:'-',
@@ -20,7 +24,10 @@ export function decodeHtmlEntities(raw:string):string {
  return raw.replace(/&#(?:x([0-9a-f]{1,6})|([0-9]{1,7}));?/gi,(match,hex:string|undefined,decimal:string|undefined)=>{
   const n=parseInt(hex??decimal??'',hex?16:10);
   return Number.isFinite(n)&&n>0&&n<=0x10ffff&&(n<0xd800||n>0xdfff)?String.fromCodePoint(n):match;
- }).replace(/&([a-z]{2,10});/gi,(match,name:string)=>NAMED_ENTITIES[name.toLowerCase()]??match);
+ }).replace(/&([a-z]{2,24});/gi,(match,name:string)=>{
+  const key=name.toLowerCase();
+  return Object.hasOwn(NAMED_ENTITIES,key)?NAMED_ENTITIES[key]:match;
+ });
 }
 
 /** Resolve literal JSON/JavaScript \uNNNN and \xNN escapes sometimes
@@ -72,7 +79,7 @@ export function normalizeTrendText(raw:string,keepMarkup=false):string {
   .replace(/[\u064B-\u065F\u0670\u0640]/gu,'')
   .replace(/[أإآٱ]/gu,'ا').replace(/ى/gu,'ي')
   .replace(/ؤ/gu,'و').replace(/ئ/gu,'ي').replace(/ة/gu,'ه')
-  .replace(/[\u00AD\u034F\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFE00-\uFE0F\uFEFF]/gu,'')
+  .replace(/[\u00AD\u034F\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFE00-\uFE0F\uFEFF]/gu,'')
   .replace(/\s+/gu,' ').trim();
 }
 // Terms contain only literal words and spaces; match exact word/phrase boundaries.
@@ -125,7 +132,7 @@ function hasUnsafeEmbeddedScheme(raw:string):boolean {
  // attributes, a poster, or inline CSS without appearing in href/src.
  const attributes=/(?:^|[\s</])(href|src|srcset|data-srcset|poster|data-src|data-href|xlink:href|action|formaction|style)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/giu;
  const normalizeDestination=(value:string):string=>value.normalize('NFKC')
-   .replace(/[\u0000-\u0020\u007f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufe00-\ufe0f\ufeff]/gu,'')
+   .replace(/[\u0000-\u0020\u007f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufe00-\ufe0f\ufeff]/gu,'')
    .toLowerCase();
  const unsafe=(value:string):boolean=>/^(?:javascript|vbscript|data|file|blob):/u.test(normalizeDestination(value));
  for(const match of inspected.matchAll(attributes)){
@@ -223,7 +230,7 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   const decoded=decodeEditorialText(value);
   if(decoded===null)return false;
   const schemeProbe=decoded.normalize('NFKC')
-   .replace(/[\u0000-\u0020\u007f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufeff]/gu,'');
+   .replace(/[\u0000-\u0020\u007f\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/gu,'');
   const looksLikeDestination=/^(?:[a-z][a-z0-9+.-]*:|\/\/)/iu.test(value)||
    /^(?:(?:https?|javascript|vbscript|data|file|blob|ftp|mailto):|\/\/)/iu.test(schemeProbe);
   return looksLikeDestination

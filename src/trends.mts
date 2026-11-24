@@ -61,7 +61,7 @@ export function makeTrendSnapshot(country:string,day:string,rows:readonly TrendR
   if(prev){prev.term=canonicalDisplay(prev.term,display);prev.sources.add(source);if(score!==null)prev.score=Math.max(prev.score??0,score)}
   else map.set(key,{term:display,sources:new Set([source]),score});
  }
- return {country,day,terms:[...map.entries()].sort(([a],[b])=>a.localeCompare(b,'en')).map(([key,v])=>({key,term:v.term,sources:[...v.sources].sort(),score:v.score}))};
+ return {country,day,terms:[...map.entries()].sort(([a],[b])=>a.localeCompare(b,'en')||(a<b?-1:a>b?1:0)).map(([key,v])=>({key,term:v.term,sources:[...v.sources].sort(),score:v.score}))};
 }
 export async function snapshotDigest(snapshot:TrendSnapshot):Promise<string>{
  const bytes=new TextEncoder().encode(JSON.stringify(snapshot));

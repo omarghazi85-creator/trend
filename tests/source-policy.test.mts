@@ -297,3 +297,20 @@ test('complete numeric HTML references are screened without truncating zero-padd
  for(const label of ['خبر &#999999999999999999999999;','خبر &#x110000;','خبر &#000000000;'])
   assert.deepEqual(filterTrendObservations([{title:label}]),[]);
 });
+
+test('supplementary and filler Unicode code points cannot conceal excluded source names',()=>{
+ const hidden=[0xE0100,0xE007F,0x115F,0x3164,0x2065].map(point=>'only'+String.fromCodePoint(point)+'fans');
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'الأسواق المحلية',source:'google',
+   observedAt:'2026-11-24T10:00:00Z',sourceUrl:'https://example.com/news'};
+  const safe={...base,term:'السوق'+String.fromCodePoint(0xE0100)+' المحلي'};
+  const bad=hidden.flatMap(label=>[
+   {...base,term:label},
+   {...base,sourceUrl:'https://example.com/'+encodeURIComponent(label)},
+   {...base,metadata:{caption:label}}
+  ]);
+  assert.deepEqual(filterTrendObservations([base,safe,...bad]),[base,safe],country);
+  assert.deepEqual(makeTrendSnapshot(country,'2026-11-24',[base,safe,...bad]),
+   makeTrendSnapshot(country,'2026-11-24',[base,safe]),country);
+ }
+});

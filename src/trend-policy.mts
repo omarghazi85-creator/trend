@@ -164,6 +164,10 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
  */
 export function isEditorialSourceUrlAllowed(value:unknown):value is string {
  if(typeof value!=='string'||value.length>2048||/[\s\u0000-\u001f\u007f]/u.test(value))return false;
+ // The URL parser repairs malformed schemes/backslashes and removes dot
+ // segments. Screen the retained original before any such normalization.
+ if(!/^https:\/\/[^/?#\\]/iu.test(value)||value.includes('\\')||
+    !isEditorialTrendAllowed(value))return false;
  let url:URL;
  try {url=new URL(value);}catch{return false;}
  if(url.protocol!=='https:'||!url.hostname||url.username||url.password)return false;

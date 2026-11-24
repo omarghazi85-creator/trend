@@ -25,11 +25,11 @@ type PublicPage={title?:unknown;content?:unknown;excerpt?:unknown;URL?:unknown;s
 function canonicalArchiveUrl(value:string,slug:string):boolean{
  // A WordPress archive slug is one path segment, never a nested route.
  if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))return false;
- try{
-  const u=new URL(value);
-  return u.origin===ORIGIN&&!u.username&&!u.password&&!u.search&&!u.hash &&
-   (u.pathname==='/trend-archive/'+slug||u.pathname==='/trend-archive/'+slug+'/');
- }catch{return false;}
+ // Compare the original string, not URL's normalized pathname: the latter
+ // accepts dot segments, backslashes and invisible controls. Keep both
+ // existing canonical permalink forms unchanged.
+ const expected=ORIGIN+'/trend-archive/'+slug;
+ return value===expected||value===expected+'/';
 }
 function classify(page:PublicPage){
  if(page.parent===false||!page.parent||page.parent.ID!==ARCHIVE_PARENT_ID||page.status!=='publish')return null;

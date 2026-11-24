@@ -245,3 +245,21 @@ test('invalid or ambiguous timestamps cannot enter the UTC archive day in six co
   }
  }
 });
+
+
+test('distinct collation-equivalent archive keys have stable order and digest in six countries',async()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,source:'google',observedAt:'2026-11-24T10:00:00Z'};
+  for(const [first,second] of [['أسعار ١','أسعار ۱'],['أسعار ٢','أسعار ۲'],['أسعار ٣','أسعار ۳']]){
+   const a={...base,term:first},b={...base,term:second};
+   assert.notEqual(normalizeTrendKey(first),normalizeTrendKey(second));
+   assert.equal(normalizeTrendKey(first).localeCompare(normalizeTrendKey(second),'en'),0);
+   const forward=makeTrendSnapshot(country,'2026-11-24',[a,b]);
+   const reverse=makeTrendSnapshot(country,'2026-11-24',[b,a]);
+   assert.equal(forward.terms.length,2);
+   assert.deepEqual(forward,reverse,country);
+   assert.equal(await snapshotDigest(forward),await snapshotDigest(reverse),country);
+   assert.equal(needsUpdate(await snapshotDigest(forward),await snapshotDigest(reverse)),false);
+  }
+ }
+});

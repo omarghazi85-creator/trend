@@ -15,7 +15,7 @@ const contentFilter = php.match(/add_filter\('the_content', function \(\$content
 assert.ok(policy&&contentGuard&&blocked&&cards&&linkedCard&&postGuard&&key&&contentFilter);
 
 test('archived item links are generated only from existing stored cards, never external sources or synthesized pages',()=>{
- assert.match(php,/Version: 0\.12\.37/);
+ assert.match(php,/Version: 0\.12\.38/);
  assert.match(contentFilter!,/add_query_arg\('atn_item', \$entry\['key'\], get_permalink\(\$post\)\)/);
  assert.match(contentFilter!,/preg_replace_callback/);
  assert.match(contentFilter!,/atn_lightview_archive_focus_post\(\$post\)/);
@@ -33,7 +33,7 @@ test('six country cards get stable unique internal read-only destinations; origi
    '<article class="atna-item"><div><h3 dir="auto">onlyfans</h3></div></article>'+
    '<article class="atna-item"><div><h3><a href="https://arabiatrend.com/trend-archive/topic-123">عنوان مرتبط أصلاً</a></h3></div></article>'+
    '<article class="atna-item"><div><h3 dir="auto">أخبار الاقتصاد السودان</h3><a class="source" href="https://media.example.com/duplicate">المصدر الأصلي الثاني</a></div></article>'+ 
-   '<article class="atna-item"><div><h3><a href="https://media.example.com/title-only">اقتصاد السودان: تقرير موثق</a></h3><a class="source" href="https://media.example.com/video-only">فيديو أصلي</a></div></article>'+
+   '<article class="atna-item"><div><h3><a data-href="https://media.example.com/tracker" title=" fake href=&#39;https://media.example.com/fake&#39; > " href="https://media.example.com/title-only">اقتصاد السودان: تقرير موثق</a></h3><a class="source" href="https://media.example.com/video-only">فيديو أصلي</a></div></article>'+
    '</div></section>';
  const stubs=String.raw`class WP_Post {
  public $ID=123; public $post_type='page';public $post_status='publish';
@@ -102,6 +102,8 @@ echo json_encode(array(
  assert.ok(data.overview.includes('https://media.example.com/2'));
  assert.ok(data.overview.includes('class="atna-original-source" href="https://media.example.com/title-only"'));
  assert.ok(data.overview.includes('https://media.example.com/video-only'));
+ assert.ok(!data.overview.includes('class="atna-original-source" href="https://media.example.com/tracker"'));
+ assert.ok(!data.overview.includes('class="atna-original-source" href="https://media.example.com/fake"'));
  assert.ok(data.overview.includes('<h3><a href="https://arabiatrend.com/trend-archive/topic-123">'));
  assert.ok(data.focusedExternal.includes('اقتصاد السودان: تقرير موثق'));
  assert.ok(data.focusedExternal.includes('class="atna-original-source" href="https://media.example.com/title-only"'));

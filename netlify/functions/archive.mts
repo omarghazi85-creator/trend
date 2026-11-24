@@ -23,6 +23,8 @@ const KINDS=new Set(['search','music','week']);
 type PublicPage={title?:unknown;content?:unknown;excerpt?:unknown;URL?:unknown;slug?:unknown;date?:unknown;status?:unknown;parent?:{ID?:unknown}|false;};
 /** Keep title navigation on the verified internal WordPress archive path. */
 function canonicalArchiveUrl(value:string,slug:string):boolean{
+ // A WordPress archive slug is one path segment, never a nested route.
+ if(!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))return false;
  try{
   const u=new URL(value);
   return u.origin===ORIGIN&&!u.username&&!u.password&&!u.search&&!u.hash &&
@@ -45,7 +47,7 @@ function classify(page:PublicPage){
   if(typeof field!=='string'||!isEditorialTrendAllowed(field))return null;
  }
  const title=decodeHtmlEntities(page.title).replace(/<[^>]{0,256}>/g,'').trim();
- if(!isEditorialTrendAllowed(title))return null;
+ if(!title||!isEditorialTrendAllowed(title))return null;
  const slug=page.slug;
  const match=/^([a-z]{2})-(search|music|week)-/.exec(slug);
  let country='',kind='';

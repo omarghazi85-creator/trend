@@ -209,3 +209,23 @@ test('disallowed provider object keys never affect snapshots in the four underre
   assert.equal(await snapshotDigest(actual),await snapshotDigest(baseline),country);
  }
 });
+
+
+test('supplementary invisible feed variants produce the same display and digest in all six countries',async()=>{
+ const countries=['sa','eg','sd','so','dj','km'];
+ const marks=['\u115f','\u1160','\u17b4','\u180b','\u2064','\u3164','\uffa0','\u{e0001}','\u{e0061}','\u{e0100}'];
+ for(const country of countries){
+  const base={country,term:'الطقس اليوم',source:'google',observedAt:'2026-11-24T10:00:00Z'};
+  const expected=makeTrendSnapshot(country,'2026-11-24',[base]);
+  const digest=await snapshotDigest(expected);
+  for(const mark of marks){
+   const variant={...base,term:'الطقس'+mark+' اليوم'};
+   const encoded={...base,term:'الطقس&#'+mark.codePointAt(0)+'; اليوم'};
+   for(const rows of [[variant],[encoded],[base,variant],[variant,base]]){
+    const actual=makeTrendSnapshot(country,'2026-11-24',rows);
+    assert.deepEqual(actual,expected,country+' U+'+mark.codePointAt(0)!.toString(16));
+    assert.equal(await snapshotDigest(actual),digest);
+   }
+  }
+ }
+});

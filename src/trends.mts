@@ -20,14 +20,18 @@ function cleanTrendDisplay(value:string):string {
  const decoded=decodeEditorialText(value);
  if(decoded===null)return '';
  return decoded.replace(/<[^>]{0,256}>/g,'').normalize('NFKC')
-  .replace(/[\u00ad\u034f\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufe00-\ufe0f\ufeff]/gu,'')
+  // Match the editorial key's invisible-character coverage to avoid retaining
+  // visually identical variants and generating unnecessary snapshot writes.
+  .replace(/\p{Default_Ignorable_Code_Point}/gu,'')
   .replace(/[\u0000-\u001f\u007f]/gu,' ')
   .replace(/\s+/gu,' ').trim();
 }
 function canonicalDisplay(a:string,b:string):string {
  // Pick the same display label regardless of the order sources are received.
  const x=a.normalize('NFKC').trim(),y=b.normalize('NFKC').trim();
- return x.localeCompare(y,'en')<=0?x:y;
+ // ICU collation can equate distinct strings; use a stable tie-break.
+ const order=x.localeCompare(y,'en');
+ return order<0||(order===0&&x<=y)?x:y;
 }
 export function makeTrendSnapshot(country:string,day:string,rows:readonly TrendRecord[]):TrendSnapshot {
  if(!COUNTRIES.has(country)||!DAY.test(day)||!Number.isFinite(Date.parse(day+'T00:00:00Z'))||new Date(day+'T00:00:00Z').toISOString().slice(0,10)!==day)throw new Error('invalid_country_or_day');

@@ -389,3 +389,22 @@ test('archive hides unverified body links and preserves screened pages for six p
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test('archive screens retained slugs without changing legitimate country links or upstream request count',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const make=(slug:string,index:number)=>({...payload.posts[0],ID:6000+index,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+(index%2?'/':''),title:'حصيلة البحث المحلية',content:'متابعة الاقتصاد والطقس'});
+ const good=countries.flatMap((c,i)=>[make(c+'-search-2026-11-21',i*2),make(c+'-music-2026-11-21-2',i*2+1)]);
+ const bad=countries.flatMap((c,i)=>['onlyfans','only-fans','p-o-r-n-h-u-b'].map((suffix,j)=>make(c+'-search-'+suffix,100+i*3+j)));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:good.length+bad.length,posts:[...bad,...good]});};
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  const result=await r.json();
+  assert.deepEqual(result.items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.equal(result.available_in_window,good.length);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

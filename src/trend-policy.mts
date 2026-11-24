@@ -81,7 +81,8 @@ export function normalizeTrendText(raw:string,keepMarkup=false):string {
   .replace(/[\u064B-\u065F\u0670\u0640]/gu,'')
   .replace(/[أإآٱ]/gu,'ا').replace(/ى/gu,'ي')
   .replace(/ؤ/gu,'و').replace(/ئ/gu,'ي').replace(/ة/gu,'ه')
-  .replace(/[\u00AD\u034F\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFE00-\uFE0F\uFEFF]/gu,'')
+  // Include supplementary variation selectors, tags and invisible fillers.
+  .replace(/\p{Default_Ignorable_Code_Point}/gu,'')
   .replace(/\s+/gu,' ').trim();
 }
 // Terms contain only literal words and spaces; match exact word/phrase boundaries.

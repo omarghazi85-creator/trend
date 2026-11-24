@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.41
+ * Version: 0.12.42
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -217,6 +217,7 @@ function atn_lightview_archive_detail_blocked($post) {
     return $post instanceof WP_Post && $post->post_type === 'page' &&
         (int) $post->post_parent === 61269 &&
         (!atn_lightview_archive_title_allowed($post->post_title) ||
+         (isset($post->post_name) && !atn_lightview_archive_title_allowed($post->post_name)) ||
          !atn_lightview_archive_content_allowed($post));
 }
 /**
@@ -502,6 +503,7 @@ function atn_lightview_archive_items() {
             if (!atn_lightview_archive_title_allowed($title)) { continue; }
             // Screen existing page fields before accepting a new cached card.
             if (!atn_lightview_archive_content_allowed($p)) { continue; }
+            if (!atn_lightview_archive_title_allowed($p->post_name)) { continue; }
             $title = wp_strip_all_tags($title);
             if (!atn_lightview_archive_title_supported($title)) { continue; }
             $link = get_permalink($p);
@@ -524,7 +526,8 @@ function atn_lightview_archive_items() {
     $safe = array_values(array_filter($items, static function ($item) {
         return is_array($item) && isset($item['title'], $item['link']) &&
             atn_lightview_archive_title_allowed($item['title']) &&
-            atn_lightview_archive_link_allowed($item['link']);
+            atn_lightview_archive_link_allowed($item['link']) &&
+            atn_lightview_archive_title_allowed(basename(rtrim(wp_parse_url($item['link'], PHP_URL_PATH), '/')));
     }));
     // Recalculate display dates from the already validated local permalink
     // even for old transient snapshots; do not invalidate the 15-minute cache.

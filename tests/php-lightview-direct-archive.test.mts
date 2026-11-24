@@ -127,3 +127,27 @@ test('body and excerpt policy blocks disallowed archives but retains safe Arab c
   assert.equal(result.status,0,result.stderr);
   assert.deepEqual(JSON.parse(result.stdout),[true,true,false,false,false,false,false]);
 });
+
+
+test('public archive slug policy covers six countries, direct routes and cached listings', t => {
+  const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
+  if(runtime.error){t.skip('PHP CLI unavailable');return;}
+  const policy=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+  const body=php.match(/function atn_lightview_archive_content_allowed\(\$post\) \{[\s\S]*?\n\}/)?.[0];
+  const detail=php.match(/function atn_lightview_archive_detail_blocked\(\$post\) \{[\s\S]*?\n\}/)?.[0];
+  const link=php.match(/function atn_lightview_archive_link_allowed\(\$url\) \{[\s\S]*?\n\}/)?.[0];
+  const filter=php.match(/\$safe = array_values\(array_filter\(\$items, static function \(\$item\) \{[\s\S]*?\n    \}\)\);/)?.[0];
+  assert.ok(policy && body && detail && link && filter);
+  assert.match(php,/if \(!atn_lightview_archive_title_allowed\(\$p->post_name\)\) \{ continue; \}/);
+  const stubs='class WP_Post {public $post_type="page"; public $post_parent=61269; public $post_title="حصيلة البحث المحلية"; public $post_content="نتائج محلية"; public $post_name; function __construct($s){$this->post_name=$s;}}\n'+
+    'function wp_strip_all_tags($s){return strip_tags($s);} function wp_parse_url($s,$component=-1){return parse_url($s,$component);} function home_url($p){return "https://arabiatrend.com".$p;}\n';
+  const countries=['sa','eg','sd','so','dj','km'];
+  const good=countries.flatMap(c=>[c+'-search-2026-11-21',c+'-week-2026-11-21']);
+  const bad=countries.flatMap(c=>[c+'-search-onlyfans',c+'-search-pornhub']);
+  const script=stubs+policy+'\n'+body+'\n'+detail+'\n'+link+'\n'+
+    '$slugs=json_decode(stream_get_contents(STDIN),true); $items=[]; $blocked=[]; foreach($slugs as $s){$blocked[]=atn_lightview_archive_detail_blocked(new WP_Post($s)); $items[]=["title"=>"حصيلة البحث المحلية","link"=>"https://arabiatrend.com/trend-archive/".$s."/"];}\n'+filter+
+    '\necho json_encode([$blocked,array_column($safe,"link")]);';
+  const result=spawnSync('php',['-r',script],{input:JSON.stringify([...bad,...good]),encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout),[bad.map(()=>true).concat(good.map(()=>false)),good.map(s=>'https://arabiatrend.com/trend-archive/'+s+'/')]);
+});

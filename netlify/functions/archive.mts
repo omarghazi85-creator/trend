@@ -70,7 +70,10 @@ function classify(page:PublicPage){
   Number.isFinite(Date.parse(day+'T00:00:00Z'))&&new Date(day+'T00:00:00Z').toISOString().slice(0,10)===day;
  // The upstream publication timestamp must remain valid even when the label
  // comes from a dated archive slug; corrupted WordPress rows are not shown.
- if(!validDay(publishedDay))return null;
+ // Check the entire publication timestamp, not just its calendar prefix.
+ // Keep the original offset and calendar day for existing archive links.
+ const timestamp=/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$(?![\s\S])/u;
+ if(!validDay(publishedDay)||!timestamp.test(page.date)||!Number.isFinite(Date.parse(page.date)))return null;
  const date=archiveDay??publishedDay;
  if(!validDay(date))return null;
  return {title:title.slice(0,240),link:page.URL,country,kind,date,date_iso:page.date};

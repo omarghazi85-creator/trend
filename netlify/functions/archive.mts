@@ -3,7 +3,7 @@
  * This deliberately avoids requesting arabiatrend.com through its bot protection.
  * One bounded request; no WordPress writes, cron jobs or credentials.
  */
-import {decodeHtmlEntities,isEditorialTrendAllowed} from '../../src/trend-policy.mts';
+import {decodeEditorialText,isEditorialTrendAllowed} from '../../src/trend-policy.mts';
 import {readBoundedJsonStream} from '../../src/bounded-json.mts';
 const ORIGIN='https://arabiatrend.com';
 const API='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/';
@@ -51,7 +51,11 @@ function classify(page:PublicPage){
  if(typeof page.content!=='string'||!isEditorialTrendAllowed(page.content))return null;
  if(page.excerpt!==undefined&&page.excerpt!==''&&
     (typeof page.excerpt!=='string'||!isEditorialTrendAllowed(page.excerpt)))return null;
- const title=decodeHtmlEntities(page.title).replace(/<[^>]{0,256}>/g,'').trim();
+ // Use the same bounded decoder as the policy gate so nested entity-encoded
+ // formatting cannot leak into a headline after passing editorial screening.
+ const decodedTitle=decodeEditorialText(page.title);
+ if(decodedTitle===null)return null;
+ const title=decodedTitle.replace(/<[^>]{0,256}>/g,'').trim();
  if(!title||!isEditorialTrendAllowed(title))return null;
  const slug=page.slug;
  const match=/^([a-z]{2})-(search|music|week)-/.exec(slug);

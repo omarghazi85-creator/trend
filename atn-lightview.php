@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ArabiaTrend Light View
  * Description: Lightweight read-only UI for ArabiaTrend archive pages; no scheduled tasks or content writes.
- * Version: 0.12.40
+ * Version: 0.12.41
  * Requires PHP: 7.4
  * Author: ArabiaTrend
  */
@@ -778,6 +778,10 @@ add_action('wp_footer', function () {
 function atn_lightview_native_topic_url($url) {
     if (!is_string($url) || !$url) { return ''; }
     $url = html_entity_decode($url, ENT_QUOTES, 'UTF-8');
+    // Native routes are ASCII canonical paths. Reject ambiguous input before
+    // PHP or the browser can normalize it into a different destination.
+    if (preg_match('/[\x00-\x20\x7f]/', $url) || strpos($url, chr(92)) !== false ||
+        strpos($url, '%') !== false) { return ''; }
     // Root-relative links from the native renderer are local URLs too.
     // Reject protocol-relative and backslash-obfuscated destinations.
     if ($url[0] === '/' && (strlen($url) === 1 || $url[1] !== '/') &&
@@ -791,7 +795,9 @@ function atn_lightview_native_topic_url($url) {
         strtolower($parts['host'] ?? '') !== strtolower($home['host'] ?? '') ||
         isset($parts['user']) || isset($parts['pass']) ||
         ($parts['port'] ?? null) !== ($home['port'] ?? null)) { return ''; }
-    $path = rtrim($parts['path'] ?? '', '/');
+    $raw_path = $parts['path'] ?? '';
+    if (substr($raw_path, -2) === '//') { return ''; }
+    $path = rtrim($raw_path, '/');
     $base = rtrim($home['path'] ?? '', '/');
     if ($path === $base . '/arab-trends-now') {
         // Only the original topic key is canonical. Reject duplicate/extra
@@ -956,6 +962,9 @@ add_action('wp_footer', function () {
         try{
           var u=new URL(value,location.href);
           if(u.origin!==location.origin||u.username||u.password)return '';
+          // Match the unparsed candidate, not URL's normalized path. This
+          // rejects dot segments, implicit origins, controls and backslashes.
+          if(value!==u.href && value!==u.pathname+u.search)return '';
           var path=u.pathname.replace(/\/$/,'');
           var topic=u.searchParams.get('atn_topic')||'';
           if(path==='/arab-trends-now'&&/^[a-f0-9]{64}$/.test(topic)&&u.search==='?atn_topic='+topic&&!u.hash)return u.href;
@@ -983,7 +992,7 @@ add_action('wp_footer', function () {
           if(!destination){
             var actions=card.querySelectorAll('.atn-card-actions a[href]');
             for(var i=0;i<actions.length;i++){
-              destination=nativeUrl(actions[i].href);
+              destination=nativeUrl(actions[i].getAttribute('href'));
               if(destination)break;
             }
           }

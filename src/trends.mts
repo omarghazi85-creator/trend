@@ -39,6 +39,12 @@ export function makeTrendSnapshot(country:string,day:string,rows:readonly TrendR
  const map=new Map<string,{term:string;sources:Set<string>;score:number|null}>();
  for(const row of rows){
   if(!row||typeof row!=='object'||row.country!==country||typeof row.term!=='string'||typeof row.source!=='string'||typeof row.observedAt!=='string')continue;
+  // Reject ambiguous local times and calendar dates that Date silently rolls over.
+  // An explicit zone keeps the UTC archive day independent of the runtime timezone.
+  const timestamp=/^(\d{4}-\d{2}-\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,3})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/u.exec(row.observedAt);
+  if(!timestamp)continue;
+  const calendarDate=new Date(timestamp[1]+'T00:00:00Z');
+  if(!Number.isFinite(calendarDate.getTime())||calendarDate.toISOString().slice(0,10)!==timestamp[1])continue;
   const d=new Date(row.observedAt);
   if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==day)continue;
   // Reject before normalization, aggregation, hashing, or any future persistence layer.

@@ -55,7 +55,9 @@ function classify(page:PublicPage){
  // formatting cannot leak into a headline after passing editorial screening.
  const decodedTitle=decodeEditorialText(page.title);
  if(decodedTitle===null)return null;
- const title=decodedTitle.replace(/<[^>]{0,256}>/g,'').trim();
+ // Remove whole tags, including quoted angle brackets in attributes, and
+ // non-visible HTML comments. The policy above already screens raw markup.
+ const title=decodedTitle.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'').trim();
  if(!title||!isEditorialTrendAllowed(title))return null;
  const slug=page.slug;
  const match=/^([a-z]{2})-(search|music|week)-/.exec(slug);

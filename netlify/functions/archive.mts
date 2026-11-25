@@ -83,7 +83,12 @@ function classify(page:PublicPage){
  if(!validDay(publishedDay)||!timestamp.test(page.date)||!Number.isFinite(Date.parse(page.date)))return null;
  const date=archiveDay??publishedDay;
  if(!validDay(date))return null;
- return {title:title.slice(0,240),link:page.URL,country,kind,date,date_iso:page.date};
+ // Bound the displayed label by Unicode code points, not UTF-16 units.
+ // Recheck the actual public string: truncation can turn a benign longer
+ // word into an excluded standalone term.
+ const displayTitle=Array.from(title).slice(0,240).join('').trimEnd();
+ if(!isEditorialTrendAllowed(displayTitle))return null;
+ return {title:displayTitle,link:page.URL,country,kind,date,date_iso:page.date};
 }
 export default async(request:Request):Promise<Response>=>{
  if(request.method!=='GET')return new Response('method_not_allowed',{status:405});

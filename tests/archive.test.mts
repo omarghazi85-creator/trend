@@ -527,3 +527,25 @@ test('archive and observation gate agree on hidden and unfinished headings acros
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+test('archive title display limit preserves Unicode and rechecks the actual public label',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const prefix='أ'.repeat(239);
+ const good=countries.map((country,i)=>{
+  const slug=country+'-search-2026-11-25';
+  return {...payload.posts[0],ID:14000+i,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+(i%2?'/':''),title:prefix+'🌧️ توقعات الطقس',content:'<p>أخبار الطقس</p>'};
+ });
+ const bad=good.map((row,i)=>({...row,ID:15000+i,title:'أ'.repeat(236)+' sextant'}));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:12,posts:[...bad,...good]});};
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,200);
+  const data=await response.json();
+  assert.deepEqual(data.items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.deepEqual(data.items.map((x:{title:string})=>x.title),good.map(()=>prefix+'🌧'));
+  assert.equal(data.available_in_window,6);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

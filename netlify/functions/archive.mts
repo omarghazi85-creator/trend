@@ -55,6 +55,10 @@ function classify(page:PublicPage){
  // formatting cannot leak into a headline after passing editorial screening.
  const decodedTitle=decodeEditorialText(page.title);
  if(decodedTitle===null)return null;
+ // A title is not a document. Reject non-rendered document fragments rather
+ // than promoting their CSS or inert template text to a visible headline.
+ // Raw editorial screening above remains mandatory before this check.
+ if(/<\s*\/?\s*(?:style|template|noscript|head)\b/iu.test(decodedTitle))return null;
  // Remove whole tags, including quoted angle brackets in attributes, and
  // non-visible HTML comments. The policy above already screens raw markup.
  const title=decodedTitle.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'').trim();

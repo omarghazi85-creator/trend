@@ -344,3 +344,24 @@ test('literal Unicode and hex escapes in untrusted feed labels fail closed',()=>
   'تقرير '+slash+'u0627قتصادي'])
   assert.equal(isEditorialTrendAllowed(value),true,value);
 });
+
+
+test('visible excluded terms split by quoted markup or comments fail pre-admission across six countries',()=>{
+ const countries=['sa','eg','sd','so','dj','km'];
+ const masks=[
+  'po<span title="سعر > أمس">rn</span>hub',
+  'Only<!-- '+ 'a'.repeat(270)+' -->Fans',
+  'p<span title="أمس > اليوم">o</span>rnhub',
+  'س<span title="أ > ب">ك</span>س',
+  'Only&lt;!-- comment &gt; hidden --&gt;Fans',
+  'xn<!-- > -->xx'
+ ];
+ for(const [i,country] of countries.entries()){
+  const safe={country,term:'نتائج <span title="سعر > أمس">الأسواق</span>',source:'news',
+    sourceUrl:'https://example.com/markets'};
+  const bad={...safe,term:'نتائج '+masks[i]};
+  assert.equal(isEditorialTrendAllowed(bad.term),false,country);
+  assert.equal(isEditorialTrendAllowed(safe.term),true,country);
+  assert.deepEqual(filterTrendObservations([safe,bad]),[safe],country);
+ }
+});

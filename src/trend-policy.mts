@@ -75,7 +75,7 @@ const terms=[
 export function normalizeTrendText(raw:string,keepMarkup=false):string {
  const decoded=decodeEditorialText(raw);
  if(decoded===null)return '';
- return (keepMarkup?decoded:decoded.replace(/<[^>]{0,256}>/g,'')).normalize('NFKC').toLowerCase()
+ return (keepMarkup?decoded:decoded.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'')).normalize('NFKC').toLowerCase()
   // Do not erase an unresolved nested &amp; layer: the gate must fail closed.
   .replace(/&(?:nbsp|lt|gt|quot);/gi,' ')
   .replace(/[\u064B-\u065F\u0670\u0640]/gu,'')

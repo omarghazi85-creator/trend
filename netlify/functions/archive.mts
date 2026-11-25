@@ -58,7 +58,12 @@ function classify(page:PublicPage){
  // The shared observation gate above rejects hidden and incomplete title markup.
  // Remove whole tags, including quoted angle brackets in attributes, and
  // non-visible HTML comments. The policy above already screens raw markup.
- const title=decodedTitle.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'').trim();
+ // Remove invisible direction overrides and normalize layout controls before
+ // measuring or displaying the label. Keep Arabic letters, emoji and joiners.
+ const title=decodedTitle.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'')
+  .replace(/\p{Bidi_Control}/gu,'')
+  .replace(/[\u0000-\u001f\u007f-\u009f]/gu,' ')
+  .replace(/\s+/gu,' ').trim();
  if(!title||!isEditorialTrendAllowed(title))return null;
  const slug=page.slug;
  const match=/^([a-z]{2})-(search|music|week)-/.exec(slug);

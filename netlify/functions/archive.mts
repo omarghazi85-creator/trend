@@ -71,7 +71,7 @@ function classify(page:PublicPage){
  // the page a day or a week later; showing publication time as the trend date
  // would mislabel historical search/music/weekly records. Preserve legacy
  // slugs without a day and topic pages by using their publication date.
- const archiveDay=/^[a-z]{2}-(?:search|music|week)-(\d{4}-\d{2}-\d{2})(?:-[a-z0-9]+)?$/.exec(slug)?.[1];
+ const archiveDay=/^[a-z]{2}-(?:search|music|week)-(\d{4}-\d{2}-\d{2})(?:-[a-z0-9]+)*$/.exec(slug)?.[1];
  const publishedDay=page.date.slice(0,10);
  const validDay=(day:string)=>/^\d{4}-\d{2}-\d{2}$/.test(day)&&
   Number.isFinite(Date.parse(day+'T00:00:00Z'))&&new Date(day+'T00:00:00Z').toISOString().slice(0,10)===day;

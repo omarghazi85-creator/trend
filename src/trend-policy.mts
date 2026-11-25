@@ -37,7 +37,11 @@ export function decodeHtmlEntities(raw:string):string {
  * This only runs inside the existing six-pass bounded editorial decoder.
  */
 function decodeUnicodeEscapes(raw:string):string {
- return raw.replace(/\\(?:u([0-9a-f]{4})|x([0-9a-f]{2}))/giu,
+ return raw.replace(/\\u\{([0-9a-f]{1,6})\}/giu,(match,hex:string)=>{
+  const point=parseInt(hex,16);
+  // Leave invalid scalar escapes unresolved so the bounded decoder rejects them.
+  return point>0&&point<=0x10ffff&&(point<0xd800||point>0xdfff)?String.fromCodePoint(point):match;
+ }).replace(/\\(?:u([0-9a-f]{4})|x([0-9a-f]{2}))/giu,
   (_match,unicode:string|undefined,hex:string|undefined)=>
    String.fromCharCode(parseInt(unicode??hex??'',16)));
 }
@@ -58,7 +62,7 @@ export function decodeEditorialText(raw:string):string|null {
   decoded=next;
  }
  if(/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(decoded)||
-    /%[0-9a-f]{2}/i.test(decoded))return null;
+    /%[0-9a-f]{2}/i.test(decoded)||/\\u\{/iu.test(decoded))return null;
  return decoded;
 }
 const terms=[

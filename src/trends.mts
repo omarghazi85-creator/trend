@@ -19,7 +19,10 @@ export function normalizeTrendKey(value:string):string {
 function cleanTrendDisplay(value:string):string {
  const decoded=decodeEditorialText(value);
  if(decoded===null)return '';
- return decoded.replace(/<[^>]{0,256}>/g,'').normalize('NFKC')
+ // Match the archive display policy: never retain hidden document fragments.
+ if(/<\s*\/?\s*(?:style|template|noscript|head)\b/iu.test(decoded))return '';
+ // Strip complete quoted tags and comments before deriving display and digest.
+ return decoded.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'').normalize('NFKC')
   // Match the editorial key's invisible-character coverage to avoid retaining
   // visually identical variants and generating unnecessary snapshot writes.
   .replace(/\p{Default_Ignorable_Code_Point}/gu,'')

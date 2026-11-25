@@ -480,3 +480,27 @@ test('archive removes quoted tag attributes and hidden comments while retaining 
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test('archive rejects non-rendered document fragments in headlines without altering valid country links',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const good=countries.map((country,i)=>{
+  const slug=country+'-search-2026-11-21';
+  return {...payload.posts[0],ID:9000+i,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+(i%2?'/':''),title:'حصيلة <b>البحث</b>'};
+ });
+ const fragments=['<style>.class{display:none}</style>','&lt;template&gt;hidden text&lt;/template&gt;',
+  '<noscript>fallback text</noscript>','<HEAD>hidden metadata</HEAD>',
+  '&amp;lt;style&amp;gt;CSS&amp;lt;/style&amp;gt;','<template>unfinished'];
+ const bad=good.map((row,i)=>({...row,ID:9100+i,title:'حصيلة البحث '+fragments[i]}));
+ let requests=0;
+ globalThis.fetch=async()=>{requests++;return Response.json({found:12,posts:[...bad,...good]});};
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  const data=await r.json();
+  assert.deepEqual(data.items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.deepEqual(data.items.map((x:{title:string})=>x.title),good.map(()=> 'حصيلة البحث'));
+  assert.equal(requests,1);
+ }finally{globalThis.fetch=original;}
+});

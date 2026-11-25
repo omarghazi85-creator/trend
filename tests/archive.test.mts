@@ -457,3 +457,26 @@ test('archive returns plain decoded headlines across priority countries without 
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test('archive removes quoted tag attributes and hidden comments while retaining canonical country links',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const make=(country:string,index:number,title:string)=>{
+  const slug=country+'-search-2026-11-21-'+index;
+  return {...payload.posts[0],ID:9500+index,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+'/',title};
+ };
+ const good=countries.map((c,i)=>make(c,i,'<b title="1 > 0">حصيلة البحث</b><!-- internal note --> '+c.toUpperCase()));
+ const empty=countries.map((c,i)=>make(c,i+10,'<span title="1 > 0"></span><!-- internal note -->'));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:12,posts:[...empty,...good]});};
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  const result=await r.json();
+  assert.deepEqual(result.items.map((x:{title:string})=>x.title),countries.map(c=>'حصيلة البحث '+c.toUpperCase()));
+  assert.deepEqual(result.items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.equal(result.available_in_window,6);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

@@ -274,10 +274,24 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   return isEditorialStructuredFeedFieldAllowed(entry,budget,depth+1);
  });
 }
+/** Titles are labels, not documents. Fail closed on hidden or unfinished
+ * markup before admitting an observation to any downstream raw-store adapter.
+ * Keep ordinary comparisons such as "5 < 10" and complete inline formatting. */
+function hasUnusableTitleMarkup(value:string):boolean {
+ const decoded=decodeEditorialText(value);
+ if(decoded===null)return true;
+ if(/<\s*\/?\s*(?:style|template|noscript|head|title|textarea|iframe)\b/iu.test(decoded))return true;
+ const stripped=decoded.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'');
+ return /<\s*(?:[a-z]|\/\s*[a-z]|!|\?)/iu.test(stripped);
+}
 export function isEditorialObservationAllowed(item:EditorialObservation):boolean {
  if(!item||typeof item!=='object')return false;
  const title=item.title??item.name??item.term;
  if(!isEditorialTrendAllowed(title))return false;
+ for(const field of ['title','name','term'] as const){
+  const value=item[field];
+  if(typeof value==='string'&&hasUnusableTitleMarkup(value))return false;
+ }
  for(const field of ['title','name','term','source','artist','publisher','provider','channel','author','platform','byline'] as const){
   if(item[field]!==undefined&&!isEditorialTrendAllowed(item[field]))return false;
  }

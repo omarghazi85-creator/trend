@@ -87,6 +87,10 @@ export function normalizeTrendText(raw:string,keepMarkup=false):string {
 }
 // Terms contain only literal words and spaces; match exact word/phrase boundaries.
 const patterns=terms.map(s=>new RegExp('(?:^|[^\\p{L}\\p{N}])'+normalizeTrendText(s)+'(?=$|[^\\p{L}\\p{N}])','u'));
+// Arabic articles and attached conjunctions/prepositions are part of the
+// same word. Recognize these inflections only for explicit adult-content
+// descriptors, not general substrings or the unrelated word إباحة.
+const explicitArabicPattern=/(?:^|[^\p{L}\p{N}])(?:[وف]?(?:(?:[بك]?ال|لل|[بكل])?))?اباح(?:ي(?:ه|ات|ون|ين)?)(?=$|[^\p{L}\p{N}])/u;
 // A few distinctive excluded source names are also disguised with dots,
 // underscores or hyphens between letters in feed titles and URLs. Match
 // these brands only, rather than stripping punctuation from every headline:
@@ -165,6 +169,7 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
   !hasUnsafeEmbeddedScheme(title) &&
   !/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(normalized) &&
   !patterns.some(p=>p.test(normalized)||p.test(markup)) &&
+  !explicitArabicPattern.test(normalized) && !explicitArabicPattern.test(markup) &&
   !obfuscatedBrandPatterns.some(p=>p.test(normalized)||p.test(markup));
 }
 /**

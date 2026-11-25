@@ -104,7 +104,19 @@ export default async(request:Request):Promise<Response>=>{
    if(!payload||typeof payload!=='object'||Array.isArray(payload))throw new Error('bad_wpcom_payload');
    const record=payload as Record<string,unknown>;
    if(!Array.isArray(record.posts)||record.posts.length>PAGE_SIZE||typeof record.found!=='number'||!Number.isSafeInteger(record.found)||record.found<0)throw new Error('no_pages');
-   const items=record.posts.map(p=>p&&typeof p==='object'?classify(p as PublicPage):null).filter((p):p is NonNullable<typeof p>=>p!==null);
+   // Deduplicate only after editorial admission. A rejected duplicate must not
+   // reserve a destination and suppress a valid row later in the same response.
+   // Both accepted permalink forms refer to the same archive page; preserve
+   // the first admitted URL verbatim and never merge different dated slugs.
+   const seen=new Set<string>();
+   const items=record.posts.map(p=>p&&typeof p==='object'?classify(p as PublicPage):null)
+    .filter((p):p is NonNullable<typeof p>=>{
+     if(p===null)return false;
+     const key=p.link.replace(/\/$/u,'');
+     if(seen.has(key))return false;
+     seen.add(key);
+     return true;
+    });
    return Response.json({scope:'latest_archived_pages_only',items,available_in_window:items.length,
      page,per_page:PAGE_SIZE,total_public_pages:record.found, // count of public children of archive parent
      has_more:page<MAX_PAGE && page*PAGE_SIZE<record.found,

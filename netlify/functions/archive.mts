@@ -3,7 +3,7 @@
  * This deliberately avoids requesting arabiatrend.com through its bot protection.
  * One bounded request; no WordPress writes, cron jobs or credentials.
  */
-import {decodeEditorialText,isEditorialTrendAllowed} from '../../src/trend-policy.mts';
+import {decodeEditorialText,isEditorialTrendAllowed,isEditorialObservationAllowed} from '../../src/trend-policy.mts';
 import {readBoundedJsonStream} from '../../src/bounded-json.mts';
 const ORIGIN='https://arabiatrend.com';
 const API='https://public-api.wordpress.com/rest/v1.1/sites/250183068/posts/';
@@ -41,7 +41,7 @@ function classify(page:PublicPage){
  // Inspect the upstream HTML *before* stripping tags. A prohibited source may
  // be concealed in href/src while the visible headline looks innocuous.
  // The same check also handles nested HTML entities and URL encoding.
- if(!isEditorialTrendAllowed(page.title))return null;
+ if(!isEditorialObservationAllowed({title:page.title}))return null;
  // A harmless archive heading must not link visitors to excluded body content
  // or source URLs hidden inside an excerpt. Inspect only fields already present
  // in this single public API response; do not fetch pages individually.
@@ -55,10 +55,7 @@ function classify(page:PublicPage){
  // formatting cannot leak into a headline after passing editorial screening.
  const decodedTitle=decodeEditorialText(page.title);
  if(decodedTitle===null)return null;
- // A title is not a document. Reject non-rendered document fragments rather
- // than promoting their CSS or inert template text to a visible headline.
- // Raw editorial screening above remains mandatory before this check.
- if(/<\s*\/?\s*(?:style|template|noscript|head)\b/iu.test(decodedTitle))return null;
+ // The shared observation gate above rejects hidden and incomplete title markup.
  // Remove whole tags, including quoted angle brackets in attributes, and
  // non-visible HTML comments. The policy above already screens raw markup.
  const title=decodedTitle.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'').trim();

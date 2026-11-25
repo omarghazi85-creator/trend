@@ -504,3 +504,26 @@ test('archive rejects non-rendered document fragments in headlines without alter
   assert.equal(requests,1);
  }finally{globalThis.fetch=original;}
 });
+
+test('archive and observation gate agree on hidden and unfinished headings across six countries',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const good=countries.map((country,i)=>{
+  const slug=country+'-search-2026-11-25';
+  return {...payload.posts[0],ID:12000+i,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+(i%2?'/':''),title:'حصيلة <b>البحث</b> 5 < 10',content:'<p>أخبار الطقس</p>'};
+ });
+ const fragments=['<textarea>hidden</textarea>','<iframe>hidden</iframe>','<title>hidden</title>',
+  '<!-- unfinished','&lt;span title=&quot;unfinished','</span','<!DOCTYPE html','<?xml'];
+ const bad=good.flatMap((row,i)=>fragments.map((fragment,j)=>({...row,ID:13000+i*10+j,title:'حصيلة البحث '+fragment})));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:good.length+bad.length,posts:[...bad,...good]});};
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,200);
+  const data=await response.json();
+  assert.deepEqual(data.items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.deepEqual(data.items.map((x:{title:string})=>x.title),good.map(()=> 'حصيلة البحث 5 < 10'));
+  assert.equal(data.available_in_window,6);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

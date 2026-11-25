@@ -570,3 +570,27 @@ test('dated archive slugs with several suffix segments keep the trend day and ex
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test('archive deduplicates admitted canonical destinations without rewriting the first accepted link',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const good=countries.map((country,i)=>{
+  const slug=country+'-search-2026-11-25';
+  return {...payload.posts[0],ID:18000+i,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+(i%2?'/':''),title:'حصيلة البحث المحلية'};
+ });
+ const rejected=good.map((row,i)=>({...row,ID:18100+i,content:''}));
+ const duplicates=good.map((row,i)=>({...row,URL:row.URL.endsWith('/')?row.URL.slice(0,-1):row.URL+'/'}));
+ const separate=good.map((row,i)=>({...row,ID:18200+i,slug:row.slug+'-2',URL:'https://arabiatrend.com/trend-archive/'+row.slug+'-2'}));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:24,posts:[...rejected,...good,...duplicates,...separate]});};
+ try{
+  const r=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(r.status,200);
+  const data=await r.json();
+  assert.deepEqual(data.items.map((x:{link:string})=>x.link),[...good,...separate].map(x=>x.URL));
+  assert.equal(data.available_in_window,12);
+  assert.equal(data.total_public_pages,24);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

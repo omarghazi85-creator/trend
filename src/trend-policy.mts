@@ -66,6 +66,9 @@ const terms=[
  'افلام اباحيه','مقاطع اباحيه','صور عاريه','محتوى جنسي صريح',
  'ميا خليفه','امارنا ميلر',
  'porn','porno','pornography','pornhub','xvideos','xnxx','xhamster',
+ // French-language feeds (notably Djibouti and Comoros): match explicit
+ // descriptors, not generic words for sexuality or public health.
+ 'pornographie','pornographies','pornographique','pornographiques',
  'onlyfans','only fans','redtube','youporn','adult video','adult videos',
  'xxx','nudes','nude pics','sex tape','sex video','sex videos',
  'lesbian porn','gay porn','hentai','sex','sex pistols','nsfw',

@@ -263,3 +263,27 @@ test('distinct collation-equivalent archive keys have stable order and digest in
   }
  }
 });
+
+
+test('shadow snapshots normalize quoted markup and comments without duplicate keys or digest changes',async()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'الطقس اليوم',source:'google',observedAt:'2026-11-25T07:00:00Z'};
+  const expected=makeTrendSnapshot(country,'2026-11-25',[base]);
+  const variants=[
+   'الطقس <span title="أمس > اليوم">اليوم</span>',
+   'الطقس <!-- '+ 'a'.repeat(270)+' -->اليوم',
+   'الطقس &lt;span title=&quot;أمس &gt; اليوم&quot;&gt;اليوم&lt;/span&gt;',
+   "الطقس <span title='أمس < اليوم'>اليوم</span>"
+  ];
+  for(const term of variants){
+   const actual=makeTrendSnapshot(country,'2026-11-25',[{...base,term}]);
+   assert.deepEqual(actual,expected,country);
+   assert.equal(await snapshotDigest(actual),await snapshotDigest(expected),country);
+  }
+  const mixed=makeTrendSnapshot(country,'2026-11-25',[base,...variants.map(term=>({...base,term}))]);
+  assert.deepEqual(mixed,expected,country);
+  for(const term of ['الطقس <style>body{color:red}</style> اليوم','الطقس <template>عنوان مخفي</template> اليوم','الطقس <noscript>نص مخفي</noscript> اليوم','<!-- hidden -->']){
+   assert.deepEqual(makeTrendSnapshot(country,'2026-11-25',[base,{...base,term}]),expected,country);
+  }
+ }
+});

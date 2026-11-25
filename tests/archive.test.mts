@@ -594,3 +594,25 @@ test('archive deduplicates admitted canonical destinations without rewriting the
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test('archive display removes directional overrides and control whitespace without changing country permalinks',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const good=countries.map((country,i)=>{
+  const slug=country+'-search-2026-11-25';
+  return {...payload.posts[0],ID:19000+i,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+(i%2?'/':''),title:'&#x202e;حصيلة&#x202c;\t البحث&nbsp; &#x2067;'+country.toUpperCase()+'&#x2069;\u0085🌧️'};
+ });
+ const bad=good.map((row,i)=>({...row,ID:19100+i,title:'حصيلة البحث p&#x202e;ornhub'}));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:12,posts:[...bad,...good]});};
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,200);
+  const data=await response.json();
+  assert.deepEqual(data.items.map((x:{title:string})=>x.title),countries.map(c=>'حصيلة البحث '+c.toUpperCase()+' 🌧️'));
+  assert.deepEqual(data.items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.equal(data.available_in_window,6);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

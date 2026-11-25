@@ -549,3 +549,24 @@ test('archive title display limit preserves Unicode and rechecks the actual publ
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+test('dated archive slugs with several suffix segments keep the trend day and exact URL',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const good=countries.map((country,i)=>{
+  const slug=country+'-search-2026-11-19-local-update';
+  return {...payload.posts[0],ID:16000+i,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+(i%2?'/':''),date:'2026-11-25T10:00:00Z',title:'حصيلة البحث المحلية'};
+ });
+ const bad=good.map((row,i)=>({...row,ID:17000+i,slug:row.slug.replace('2026-11-19','2026-02-30'),URL:row.URL.replace('2026-11-19','2026-02-30')}));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:12,posts:[...bad,...good]});};
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,200);
+  const data=await response.json();
+  assert.deepEqual(data.items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.deepEqual(data.items.map((x:{date:string})=>x.date),good.map(()=> '2026-11-19'));
+  assert.equal(data.available_in_window,6);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

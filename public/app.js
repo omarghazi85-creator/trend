@@ -57,7 +57,7 @@ function render(){
 // Match the proxy's route classification before deduplication. A mismatched
 // country/kind must not reserve a valid permalink or appear under another tab.
 function validArchiveItem(item){
- if(!item||typeof item.title!=='string'||!item.title.trim()||typeof item.link!=='string'||typeof item.country!=='string'||typeof item.kind!=='string')return false;
+ if(!item||typeof item.title!=='string'||!/[^ \s\p{Default_Ignorable_Code_Point}\p{Mark}\p{Cc}\u0640]/u.test(item.title)||typeof item.link!=='string'||typeof item.country!=='string'||typeof item.kind!=='string')return false;
  const route=/^https:\/\/arabiatrend\.com\/trend-archive\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$(?![\s\S])/u.exec(item.link);
  if(!route)return false;
  const slug=route[1];

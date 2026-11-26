@@ -158,3 +158,31 @@ test('country and kind must match archive routes before cross-page deduplication
   nodes.typeSelect.dispatch('change');
  }
 });
+
+test('archive search and card metadata use validated country even when title omits it',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','حصيلة اليوم',name));
+ const topic=item('topic-ab12','ملف موضوع','','topic');
+ const {nodes,requests}=setup([page(1,[...rows,topic],false)]);
+ await flush();
+ assert.equal(nodes.results.children[6].children[0].textContent,'ملف موضوع');
+ for(const row of rows){
+  nodes.query.value=row.country;
+  nodes.searchBtn.dispatch('click');
+  assert.equal(nodes.results.children.length,1,row.country);
+  assert.equal(nodes.results.children[0].href,row.link);
+  assert.equal(nodes.results.children[0].children[0].textContent,row.country+' · كلمات البحث');
+  assert.equal(nodes.results.children[0].children[1].textContent,row.title);
+ }
+ nodes.query.value='مصر';
+ nodes.countrySelect.value='السعودية';
+ nodes.countrySelect.dispatch('change');
+ assert.equal(nodes.results.children.length,0);
+ nodes.countrySelect.value='';
+ nodes.countrySelect.dispatch('change');
+ assert.equal(nodes.results.children[0].href,rows[1].link);
+ nodes.typeSelect.value='weekly';
+ nodes.typeSelect.dispatch('change');
+ assert.equal(nodes.results.children.length,0);
+ assert.equal(requests.length,1);
+});

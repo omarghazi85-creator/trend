@@ -470,3 +470,30 @@ test('Arabic hamza-carrier search preserves six-country original headlines and l
  }
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
 });
+
+
+test('archive-day search matches exact dates in three digit scripts across six countries',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.flatMap(([code,name])=>['2026-11-26','2026-11-25'].map(date=>
+  item(code+'-search-'+date,'حصيلة الأسواق ٢٠٢٦',name)));
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ for(const [,name] of entries){
+  for(const date of ['2026-11-26','٢٠٢٦/١١/٢٦','۲۰۲۶-۱۱-۲۶']){
+   const expected=rows.find(row=>row.country===name&&row.date==='2026-11-26');
+   nodes.query.value=name+' '+date;
+   nodes.searchBtn.dispatch('click');
+   assert.deepEqual(nodes.results.children.map(n=>n.href),[expected.link]);
+   assert.deepEqual(nodes.results.children.map(n=>n.children[1].textContent),[expected.title]);
+  }
+ }
+ for(const query of ['2026-11-31','٢٠٢٦/١١/٢٧','2026-11-25 2026-11-26']){
+  nodes.query.value=query;
+  nodes.searchBtn.dispatch('click');
+  assert.equal(nodes.results.children.length,0);
+ }
+ nodes.query.value='2026';
+ nodes.searchBtn.dispatch('click');
+ assert.deepEqual(nodes.results.children.map(n=>n.href),rows.map(row=>row.link));
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

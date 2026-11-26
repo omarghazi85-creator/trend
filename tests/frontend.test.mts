@@ -37,7 +37,7 @@ const page=(number,items,hasMore)=>({
   scope:'latest_archived_pages_only',page:number,items,has_more:hasMore,
 });
 const item=(slug,title,country,kind='search')=>({
-  link:'https://arabiatrend.com/trend-archive/'+slug,title,country,kind,date:'2026-11-16'
+  link:'https://arabiatrend.com/trend-archive/'+slug,title,country,kind,date:/^[a-z]{2}-(?:search|music|week)-(\d{4}-\d{2}-\d{2})(?:-[a-z0-9]+)*$/u.exec(slug)?.[1]??'2026-11-16'
 });
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 
@@ -320,4 +320,20 @@ test('malformed pagination flag does not advance or admit rows; filters retain r
  assert.doesNotMatch(nodes.status.textContent,/تعذر تحميل/);
  assert.equal(nodes.loadMore.hidden,true);
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1','/.netlify/functions/archive?page=2','/.netlify/functions/archive?page=2']);
+});
+
+test('invalid or mismatched archive dates cannot reserve a detail link',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const valid=entries.flatMap(([code,name])=>[['search','search'],['music','music'],['week','weekly']].map(([route,kind])=>({...item(code+'-'+route+'-2026-11-26','حصيلة '+name,name,kind),date:'2026-11-26'})));
+ const invalid=valid.flatMap(row=>[undefined,null,123,{},'2026-02-30','2026-11-25','2026-11-26\n','2026-11-26T00:00:00Z'].map(date=>({...row,date})));
+ const legacy=item('sd-search-2026','حصيلة سابقة','السودان');
+ const topic=item('topic-ab12','ملف موضوع','','topic');
+ const {nodes,requests}=setup([page(1,invalid,true),page(2,[...valid,legacy,topic],false)]);
+ await flush();
+ assert.equal(nodes.results.children.length,0);
+ await nodes.loadMore.dispatch('click');
+ assert.deepEqual(nodes.results.children.map(n=>n.href),[...valid,legacy,topic].map(row=>row.link));
+ assert.deepEqual(nodes.results.children.map(n=>n.children[2].textContent),[...valid,legacy,topic].map(row=>row.date));
+ for(const [,name] of entries){nodes.countrySelect.value=name;nodes.countrySelect.dispatch('change');assert.deepEqual(nodes.results.children.map(n=>n.href),[...valid,legacy].filter(row=>row.country===name).map(row=>row.link));}
+ assert.equal(requests.length,2);
 });

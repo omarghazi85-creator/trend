@@ -34,7 +34,7 @@ function normalizeArabic(value){
   .replace(/\p{Default_Ignorable_Code_Point}/gu,'')
   // Fold extended Arabic-script combining marks as well as ordinary harakat.
   .replace(/\u0640|(?=\p{Script_Extensions=Arabic})\p{Mark}/gu,'')
-  .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه')
+  .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي')
   // Fold Latin accents (including decomposed French labels) without
   // removing combining marks from other scripts.
   .normalize('NFD').replace(/(\p{Script=Latin})\p{M}+/gu,'$1').normalize('NFC')

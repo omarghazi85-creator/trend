@@ -220,3 +220,33 @@ test('combined title and country search tolerates reordered words and whitespace
  assert.equal(nodes.results.children.length,8);
  assert.equal(requests.length,1);
 });
+
+test('natural country and category queries tolerate punctuation without fetching again',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.flatMap(([code,name])=>[
+  item(code+'-search-2026-11-26','أخبار الرياضة',name),
+  item(code+'-week-2026-11-26','أخبار الرياضة',name,'weekly')
+ ]);
+ const topic=item('topic-ab12','في المدينة','','topic');
+ const {nodes,requests}=setup([page(1,[...rows,topic],false)]);
+ await flush();
+ for(const [code,name] of entries){
+  for(const query of ['أخبار الرياضة في '+name+'؟','كلمات البحث، '+name+' - الرياضة']){
+   nodes.query.value=query;
+   nodes.searchBtn.dispatch('click');
+   const expected=rows.filter(row=>row.country===name&&(query.includes('البحث')?row.kind==='search':true));
+   assert.deepEqual(nodes.results.children.map(n=>n.href),expected.map(row=>row.link));
+  }
+  nodes.query.value='حصيلة أسبوعية: '+name;
+  nodes.searchBtn.dispatch('click');
+  assert.deepEqual(nodes.results.children.map(n=>n.href),[rows.find(row=>row.country===name&&row.kind==='weekly').link]);
+ }
+ nodes.query.value='في';
+ nodes.searchBtn.dispatch('click');
+ assert.deepEqual(nodes.results.children.map(n=>n.href),[topic.link]);
+ nodes.query.value='كلمات البحث، السودان';
+ nodes.typeSelect.value='weekly';
+ nodes.typeSelect.dispatch('change');
+ assert.equal(nodes.results.children.length,0);
+ assert.equal(requests.length,1);
+});

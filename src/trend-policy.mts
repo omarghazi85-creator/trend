@@ -89,7 +89,9 @@ export function normalizeTrendText(raw:string,keepMarkup=false):string {
  return (keepMarkup?decoded:decoded.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'')).normalize('NFKC').toLowerCase()
   // Do not erase an unresolved nested &amp; layer: the gate must fail closed.
   .replace(/&(?:nbsp|lt|gt|quot);/gi,' ')
-  .replace(/[\u064B-\u065F\u0670\u0640]/gu,'')
+  // Remove Arabic-script combining marks beyond the common harakat block.
+  // This is editorial matching only; original titles and Latin accents stay intact.
+  .replace(/\u0640|(?=\p{Script_Extensions=Arabic})\p{Mark}/gu,'')
   .replace(/[أإآٱ]/gu,'ا').replace(/ى/gu,'ي')
   .replace(/ؤ/gu,'و').replace(/ئ/gu,'ي').replace(/ة/gu,'ه')
   // Include supplementary variation selectors, tags and invisible fillers.

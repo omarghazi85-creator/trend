@@ -30,10 +30,14 @@ function itemNode(item){
 }
 function normalizeArabic(value){
  return value.normalize('NFKC').toLowerCase()
-  // Ignore invisible Unicode formatting in copied search text only.
+  // Search-only folding: keep displayed headlines and original detail URLs.
   .replace(/\p{Default_Ignorable_Code_Point}/gu,'')
   .replace(/[\u064b-\u065f\u0670\u0640]/g,'')
-  .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي');
+  .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه')
+  // Fold Latin accents (including decomposed French labels) without
+  // removing combining marks from other scripts.
+  .normalize('NFD').replace(/(\p{Script=Latin})\p{M}+/gu,'$1').normalize('NFC')
+  .replace(/œ/g,'oe').replace(/æ/g,'ae');
 }
 function render(){
  resultBox.replaceChildren();

@@ -101,3 +101,26 @@ test('external archive interface offers all 22 Arab countries without requiring 
  for(const name of ['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر'])assert.ok(countries.includes(name));
  assert.match(nodes.status.textContent,/لا توجد نتائج/);
 });
+
+test('cross-page archive dedup preserves canonical details for six countries and rejects altered destinations',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const originals=entries.map(([code,name],i)=>{
+  const row=item(code+'-search-2026-11-26','حصيلة '+name,name);
+  return i%2===0?{...row,link:row.link+'/'}:row;
+ });
+ const duplicates=originals.map(row=>({...row,link:row.link.endsWith('/')?row.link.slice(0,-1):row.link+'/'}));
+ const malformed=originals.flatMap(row=>['?redirect=external','#section','/nested','/../other','%2f','\n'].map(suffix=>({...row,link:row.link.replace(/\/$/u,'')+suffix})));
+ const {nodes,requests}=setup([page(1,[...malformed,...originals],true),page(2,duplicates,false)]);
+ await flush();
+ assert.deepEqual(nodes.results.children.map(n=>n.href),originals.map(row=>row.link));
+ await nodes.loadMore.dispatch('click');
+ await flush();
+ assert.deepEqual(nodes.results.children.map(n=>n.href),originals.map(row=>row.link));
+ assert.equal(requests.length,2);
+ for(const row of originals){
+  nodes.countrySelect.value=row.country;
+  nodes.countrySelect.dispatch('change');
+  assert.equal(nodes.results.children.length,1,row.country);
+  assert.equal(nodes.results.children[0].href,row.link);
+ }
+});

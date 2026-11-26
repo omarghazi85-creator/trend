@@ -29,7 +29,10 @@ export function decodeHtmlEntities(raw:string):string {
  }).replace(/&([a-z]{2,24});/gi,(match,name:string)=>{
   const key=name.toLowerCase();
   return Object.hasOwn(NAMED_ENTITIES,key)?NAMED_ENTITIES[key]:match;
- });
+ // HTML parsers also recognize these two legacy references without a semicolon.
+ // In particular, a soft hyphen can split a prohibited brand in plain feed text.
+ // Decode only these legacy separators, not arbitrary entity-like substrings.
+ }).replace(/&shy(?!;)/g,'\u00ad').replace(/&nbsp(?!;)/g,' ');
 }
 
 /** Resolve literal JSON/JavaScript \uNNNN and \xNN escapes sometimes

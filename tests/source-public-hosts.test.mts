@@ -50,3 +50,26 @@ test('legitimate Saudi and Egyptian source records and distinct media links rema
   assert.equal(original.mediaUrl,'https://cdn.example.com/video');
  }
 });
+
+test('reserved and malformed DNS names are excluded before six-country aggregation',async()=>{
+ const denied=['https://feed.test/rss','https://feed.invalid/rss','https://feed.example/rss',
+  'https://media.onion/story','https://gateway.home.arpa/feed','https://feed.alt/news',
+  'https://bad_host.example.com/feed','https://-bad.example.com/feed',
+  'https://bad-.example.com/feed','https://feed..example.com/feed',
+  'https://feed.TEST./rss'];
+ for(const url of denied)assert.equal(isEditorialSourceUrlAllowed(url),false,url);
+ for(const url of ['https://local-news.example.com/feed','https://test.example.com/feed',
+  'https://www.example.com./news','https://أخبار.example.com/feed'])
+  assert.equal(isEditorialSourceUrlAllowed(url),true,url);
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'أخبار الأسواق المحلية',source:'google',
+   observedAt:'2026-11-26T00:30:00Z',sourceUrl:'https://local-news.example.com/feed',
+   mediaUrl:'https://cdn.example.com/photo.jpg'};
+  const invalid=denied.flatMap(url=>[{...base,sourceUrl:url},{...base,mediaUrl:url},{...base,extra:{destinationUrl:url}}]);
+  assert.deepEqual(filterTrendObservations([...invalid,base]),[base],country);
+  const expected=makeTrendSnapshot(country,'2026-11-26',[base]);
+  const actual=makeTrendSnapshot(country,'2026-11-26',[...invalid,base]);
+  assert.deepEqual(actual,expected,country);
+  assert.equal(await snapshotDigest(actual),await snapshotDigest(expected),country);
+ }
+});

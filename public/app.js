@@ -62,6 +62,10 @@ function render(){
 // country/kind must not reserve a valid permalink or appear under another tab.
 function validArchiveItem(item){
  if(!item||typeof item.title!=='string'||!/[^ \s\p{Default_Ignorable_Code_Point}\p{Mark}\p{Cc}\u0640]/u.test(item.title)||typeof item.link!=='string'||typeof item.country!=='string'||typeof item.kind!=='string')return false;
+ // The archive proxy caps display titles at 240 Unicode code points and
+ // replaces C0/C1 controls. Reject malformed cached rows before deduplication.
+ // Keep legitimate supplementary characters and joining marks intact.
+ if(item.title.length>480||Array.from(item.title).length>240||/[\u0000-\u001f\u007f-\u009f]/u.test(item.title))return false;
  const route=/^https:\/\/arabiatrend\.com\/trend-archive\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$(?![\s\S])/u.exec(item.link);
  if(!route)return false;
  const slug=route[1];

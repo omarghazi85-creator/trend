@@ -328,14 +328,16 @@ test('invalid or mismatched archive dates cannot reserve a detail link',async()=
  const invalid=valid.flatMap(row=>[undefined,null,123,{},'2026-02-30','2026-11-25','2026-11-26\n','2026-11-26T00:00:00Z'].map(date=>({...row,date})));
  const legacy=item('sd-search-2026','حصيلة سابقة','السودان');
  const topic=item('topic-ab12','ملف موضوع','','topic');
- const {nodes,requests}=setup([page(1,invalid,true),page(2,[...valid,legacy,topic],false)]);
+ const {nodes,requests}=setup([page(1,invalid.slice(0,100),true),page(2,invalid.slice(100),true),page(3,[...valid,legacy,topic],false)]);
  await flush();
+ assert.equal(nodes.results.children.length,0);
+ await nodes.loadMore.dispatch('click');
  assert.equal(nodes.results.children.length,0);
  await nodes.loadMore.dispatch('click');
  assert.deepEqual(nodes.results.children.map(n=>n.href),[...valid,legacy,topic].map(row=>row.link));
  assert.deepEqual(nodes.results.children.map(n=>n.children[2].textContent),[...valid,legacy,topic].map(row=>row.date));
  for(const [,name] of entries){nodes.countrySelect.value=name;nodes.countrySelect.dispatch('change');assert.deepEqual(nodes.results.children.map(n=>n.href),[...valid,legacy].filter(row=>row.country===name).map(row=>row.link));}
- assert.equal(requests.length,2);
+ assert.equal(requests.length,3);
 });
 
 test('invisible-only archive titles cannot reserve valid detail links',async()=>{
@@ -367,4 +369,29 @@ test('search folds French accents and common Arabic spelling without modifying s
  nodes.searchBtn.dispatch('click');
  assert.equal(nodes.results.children.length,0);
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});
+
+
+test('oversized archive page cannot advance the cursor or replace six country results',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','حصيلة '+name,name));
+ const next=Array.from({length:100},(_,i)=>{
+  const [code,name]=entries[i%entries.length];
+  return item(code+'-week-2026-11-25-'+i,'حصيلة أسبوعية '+name,name,'weekly');
+ });
+ const overflow=item('sd-music-2026-11-25','حصيلة إضافية','السودان','music');
+ const pages=[page(1,rows,true),page(2,[...next,overflow],false)];
+ const {nodes,requests}=setup(pages);
+ await flush();
+ await nodes.loadMore.dispatch('click');
+ assert.deepEqual(nodes.results.children.map(n=>n.href),rows.map(row=>row.link));
+ assert.match(nodes.status.textContent,/تعذر تحميل الدفعة التالية/);
+ assert.equal(nodes.loadMore.hidden,false);
+ assert.equal(nodes.loadMore.disabled,false);
+ pages[1]=page(2,next,false);
+ await nodes.loadMore.dispatch('click');
+ assert.deepEqual(nodes.results.children.map(n=>n.href),[...rows,...next].map(row=>row.link));
+ assert.doesNotMatch(nodes.status.textContent,/تعذر تحميل/);
+ assert.equal(nodes.loadMore.hidden,true);
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1','/.netlify/functions/archive?page=2','/.netlify/functions/archive?page=2']);
 });

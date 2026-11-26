@@ -401,3 +401,21 @@ test('combining marks and control bytes cannot conceal distinctive excluded bran
   assert.deepEqual(filterTrendObservations([...rejected,...rows]),rows,country);
  }
 });
+
+
+test('Arabic-script combining marks beyond common harakat cannot hide excluded labels or metadata',()=>{
+ const marks=['\u0610','\u061a','\u06d6','\u06e7','\u06ed','\u08d4','\u08e3','\u08f0'];
+ for(const country of ['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر']){
+  const safe={title:country+' – مُؤشِّرات الأسواق',source:'google',description:'Économie locale'};
+  const blocked=marks.flatMap(mark=>[
+   'س'+mark+'كس','إبا'+mark+'حي','س&#x'+mark.codePointAt(0)!.toString(16)+';كس'
+  ]);
+  const rows=blocked.flatMap(word=>[
+   {...safe,title:country+' '+word},{...safe,source:word},{...safe,extra:{description:word}}
+  ]);
+  for(const word of blocked)assert.equal(isEditorialTrendAllowed(country+' '+word),false,word);
+  assert.deepEqual(filterTrendObservations([...rows,safe]),[safe],country);
+  for(const label of [country,'Économie locale','Côte d’Ivoire','الطَّقس','مؤشرات الأسواق','Essex county'])
+   assert.equal(isEditorialTrendAllowed(label),true,label);
+ }
+});

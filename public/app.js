@@ -1,5 +1,6 @@
 'use strict';
-const COUNTRY_NAMES=['السعودية','الإمارات','مصر','الكويت','قطر','البحرين','عُمان','الأردن','لبنان','العراق','سوريا','السودان','فلسطين','اليمن','ليبيا','تونس','الجزائر','المغرب','موريتانيا','الصومال','جيبوتي','جزر القمر'];
+const COUNTRY_CODES=new Map([['sa','السعودية'],['ae','الإمارات'],['eg','مصر'],['kw','الكويت'],['qa','قطر'],['bh','البحرين'],['om','عُمان'],['jo','الأردن'],['lb','لبنان'],['iq','العراق'],['sy','سوريا'],['sd','السودان'],['ps','فلسطين'],['ye','اليمن'],['ly','ليبيا'],['tn','تونس'],['dz','الجزائر'],['ma','المغرب'],['mr','موريتانيا'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']]);
+const COUNTRY_NAMES=Array.from(COUNTRY_CODES.values());
 const countryButtons=document.getElementById('countries');
 const countrySelect=document.getElementById('countrySelect');
 const queryInput=document.getElementById('query');
@@ -40,6 +41,17 @@ function render(){
  for(const item of selected)resultBox.append(itemNode(item));
  statusBox.textContent=selected.length?'عدد الحصائل المطابقة ضمن أحدث البيانات المحمّلة: '+selected.length+'؛ افتح الأرشيف الأصلي لاستعراض المزيد.':'لا توجد نتائج مطابقة ضمن أحدث الحصائل المحمّلة. استخدم الأرشيف الأصلي للبحث الأوسع.';
 }
+// Match the proxy's route classification before deduplication. A mismatched
+// country/kind must not reserve a valid permalink or appear under another tab.
+function validArchiveItem(item){
+ if(!item||typeof item.title!=='string'||!item.title.trim()||typeof item.link!=='string'||typeof item.country!=='string'||typeof item.kind!=='string')return false;
+ const route=/^https:\/\/arabiatrend\.com\/trend-archive\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$(?![\s\S])/u.exec(item.link);
+ if(!route)return false;
+ const slug=route[1];
+ if(/^topic-[a-f0-9]+$/u.test(slug))return item.country===''&&item.kind==='topic';
+ const match=/^([a-z]{2})-(search|music|week)-/u.exec(slug);
+ return !!match&&COUNTRY_CODES.has(match[1])&&item.country===COUNTRY_CODES.get(match[1])&&item.kind===(match[2]==='week'?'weekly':match[2]);
+}
 async function loadMore(){
  if(busy||!hasMore && currentPage>0)return;
  busy=true;loadMoreButton.disabled=true;loadMoreButton.textContent='جارٍ تحميل الحصائل...';
@@ -52,7 +64,7 @@ async function loadMore(){
   if(!response.ok)throw new Error('archive_proxy_unavailable');
   const payload=await response.json();
   if(!payload||payload.scope!=='latest_archived_pages_only'||!Array.isArray(payload.items)||payload.page!==nextPage)throw new Error('invalid_archive');
-  const valid=payload.items.filter(item=>item&&typeof item.title==='string'&&typeof item.link==='string'&&typeof item.country==='string'&&typeof item.kind==='string'&&/^https:\/\/arabiatrend\.com\/trend-archive\/[a-z0-9]+(?:-[a-z0-9]+)*\/?$(?![\s\S])/u.test(item.link));
+  const valid=payload.items.filter(validArchiveItem);
   // The same WordPress detail can occur on consecutive pages with or without
   // its trailing slash. Preserve the first admitted permalink verbatim.
   const archiveKey=link=>link.replace(/\/$/u,'');

@@ -413,3 +413,22 @@ test('oversized and control-bearing titles cannot reserve six country detail lin
  }
  assert.equal(requests.length,2);
 });
+
+test('bidi-control titles cannot reserve six country links or change displayed direction',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','حصيلة '+name+' 👩‍💻',name));
+ const controls=['\u061c','\u200e','\u200f','\u202a','\u202b','\u202c','\u202d','\u202e','\u2066','\u2067','\u2068','\u2069'];
+ const invalid=rows.flatMap(row=>controls.map(control=>({...row,title:'حصيلة '+control+row.country})));
+ const {nodes,requests}=setup([page(1,invalid,true),page(2,rows,false)]);
+ await flush();
+ assert.equal(nodes.results.children.length,0);
+ await nodes.loadMore.dispatch('click');
+ assert.deepEqual(nodes.results.children.map(n=>n.href),rows.map(row=>row.link));
+ assert.deepEqual(nodes.results.children.map(n=>n.children[1].textContent),rows.map(row=>row.title));
+ for(const row of rows){
+  nodes.countrySelect.value=row.country;
+  nodes.countrySelect.dispatch('change');
+  assert.deepEqual(nodes.results.children.map(n=>n.href),[row.link]);
+ }
+ assert.equal(requests.length,2);
+});

@@ -365,3 +365,23 @@ test('visible excluded terms split by quoted markup or comments fail pre-admissi
   assert.deepEqual(filterTrendObservations([safe,bad]),[safe],country);
  }
 });
+
+
+test('invisible-only labels fail shared pre-admission across six countries',()=>{
+ const hidden=['\u0301','\u05b0','\u0901','\u06d6','\u0001','\u0085',
+  '\u200b\u0301','\u0640','\uFE0F','\u034F','\u{E0100}','\u0301\u200d\u05b0',
+  '&#x301;','<span>\u0301</span>'];
+ const countries=['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر'];
+ for(const country of countries){
+  const safe={title:country+' – مؤشرات الأسواق',source:'google'};
+  const invalid=hidden.flatMap(label=>[
+   {...safe,title:label},
+   {...safe,name:label},
+   {...safe,term:label}
+  ]);
+  for(const label of hidden)assert.equal(isEditorialTrendAllowed(label),false,label);
+  assert.deepEqual(filterTrendObservations([safe,...invalid]),[safe],country);
+ }
+ for(const label of [...countries,'Économie','⚽','2026','الطَّقس'])
+  assert.equal(isEditorialTrendAllowed(label),true,label);
+});

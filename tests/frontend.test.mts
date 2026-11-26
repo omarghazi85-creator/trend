@@ -250,3 +250,27 @@ test('natural country and category queries tolerate punctuation without fetching
  assert.equal(nodes.results.children.length,0);
  assert.equal(requests.length,1);
 });
+
+test('copied Arabic titles and country queries ignore bidi controls and joiners only for search',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const controls=['\u061c','\u200c','\u200d','\u200e','\u200f','\u202a','\u202b','\u202c','\u202d','\u202e','\u2066','\u2067','\u2068','\u2069','\ufeff'];
+ const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','أخ\u200dبار الر\u200fياضة',name));
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ for(const row of rows){
+  for(const mark of controls){
+   nodes.query.value='اخبار الرياضة '+row.country.slice(0,1)+mark+row.country.slice(1);
+   nodes.searchBtn.dispatch('click');
+   assert.deepEqual(nodes.results.children.map(n=>n.href),[row.link]);
+   assert.equal(nodes.results.children[0].children[1].textContent,row.title);
+  }
+ }
+ nodes.query.value='اخبار الرياضة السودان مجهول';
+ nodes.searchBtn.dispatch('click');
+ assert.equal(nodes.results.children.length,0);
+ nodes.query.value='اخبار الرياضة السودان';
+ nodes.countrySelect.value='مصر';
+ nodes.countrySelect.dispatch('change');
+ assert.equal(nodes.results.children.length,0);
+ assert.equal(requests.length,1);
+});

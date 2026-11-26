@@ -126,6 +126,14 @@ function decodeCssEscapes(raw:string):string {
   return plain??'';
  });
 }
+/** Fold marks and embedded control bytes for distinctive excluded brands only.
+ * Preserve the original normalized text for ordinary word/phrase checks so
+ * legitimate French, Somali, Arabic and other accented labels are unchanged.
+ */
+function hasObfuscatedBrand(value:string):boolean {
+ const probe=value.normalize('NFKD').replace(/\p{Mark}|\p{Cc}/gu,'');
+ return obfuscatedBrandPatterns.some(pattern=>pattern.test(value)||pattern.test(probe));
+}
 function hasUnsafeEmbeddedScheme(raw:string):boolean {
  const decoded=decodeEditorialText(raw);
  if(decoded===null)return true;
@@ -182,7 +190,7 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
   !/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(normalized) &&
   !patterns.some(p=>p.test(normalized)||p.test(markup)) &&
   !explicitArabicPattern.test(normalized) && !explicitArabicPattern.test(markup) &&
-  !obfuscatedBrandPatterns.some(p=>p.test(normalized)||p.test(markup));
+  !hasObfuscatedBrand(normalized) && !hasObfuscatedBrand(markup);
 }
 /**
  * Source destinations must be HTTPS and safe after URL and percent decoding.

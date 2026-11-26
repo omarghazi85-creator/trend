@@ -92,7 +92,8 @@ function classify(page:PublicPage){
  // Recheck the actual public string: truncation can turn a benign longer
  // word into an excluded standalone term.
  const displayTitle=Array.from(title).slice(0,240).join('').trimEnd();
- if(!isEditorialTrendAllowed(displayTitle))return null;
+ // Match the browser's visible-title rule after truncation and before deduplication.
+ if(!/[^\s\p{Default_Ignorable_Code_Point}\p{Mark}\p{Cc}\u0640]/u.test(displayTitle)||!isEditorialTrendAllowed(displayTitle))return null;
  return {title:displayTitle,link:page.URL,country,kind,date,date_iso:page.date};
 }
 export default async(request:Request):Promise<Response>=>{

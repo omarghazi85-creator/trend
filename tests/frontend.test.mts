@@ -451,3 +451,22 @@ test('search matches extended Arabic combining marks without changing six-countr
  }
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
 });
+
+
+test('Arabic hamza-carrier search preserves six-country original headlines and links',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const words=[['مؤشرات','موشرات'],['مسؤولية','مسووليه'],['رئيس','رييس'],['هيئة','هييه'],['مِئَة','ميه']];
+ const rows=entries.flatMap(([code,name])=>words.map(([word],i)=>item(code+'-search-2026-11-26-'+i,word+' '+name,name)));
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ for(const [,name] of entries){
+  for(const [word,query] of words){
+   const expected=rows.find(row=>row.title===word+' '+name);
+   nodes.query.value=query+' '+name;
+   nodes.searchBtn.dispatch('click');
+   assert.deepEqual(nodes.results.children.map(n=>n.href),[expected.link]);
+   assert.deepEqual(nodes.results.children.map(n=>n.children[1].textContent),[expected.title]);
+  }
+ }
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

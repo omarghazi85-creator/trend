@@ -325,3 +325,24 @@ test('public PHP archive rejects invisible source aliases and unsafe destination
  assert.equal(result.status,0,result.stderr);
  assert.deepEqual(JSON.parse(result.stdout),[...bad.map(()=>false),...good.map(()=>true)]);
 });
+
+
+test('PHP archive matches extended Arabic marks and explicit French descriptors across six countries',t=>{
+ const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
+ if(runtime.error){t.skip('PHP CLI unavailable');return;}
+ const guard=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+ assert.ok(guard,'execute the real pre-cache and detail-page guard');
+ const countries=['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر'];
+ const marks=['\u0610','\u061a','\u06d6','\u06e7','\u06ed','\u08d4','\u08e3','\u08f0'];
+ const blocked=countries.flatMap(country=>[
+  ...marks.map(mark=>'حصيلة '+country+' إ'+mark+'باحية'),
+  ...['pornographie','pornographies','pornographique','pornographiques','pornographic','pornographically','pornographer','pornographers'].map(word=>'حصيلة '+country+' '+word),
+  ...marks.map(mark=>'حصيلة '+country+' <a href="https://example.com/إ'+mark+'باحية">خبر</a>')
+ ]);
+ const allowed=countries.flatMap(country=>['أخبار الأسواق','Développement économique','Santé publique','Essex county'].map(word=>country+' '+word));
+ const script='function wp_strip_all_tags($s){return strip_tags($s);}\n'+guard+
+  '\necho json_encode(array_map("atn_lightview_archive_title_allowed",json_decode(stream_get_contents(STDIN),true)));';
+ const result=spawnSync('php',['-r',script],{input:JSON.stringify([...blocked,...allowed]),encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[...blocked.map(()=>false),...allowed.map(()=>true)]);
+});

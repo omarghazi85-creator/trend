@@ -162,6 +162,11 @@ function atn_lightview_archive_title_allowed($title) {
     );
     $title = strtolower(strtr($title, $fold));
     $raw_title = strtolower(strtr($raw_title, $fold));
+    // Align archive admission with the external worker for Arabic extended
+    // combining marks. Limit removal to Arabic blocks; preserve Latin accents.
+    $title = preg_replace('/(?=[\x{0600}-\x{06FF}\x{0750}-\x{077F}\x{0870}-\x{08FF}])\p{M}/u', '', $title);
+    $raw_title = preg_replace('/(?=[\x{0600}-\x{06FF}\x{0750}-\x{077F}\x{0870}-\x{08FF}])\p{M}/u', '', $raw_title);
+    if (!is_string($title) || !is_string($raw_title)) { return false; }
     $title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{034F}\x{061C}\x{115F}-\x{1160}\x{17B4}-\x{17B5}\x{180B}-\x{180F}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{3164}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFA0}\x{FFF0}-\x{FFF8}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E0FFF}]/u', '', $title);
     $raw_title = preg_replace('/[\x{064B}-\x{065F}\x{0670}\x{0640}\x{00AD}\x{034F}\x{061C}\x{115F}-\x{1160}\x{17B4}-\x{17B5}\x{180B}-\x{180F}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{3164}\x{FE00}-\x{FE0F}\x{FEFF}\x{FFA0}\x{FFF0}-\x{FFF8}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E0FFF}]/u', '', $raw_title);
     if (!is_string($title) || !is_string($raw_title) || $title === '') { return false; }
@@ -171,7 +176,10 @@ function atn_lightview_archive_title_allowed($title) {
         'سكس', 'سيكس', 'سكسي', 'سيكسي', 'اباحي', 'اباحيه', 'اباحيات',
         'افلام اباحيه', 'مقاطع اباحيه', 'صور عاريه', 'محتوي جنسي صريح',
         'ميا خليفه', 'امارنا ميلر', 'مثلي', 'مثليه', 'المثليه', 'شذوذ جنسي',
-        'porn', 'porno', 'pornography', 'pornhub', 'xvideos', 'xnxx', 'xhamster',
+        'porn', 'porno', 'pornography', 'pornographic', 'pornographically', 'pornographer', 'pornographers',
+        // Explicit French descriptors used in Djibouti and Comoros feeds.
+        'pornographie', 'pornographies', 'pornographique', 'pornographiques',
+        'pornhub', 'xvideos', 'xnxx', 'xhamster',
         'onlyfans', 'only fans', 'redtube', 'youporn', 'adult video', 'adult videos',
         'xxx', 'nudes', 'nude pics', 'sex tape', 'sex video', 'sex videos',
         'lesbian porn', 'gay porn', 'hentai', 'sex', 'sex pistols', 'nsfw',

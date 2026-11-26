@@ -251,9 +251,9 @@ test('natural country and category queries tolerate punctuation without fetching
  assert.equal(requests.length,1);
 });
 
-test('copied Arabic titles and country queries ignore bidi controls and joiners only for search',async()=>{
+test('copied Arabic titles and country queries ignore invisible Unicode formatting only for search',async()=>{
  const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
- const controls=['\u061c','\u200c','\u200d','\u200e','\u200f','\u202a','\u202b','\u202c','\u202d','\u202e','\u2066','\u2067','\u2068','\u2069','\ufeff'];
+ const controls=['\u061c','\u200c','\u200d','\u200e','\u200f','\u202a','\u202b','\u202c','\u202d','\u202e','\u2066','\u2067','\u2068','\u2069','\ufeff','\u200b','\u00ad','\u2060','\u034f','\u180e','\ufe0f','\u2063','\u{e0001}'];
  const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','أخ\u200dبار الر\u200fياضة',name));
  const {nodes,requests}=setup([page(1,rows,false)]);
  await flush();

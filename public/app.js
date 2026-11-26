@@ -23,7 +23,7 @@ queryInput.addEventListener('keydown',event=>{if(event.key==='Enter')render();})
 const kindLabels={search:'كلمات البحث',music:'الأغاني الأكثر تشغيلًا',weekly:'حصيلة أسبوعية',topic:'ملف موضوع'};
 function itemNode(item){
  const card=document.createElement('a');card.className='result';card.href=item.link;card.target='_blank';card.rel='noopener noreferrer';
- const meta=document.createElement('div');meta.className='meta';meta.textContent=kindLabels[item.kind]||'مادة منشورة';
+ const meta=document.createElement('div');meta.className='meta';meta.textContent=[item.country,kindLabels[item.kind]||'مادة منشورة'].filter(Boolean).join(' · ');
  const heading=document.createElement('h3');heading.textContent=item.title;
  const date=document.createElement('div');date.className='date';date.textContent=item.date||'';
  card.append(meta,heading,date);return card;
@@ -37,7 +37,7 @@ function render(){
  resultBox.replaceChildren();
  if(!loaded)return;
  const phrase=normalizeArabic(queryInput.value.trim());
- const selected=allItems.filter(item=>(!country||item.country===country)&&(!phrase||normalizeArabic(item.title).includes(phrase))&&(!typeSelect.value||item.kind===typeSelect.value));
+ const selected=allItems.filter(item=>(!country||item.country===country)&&(!phrase||normalizeArabic(item.title).includes(phrase)||normalizeArabic(item.country).includes(phrase))&&(!typeSelect.value||item.kind===typeSelect.value));
  for(const item of selected)resultBox.append(itemNode(item));
  statusBox.textContent=selected.length?'عدد الحصائل المطابقة ضمن أحدث البيانات المحمّلة: '+selected.length+'؛ افتح الأرشيف الأصلي لاستعراض المزيد.':'لا توجد نتائج مطابقة ضمن أحدث الحصائل المحمّلة. استخدم الأرشيف الأصلي للبحث الأوسع.';
 }

@@ -385,3 +385,19 @@ test('invisible-only labels fail shared pre-admission across six countries',()=>
  for(const label of [...countries,'Économie','⚽','2026','الطَّقس'])
   assert.equal(isEditorialTrendAllowed(label),true,label);
 });
+
+
+test('combining marks and control bytes cannot conceal distinctive excluded brands across six countries',()=>{
+ const blocked=["pórnhub","pórnhub","po\u0001rnhub","onlýfans","xv̧ideos","rédtube","yöuporn","x́nxx","xhamstér"];
+ const legitimate=["Économie locale","Côte d’Ivoire","Somali cafés","الطَّقس","Essex county","only family news","x video editing","sextant","réduction"];
+ for(const country of ["السعودية","مصر","السودان","الصومال","جيبوتي","جزر القمر"]){
+  const rows=legitimate.map(title=>({title:country+' '+title,source:'google',sourceUrl:'https://example.com/markets'}));
+  const rejected=blocked.flatMap(brand=>[
+   {title:country+' '+brand,source:'google'},
+   {title:country+' – مؤشرات الأسواق',source:brand},
+   {title:country+' – مؤشرات الأسواق',source:'google',sourceUrl:'https://example.com/'+encodeURIComponent(brand)}
+  ]);
+  for(const brand of blocked)assert.equal(isEditorialTrendAllowed(country+' '+brand),false,brand);
+  assert.deepEqual(filterTrendObservations([...rejected,...rows]),rows,country);
+ }
+});

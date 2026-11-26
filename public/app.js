@@ -30,8 +30,8 @@ function itemNode(item){
 }
 function normalizeArabic(value){
  return value.normalize('NFKC').toLowerCase()
-  // Ignore invisible direction and joining controls in copied search text.
-  .replace(/[\u061c\u200c-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu,'')
+  // Ignore invisible Unicode formatting in copied search text only.
+  .replace(/\p{Default_Ignorable_Code_Point}/gu,'')
   .replace(/[\u064b-\u065f\u0670\u0640]/g,'')
   .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي');
 }

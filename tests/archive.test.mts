@@ -616,3 +616,24 @@ test('archive display removes directional overrides and control whitespace witho
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+test('proxy rejects invisible clipped labels before they can reserve valid priority-country links',async()=>{
+ const original=globalThis.fetch;
+ const countries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const good=countries.map(([country,name],i)=>{
+  const slug=country+'-search-2026-11-25';
+  return {...payload.posts[0],ID:22000+i,slug,URL:'https://arabiatrend.com/trend-archive/'+slug+(i%2?'/':''),title:'حصيلة '+name};
+ });
+ const bad=good.flatMap(row=>['\u0301','\u093c','\u20dd','\u{1d165}','\u0301'.repeat(240)+row.title,'\u200b'.repeat(240)+row.title].map(title=>({...row,title})));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:bad.length+good.length,posts:[...bad,...good]});};
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,200);
+  const data=await response.json();
+  assert.deepEqual(data.items.map((x:{link:string})=>x.link),good.map(row=>row.URL));
+  assert.deepEqual(data.items.map((x:{title:string})=>x.title),good.map(row=>row.title));
+  assert.equal(data.available_in_window,6);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

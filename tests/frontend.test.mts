@@ -274,3 +274,50 @@ test('copied Arabic titles and country queries ignore bidi controls and joiners 
  assert.equal(nodes.results.children.length,0);
  assert.equal(requests.length,1);
 });
+
+test('failed initial archive stays distinguishable from empty results until a manual retry succeeds',async()=>{
+ const rows=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']].map(([code,name])=>item(code+'-search-2026-11-26','حصيلة اليوم',name));
+ const pages=[null];
+ const {nodes,requests}=setup(pages);
+ await flush();
+ for(const row of rows){
+  nodes.countrySelect.value=row.country;
+  nodes.countrySelect.dispatch('change');
+  nodes.query.value='حصيلة';
+  nodes.searchBtn.dispatch('click');
+  assert.match(nodes.status.textContent,/تعذر تحميل أحدث/);
+  assert.equal(nodes.results.children.length,0);
+ }
+ assert.equal(requests.length,1);
+ assert.equal(nodes.loadMore.hidden,false);
+ pages[0]=page(1,rows,false);
+ await nodes.loadMore.dispatch('click');
+ assert.equal(nodes.results.children[0].href,rows[5].link);
+ assert.doesNotMatch(nodes.status.textContent,/تعذر تحميل/);
+ assert.equal(nodes.loadMore.hidden,true);
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1','/.netlify/functions/archive?page=1']);
+});
+
+test('malformed pagination flag does not advance or admit rows; filters retain retry status and original links',async()=>{
+ const first=item('sd-search-2026-11-26','حصيلة اليوم','السودان');
+ const second=item('so-search-2026-11-26','حصيلة اليوم','الصومال');
+ const pages=[page(1,[first],true),page(2,[second],'false')];
+ const {nodes,requests}=setup(pages);
+ await flush();
+ await nodes.loadMore.dispatch('click');
+ assert.deepEqual(nodes.results.children.map(n=>n.href),[first.link]);
+ nodes.query.value='السودان';
+ nodes.searchBtn.dispatch('click');
+ assert.match(nodes.status.textContent,/تعذر تحميل الدفعة التالية/);
+ assert.equal(nodes.results.children[0].href,first.link);
+ assert.equal(nodes.loadMore.hidden,false);
+ assert.equal(requests.length,2);
+ pages[1]=page(2,[second],false);
+ await nodes.loadMore.dispatch('click');
+ nodes.query.value='';
+ nodes.searchBtn.dispatch('click');
+ assert.deepEqual(nodes.results.children.map(n=>n.href),[first.link,second.link]);
+ assert.doesNotMatch(nodes.status.textContent,/تعذر تحميل/);
+ assert.equal(nodes.loadMore.hidden,true);
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1','/.netlify/functions/archive?page=2','/.netlify/functions/archive?page=2']);
+});

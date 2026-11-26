@@ -433,3 +433,21 @@ test('bidi-control titles cannot reserve six country links or change displayed d
  }
  assert.equal(requests.length,2);
 });
+
+
+test('search matches extended Arabic combining marks without changing six-country detail links',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const marks=['\u0610','\u061a','\u06d6','\u06e7','\u06ed','\u08d4','\u08e3','\u08f0'];
+ const rows=entries.flatMap(([code,country])=>marks.map((mark,i)=>
+  item(code+'-search-2026-11-26-'+i,'أخ'+mark+'بار الأسواق '+country,country)));
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ for(const [,country] of entries){
+  nodes.query.value='اخبار الاسواق '+country;
+  nodes.searchBtn.dispatch('click');
+  const expected=rows.filter(row=>row.country===country);
+  assert.deepEqual(nodes.results.children.map(n=>n.href),expected.map(row=>row.link));
+  assert.deepEqual(nodes.results.children.map(n=>n.children[1].textContent),expected.map(row=>row.title));
+ }
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

@@ -199,9 +199,13 @@ export function isEditorialSourceUrlAllowed(value:unknown):value is string {
  // alternate IPv4 spellings normalized by URL), and single-label intranet
  // names before aggregation. These links are never fetched here.
  const host=url.hostname.toLowerCase().replace(/\.+$/u,'');
- if(!host.includes('.')||host.endsWith('.localhost')||
-    host.endsWith('.local')||host.endsWith('.internal')||
-    /^\d{1,3}(?:\.\d{1,3}){3}$/u.test(host)||host.startsWith('['))return false;
+ // Special-use names cannot be normal public media destinations. Check
+ // label boundaries so legitimate names such as local-news.example.com
+ // are not rejected. URL already converts international names to ASCII.
+ const reserved=/(?:^|\.)(?:localhost|local|internal|test|invalid|example|onion|home\.arpa|alt)$/u;
+ if(host.length>253||!host.includes('.')||reserved.test(host)||
+    /^\d{1,3}(?:\.\d{1,3}){3}$/u.test(host)||host.startsWith('[')||
+    host.split('.').some(label=>!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label)))return false;
  const raw=[url.hostname,url.pathname,url.search,url.hash].join(' ');
  let decoded=raw;
  for(let i=0;i<6;i++){

@@ -83,7 +83,7 @@ test('invalid link is excluded and title search is case-normalized',async()=>{
 });
 
 test('Arabic search ignores diacritics and common alef/ya variants',async()=>{
-  const {nodes}=setup([page(1,[item('eg-search','أخبار الرِياض ومُنتدى الهدى','مصر')],false)]);
+  const {nodes}=setup([page(1,[item('eg-search-2026','أخبار الرِياض ومُنتدى الهدى','مصر')],false)]);
   await flush();
   nodes.query.value='اخبار الرياض';
   nodes.searchBtn.dispatch('click');
@@ -122,5 +122,39 @@ test('cross-page archive dedup preserves canonical details for six countries and
   nodes.countrySelect.dispatch('change');
   assert.equal(nodes.results.children.length,1,row.country);
   assert.equal(nodes.results.children[0].href,row.link);
+ }
+});
+
+test('country and kind must match archive routes before cross-page deduplication',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const valid=entries.flatMap(([code,name])=>[
+  item(code+'-search-2026-11-26','بحث '+name,name),
+  item(code+'-music-2026-11-26','موسيقى '+name,name,'music'),
+  item(code+'-week-2026-11-26','أسبوع '+name,name,'weekly')
+ ]);
+ const topic=item('topic-ab12','ملف موضوع','','topic');
+ const invalid=valid.flatMap(row=>[
+  {...row,country:row.country==='مصر'?'السودان':'مصر'},
+  {...row,kind:row.kind==='search'?'weekly':'search'},
+  {...row,title:' '}
+ ]);
+ invalid.push({...topic,country:'جيبوتي'}, {...topic,kind:'search'},item('xx-search-2026-11-26','عنوان','مصر'));
+ const {nodes,requests}=setup([page(1,invalid,true),page(2,[...valid,topic],false)]);
+ await flush();
+ assert.equal(nodes.results.children.length,0);
+ await nodes.loadMore.dispatch('click');
+ await flush();
+ assert.equal(requests.length,2);
+ assert.deepEqual(nodes.results.children.map(n=>n.href),[...valid,topic].map(row=>row.link));
+ for(const [,name] of entries){
+  nodes.countrySelect.value=name;
+  nodes.countrySelect.dispatch('change');
+  assert.deepEqual(nodes.results.children.map(n=>n.href),valid.filter(row=>row.country===name).map(row=>row.link));
+  nodes.typeSelect.value='weekly';
+  nodes.typeSelect.dispatch('change');
+  assert.equal(nodes.results.children.length,1);
+  assert.match(nodes.results.children[0].href,/-week-/);
+  nodes.typeSelect.value='';
+  nodes.typeSelect.dispatch('change');
  }
 });

@@ -176,7 +176,8 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
  const normalized=normalizeTrendText(title);
  const decoded=decodeEditorialText(title);
  const markup=normalizeTrendText(decoded===null?'':decodeCssEscapes(decoded),true);
- return normalized.length>0 &&
+ // Match the visible-label admission rule before observations reach any adapter.
+ return /[^\s\p{Default_Ignorable_Code_Point}\p{Mark}\p{Cc}\u0640]/u.test(normalized) &&
   !hasUnsafeEmbeddedScheme(title) &&
   !/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(normalized) &&
   !patterns.some(p=>p.test(normalized)||p.test(markup)) &&

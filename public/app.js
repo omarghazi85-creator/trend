@@ -52,9 +52,12 @@ async function loadMore(){
   if(!response.ok)throw new Error('archive_proxy_unavailable');
   const payload=await response.json();
   if(!payload||payload.scope!=='latest_archived_pages_only'||!Array.isArray(payload.items)||payload.page!==nextPage)throw new Error('invalid_archive');
-  const valid=payload.items.filter(item=>item&&typeof item.title==='string'&&typeof item.link==='string'&&typeof item.country==='string'&&typeof item.kind==='string'&&item.link.startsWith('https://arabiatrend.com/trend-archive/'));
-  const seen=new Set(allItems.map(item=>item.link));
-  for(const item of valid){if(!seen.has(item.link)){seen.add(item.link);allItems.push(item);}}
+  const valid=payload.items.filter(item=>item&&typeof item.title==='string'&&typeof item.link==='string'&&typeof item.country==='string'&&typeof item.kind==='string'&&/^https:\/\/arabiatrend\.com\/trend-archive\/[a-z0-9]+(?:-[a-z0-9]+)*\/?$(?![\s\S])/u.test(item.link));
+  // The same WordPress detail can occur on consecutive pages with or without
+  // its trailing slash. Preserve the first admitted permalink verbatim.
+  const archiveKey=link=>link.replace(/\/$/u,'');
+  const seen=new Set(allItems.map(item=>archiveKey(item.link)));
+  for(const item of valid){const key=archiveKey(item.link);if(!seen.has(key)){seen.add(key);allItems.push(item);}}
   currentPage=nextPage;
   hasMore=Boolean(payload.has_more)&&currentPage<10;
   loaded=true;render();

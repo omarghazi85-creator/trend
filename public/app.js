@@ -61,6 +61,13 @@ function validArchiveItem(item){
  const route=/^https:\/\/arabiatrend\.com\/trend-archive\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$(?![\s\S])/u.exec(item.link);
  if(!route)return false;
  const slug=route[1];
+ // The proxy supplies a real calendar day, not an arbitrary display value.
+ // For dated slugs, require the same archive day before reserving a link.
+ if(typeof item.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/u.test(item.date)||item.date.length!==10)return false;
+ const day=new Date(item.date+'T00:00:00Z');
+ if(!Number.isFinite(day.getTime())||day.toISOString().slice(0,10)!==item.date)return false;
+ const archiveDay=/^[a-z]{2}-(?:search|music|week)-(\d{4}-\d{2}-\d{2})(?:-[a-z0-9]+)*$/u.exec(slug)?.[1];
+ if(archiveDay&&archiveDay!==item.date)return false;
  if(/^topic-[a-f0-9]+$/u.test(slug))return item.country===''&&item.kind==='topic';
  const match=/^([a-z]{2})-(search|music|week)-/u.exec(slug);
  return !!match&&COUNTRY_CODES.has(match[1])&&item.country===COUNTRY_CODES.get(match[1])&&item.kind===(match[2]==='week'?'weekly':match[2]);

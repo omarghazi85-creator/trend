@@ -350,3 +350,21 @@ test('invisible-only archive titles cannot reserve valid detail links',async()=>
  assert.deepEqual(nodes.results.children.map(n=>n.children[1].textContent),rows.map(row=>row.title));
  assert.equal(requests.length,2);
 });
+
+
+test('search folds French accents and common Arabic spelling without modifying six country links',async()=>{
+ const fixtures=[["sa","السعودية","أخبار الصناعة","اخبار الصناعه"],["eg","مصر","خريطة القاهرة","خريطه القاهره"],["sd","السودان","حركة الأسواق","حركه الاسواق"],["so","الصومال","Cafés et économie","cafes economie"],["dj","جيبوتي","Économie et coopération","economie cooperation"],["km","جزر القمر","Cœur et région","coeur region"]];
+ const rows=fixtures.map(([code,country,title])=>item(code+'-search-2026-11-26',title,country));
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ for(const [index,[code,country,title,query]] of fixtures.entries()){
+  nodes.query.value=query+' '+country;
+  nodes.searchBtn.dispatch('click');
+  assert.deepEqual(nodes.results.children.map(n=>n.href),[rows[index].link],code);
+  assert.equal(nodes.results.children[0].children[1].textContent,title,code);
+ }
+ nodes.query.value='نتيجة غير موجودة';
+ nodes.searchBtn.dispatch('click');
+ assert.equal(nodes.results.children.length,0);
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

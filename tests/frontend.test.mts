@@ -337,3 +337,16 @@ test('invalid or mismatched archive dates cannot reserve a detail link',async()=
  for(const [,name] of entries){nodes.countrySelect.value=name;nodes.countrySelect.dispatch('change');assert.deepEqual(nodes.results.children.map(n=>n.href),[...valid,legacy].filter(row=>row.country===name).map(row=>row.link));}
  assert.equal(requests.length,2);
 });
+
+test('invisible-only archive titles cannot reserve valid detail links',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','أخ\u200dبار '+name,name));
+ const invalid=rows.flatMap(row=>['\u200b','\u200f\u202e','\u064b\u0651','\u00ad\u2060','\u0000',' \u0640 \u200d ','\ufe0f'].map(title=>({...row,title})));
+ const {nodes,requests}=setup([page(1,invalid,true),page(2,rows,false)]);
+ await flush();
+ assert.equal(nodes.results.children.length,0);
+ await nodes.loadMore.dispatch('click');
+ assert.deepEqual(nodes.results.children.map(n=>n.href),rows.map(row=>row.link));
+ assert.deepEqual(nodes.results.children.map(n=>n.children[1].textContent),rows.map(row=>row.title));
+ assert.equal(requests.length,2);
+});

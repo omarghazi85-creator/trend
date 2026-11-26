@@ -186,3 +186,37 @@ test('archive search and card metadata use validated country even when title omi
  assert.equal(nodes.results.children.length,0);
  assert.equal(requests.length,1);
 });
+
+test('combined title and country search tolerates reordered words and whitespace without new requests',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','أخبار الرياضة',name));
+ const other=item('km-week-2026-11-26','حصيلة الاقتصاد','جزر القمر','weekly');
+ const topic=item('topic-ab12','أخبار الرياضة','','topic');
+ const {nodes,requests}=setup([page(1,[...rows,other,topic],false)]);
+ await flush();
+ for(const row of rows){
+  for(const query of [row.country+'   اخبار الرياضة','الرياضة '+row.country+' اخبار']){
+   nodes.query.value=query;
+   nodes.searchBtn.dispatch('click');
+   assert.deepEqual(nodes.results.children.map(n=>n.href),[row.link]);
+  }
+ }
+ nodes.query.value='جزر القمر الرياضة مجهول';
+ nodes.searchBtn.dispatch('click');
+ assert.equal(nodes.results.children.length,0);
+ nodes.query.value='جزر القمر الرياضة';
+ nodes.typeSelect.value='weekly';
+ nodes.typeSelect.dispatch('change');
+ assert.equal(nodes.results.children.length,0);
+ nodes.typeSelect.value='';
+ nodes.countrySelect.value='مصر';
+ nodes.countrySelect.dispatch('change');
+ assert.equal(nodes.results.children.length,0);
+ nodes.countrySelect.value='';
+ nodes.countrySelect.dispatch('change');
+ assert.equal(nodes.results.children[0].href,rows[5].link);
+ nodes.query.value='   ';
+ nodes.searchBtn.dispatch('click');
+ assert.equal(nodes.results.children.length,8);
+ assert.equal(requests.length,1);
+});

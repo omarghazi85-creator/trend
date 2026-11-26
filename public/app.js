@@ -36,8 +36,12 @@ function normalizeArabic(value){
 function render(){
  resultBox.replaceChildren();
  if(!loaded)return;
- const phrase=normalizeArabic(queryInput.value.trim());
- const selected=allItems.filter(item=>(!country||item.country===country)&&(!phrase||normalizeArabic(item.title).includes(phrase)||normalizeArabic(item.country).includes(phrase))&&(!typeSelect.value||item.kind===typeSelect.value));
+ const terms=normalizeArabic(queryInput.value).trim().split(/\s+/u).filter(Boolean);
+ const selected=allItems.filter(item=>{
+  if((country&&item.country!==country)||(typeSelect.value&&item.kind!==typeSelect.value))return false;
+  const title=normalizeArabic(item.title),name=normalizeArabic(item.country);
+  return terms.every(term=>title.includes(term)||name.includes(term));
+ });
  for(const item of selected)resultBox.append(itemNode(item));
  statusBox.textContent=selected.length?'عدد الحصائل المطابقة ضمن أحدث البيانات المحمّلة: '+selected.length+'؛ افتح الأرشيف الأصلي لاستعراض المزيد.':'لا توجد نتائج مطابقة ضمن أحدث الحصائل المحمّلة. استخدم الأرشيف الأصلي للبحث الأوسع.';
 }

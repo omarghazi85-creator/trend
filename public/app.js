@@ -87,7 +87,9 @@ async function loadMore(){
   });
   if(!response.ok)throw new Error('archive_proxy_unavailable');
   const payload=await response.json();
-  if(!payload||payload.scope!=='latest_archived_pages_only'||!Array.isArray(payload.items)||payload.page!==nextPage||typeof payload.has_more!=='boolean')throw new Error('invalid_archive');
+  if(!payload||payload.scope!=='latest_archived_pages_only'||!Array.isArray(payload.items)||payload.items.length>100||payload.page!==nextPage||typeof payload.has_more!=='boolean')throw new Error('invalid_archive');
+  // The archive proxy returns at most 100 candidates per page. Reject oversized
+  // responses before filtering/rendering, keeping the current page retryable.
   const valid=payload.items.filter(validArchiveItem);
   // The same WordPress detail can occur on consecutive pages with or without
   // its trailing slash. Preserve the first admitted permalink verbatim.

@@ -189,6 +189,7 @@ test('archive search and card metadata use validated country even when title omi
 
 test('combined title and country search tolerates reordered words and whitespace without new requests',async()=>{
  const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ // The proxy strips bidi controls from titles; search still tolerates all copied controls.
  const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','أخبار الرياضة',name));
  const other=item('km-week-2026-11-26','حصيلة الاقتصاد','جزر القمر','weekly');
  const topic=item('topic-ab12','أخبار الرياضة','','topic');
@@ -254,7 +255,7 @@ test('natural country and category queries tolerate punctuation without fetching
 test('copied Arabic titles and country queries ignore invisible Unicode formatting only for search',async()=>{
  const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
  const controls=['\u061c','\u200c','\u200d','\u200e','\u200f','\u202a','\u202b','\u202c','\u202d','\u202e','\u2066','\u2067','\u2068','\u2069','\ufeff','\u200b','\u00ad','\u2060','\u034f','\u180e','\ufe0f','\u2063','\u{e0001}'];
- const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','أخ\u200dبار الر\u200fياضة',name));
+ const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','أخ\u200dبار الر\u200cياضة',name));
  const {nodes,requests}=setup([page(1,rows,false)]);
  await flush();
  for(const row of rows){

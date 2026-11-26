@@ -32,7 +32,8 @@ function normalizeArabic(value){
  return value.normalize('NFKC').toLowerCase()
   // Search-only folding: keep displayed headlines and original detail URLs.
   .replace(/\p{Default_Ignorable_Code_Point}/gu,'')
-  .replace(/[\u064b-\u065f\u0670\u0640]/g,'')
+  // Fold extended Arabic-script combining marks as well as ordinary harakat.
+  .replace(/\u0640|(?=\p{Script_Extensions=Arabic})\p{Mark}/gu,'')
   .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه')
   // Fold Latin accents (including decomposed French labels) without
   // removing combining marks from other scripts.

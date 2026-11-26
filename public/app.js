@@ -7,7 +7,7 @@ const queryInput=document.getElementById('query');
 const resultBox=document.getElementById('results');
 const statusBox=document.getElementById('status');
 const typeSelect=document.getElementById('typeSelect');
-let country='',allItems=[],loaded=false,currentPage=0,hasMore=false,busy=false;
+let country='',allItems=[],loaded=false,currentPage=0,hasMore=false,busy=false,loadError='';
 const loadMoreButton=document.getElementById('loadMore');
 for(const name of COUNTRY_NAMES){
  const btn=document.createElement('button');btn.className='country';btn.textContent=name;btn.type='button';btn.setAttribute('aria-pressed','false');
@@ -38,6 +38,7 @@ function normalizeArabic(value){
 function render(){
  resultBox.replaceChildren();
  if(!loaded)return;
+ if(currentPage===0&&loadError){statusBox.textContent=loadError;return;}
  const terms=normalizeArabic(queryInput.value).trim().split(/[\s\p{P}]+/u).filter(Boolean);
  // A standalone Arabic preposition in a multiword query is usually a
  // connector between the topic and country, not part of either label.
@@ -50,7 +51,8 @@ function render(){
   return searchTerms.every(term=>title.includes(term)||name.includes(term)||kind.includes(term));
  });
  for(const item of selected)resultBox.append(itemNode(item));
- statusBox.textContent=selected.length?'عدد الحصائل المطابقة ضمن أحدث البيانات المحمّلة: '+selected.length+'؛ افتح الأرشيف الأصلي لاستعراض المزيد.':'لا توجد نتائج مطابقة ضمن أحدث الحصائل المحمّلة. استخدم الأرشيف الأصلي للبحث الأوسع.';
+ const resultStatus=selected.length?'عدد الحصائل المطابقة ضمن أحدث البيانات المحمّلة: '+selected.length+'؛ افتح الأرشيف الأصلي لاستعراض المزيد.':'لا توجد نتائج مطابقة ضمن أحدث الحصائل المحمّلة. استخدم الأرشيف الأصلي للبحث الأوسع.';
+ statusBox.textContent=loadError?loadError+' '+resultStatus:resultStatus;
 }
 // Match the proxy's route classification before deduplication. A mismatched
 // country/kind must not reserve a valid permalink or appear under another tab.
@@ -74,7 +76,7 @@ async function loadMore(){
   });
   if(!response.ok)throw new Error('archive_proxy_unavailable');
   const payload=await response.json();
-  if(!payload||payload.scope!=='latest_archived_pages_only'||!Array.isArray(payload.items)||payload.page!==nextPage)throw new Error('invalid_archive');
+  if(!payload||payload.scope!=='latest_archived_pages_only'||!Array.isArray(payload.items)||payload.page!==nextPage||typeof payload.has_more!=='boolean')throw new Error('invalid_archive');
   const valid=payload.items.filter(validArchiveItem);
   // The same WordPress detail can occur on consecutive pages with or without
   // its trailing slash. Preserve the first admitted permalink verbatim.
@@ -82,11 +84,11 @@ async function loadMore(){
   const seen=new Set(allItems.map(item=>archiveKey(item.link)));
   for(const item of valid){const key=archiveKey(item.link);if(!seen.has(key)){seen.add(key);allItems.push(item);}}
   currentPage=nextPage;
-  hasMore=Boolean(payload.has_more)&&currentPage<10;
-  loaded=true;render();
+  hasMore=payload.has_more&&currentPage<10;
+  loadError='';loaded=true;render();
  }catch{
-  if(currentPage===0){loaded=true;allItems=[];statusBox.textContent='تعذر تحميل أحدث بيانات الأرشيف. افتح الأرشيف الأصلي من الرابط أدناه.';}
-  else{statusBox.textContent='تعذر تحميل الدفعة التالية. يمكنك إعادة المحاولة أو تصفح الأرشيف الأصلي.';}
+  loadError=currentPage===0?'تعذر تحميل أحدث بيانات الأرشيف. افتح الأرشيف الأصلي من الرابط أدناه.':'تعذر تحميل الدفعة التالية. يمكنك إعادة المحاولة أو تصفح الأرشيف الأصلي.';
+  loaded=true;render();
  }finally{
   clearTimeout(timeout);busy=false;loadMoreButton.disabled=false;
   loadMoreButton.textContent='تحميل المزيد من الأرشيف';

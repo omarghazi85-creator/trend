@@ -395,3 +395,21 @@ test('oversized archive page cannot advance the cursor or replace six country re
  assert.equal(nodes.loadMore.hidden,true);
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1','/.netlify/functions/archive?page=2','/.netlify/functions/archive?page=2']);
 });
+
+test('oversized and control-bearing titles cannot reserve six country detail links',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','أ'.repeat(239)+'🌍',name));
+ const invalid=rows.flatMap(row=>['أ'.repeat(241),'🌍'.repeat(241),'حصيلة\u0000 اليوم','حصيلة\u001b اليوم','حصيلة\u0085 اليوم','حصيلة\nاليوم'].map(title=>({...row,title})));
+ const {nodes,requests}=setup([page(1,invalid,true),page(2,rows,false)]);
+ await flush();
+ assert.equal(nodes.results.children.length,0);
+ await nodes.loadMore.dispatch('click');
+ assert.deepEqual(nodes.results.children.map(n=>n.href),rows.map(row=>row.link));
+ assert.deepEqual(nodes.results.children.map(n=>n.children[1].textContent),rows.map(row=>row.title));
+ for(const row of rows){
+  nodes.countrySelect.value=row.country;
+  nodes.countrySelect.dispatch('change');
+  assert.deepEqual(nodes.results.children.map(n=>n.href),[row.link]);
+ }
+ assert.equal(requests.length,2);
+});

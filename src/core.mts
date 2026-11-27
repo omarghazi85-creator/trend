@@ -16,11 +16,24 @@ export const TECHNOLOGY_CATEGORY_ID = 101;
 export const TECHNOLOGY_MIN_WORDS = 500;
 export const TECHNOLOGY_TARGET_WORDS = {minimum: 550,maximum: 700} as const;
 export function countEditorialWords(html:string):number {
- // HTML comments may include > and arbitrary text; do not count either.
- const text=html.replace(/<!--[\s\S]*?(?:-->|$)/g,' ')
- .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
- .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
- .replace(/<[^>]+>/g,' ')
+ // Scan complete tags (quoted attributes may contain angle brackets), and
+ // never count the contents of non-visible containers, even when nested.
+ const hiddenTags=new Set(['script','style','template','noscript','head','title','textarea','iframe']);
+ const hidden:string[]=[];
+ const chunks:string[]=[];
+ let cursor=0;
+ for(const token of html.matchAll(/<!--[\s\S]*?(?:-->|$)|<\/?([a-z][a-z0-9:-]*)(?=[\s/>])(?:"[^"]*"|'[^']*'|[^<>"'])*>/giu)){
+  const start=token.index!;
+  if(hidden.length===0)chunks.push(html.slice(cursor,start));
+  cursor=start+token[0].length;
+  const name=token[1]?.toLowerCase();
+  if(!name||!hiddenTags.has(name))continue;
+  if(token[0].startsWith('</')){
+   if(hidden[hidden.length-1]===name)hidden.pop();
+  }else hidden.push(name);
+ }
+ if(hidden.length===0)chunks.push(html.slice(cursor));
+ const text=chunks.join(' ')
  .replace(/&(?:nbsp|amp|lt|gt|quot|#\d+|#x[0-9a-f]+);/gi,' ')
  .normalize('NFKC').trim();
  return text ? text.split(/\s+/u).filter(word=>/[\p{L}\p{N}]/u.test(word)).length : 0;

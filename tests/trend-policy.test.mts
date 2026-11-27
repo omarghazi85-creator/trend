@@ -480,3 +480,30 @@ test('hidden title attributes and CSS cannot manufacture visible archive or draf
   }
  }
 });
+
+test('ASCII IDNA labels cannot conceal excluded source names in six-country observations',async()=>{
+ const {domainToASCII}=await import('node:url');
+ const {isEditorialSourceUrlAllowed}=await import('../src/trend-policy.mts');
+ for(const country of ['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر']){
+  const safe={title:country+' – مؤشرات الأسواق',source:'google'};
+  for(const label of ['pórnhub','onlyfáns','xvïdeos','rédtube','سكس','إباحي']){
+   const host=domainToASCII(label)+'.com';
+   const url='https://'+host+'/markets';
+   const body=country+' <a href="'+url+'">المصدر</a>';
+   assert.equal(isEditorialSourceUrlAllowed(url),false,url);
+   assert.equal(isEditorialTrendAllowed(body),false,body);
+   assert.equal(isEditorialTrendAllowed(country+' '+host),false,host);
+   assert.deepEqual(filterTrendObservations([safe,{...safe,sourceUrl:url},{...safe,description:body}]),[safe]);
+  }
+  for(const label of ['économie','cafés','جيبوتي','السودان','Essex','sextant']){
+   const host=domainToASCII(label)+'.com';
+   const url='https://'+host+'/markets';
+   const body=country+' <a href="'+url+'">المصدر</a>';
+   const row={...safe,sourceUrl:url,description:body};
+   assert.equal(isEditorialSourceUrlAllowed(url),true,url);
+   assert.equal(isEditorialTrendAllowed(body),true,body);
+   assert.equal(isEditorialTrendAllowed(country+' '+host),true,host);
+   assert.deepEqual(filterTrendObservations([row]),[row]);
+  }
+ }
+});

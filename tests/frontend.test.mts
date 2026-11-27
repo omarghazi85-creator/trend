@@ -553,3 +553,26 @@ test('country aliases cover every remaining Arab country without modifying detai
  }
  assert.equal(requests.length,1);
 });
+
+test('archive day-first dates resolve exact internal detail links for six countries without extra requests',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.flatMap(([code,name])=>['2026-11-26','2026-11-25','2026-01-03'].map(date=>
+  item(code+'-search-'+date,'حصيلة الأسواق',name)));
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ for(const [,name] of entries){
+  for(const [query,date] of [['26/11/2026','2026-11-26'],['٢٦-١١-٢٠٢٦','2026-11-26'],['۲۶/۱۱/۲۰۲۶','2026-11-26'],['3/1/2026','2026-01-03'],['03-01-2026','2026-01-03'],['2026-11-26','2026-11-26']]){
+   const expected=rows.find(row=>row.country===name&&row.date===date);
+   nodes.query.value='حصيلة '+name+' '+query;
+   nodes.searchBtn.dispatch('click');
+   assert.deepEqual(nodes.results.children.map(n=>n.href),[expected.link],query+' '+name);
+   assert.equal(nodes.results.children[0].children[1].textContent,expected.title);
+  }
+ }
+ for(const query of ['31/11/2026','26/11/2026 2026-11-25','26/11-2026']){
+  nodes.query.value=query;
+  nodes.searchBtn.dispatch('click');
+  assert.equal(nodes.results.children.length,0,query);
+ }
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

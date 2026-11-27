@@ -89,3 +89,42 @@ test('oversized UTF-8 preview bodies are rejected before any WordPress request e
   assert.equal(calls,0);
  }finally{globalThis.fetch=old;}
 });
+
+test('malformed or mismatched WordPress lookup rows never permit a draft write',async()=>{
+ const original=globalThis.fetch;
+ const cases=[null,{},[null],[{}],[{id:0,slug:candidate.slug,status:'draft'}],
+  [{id:-1,slug:candidate.slug,status:'draft'}],
+  [{id:1,slug:'different-slug',status:'publish'}],
+  [{id:1,slug:candidate.slug,status:''}],
+  [{id:1,slug:candidate.slug,status:9}],
+  [{id:1,slug:candidate.slug,status:'draft'},{id:2,slug:candidate.slug,status:'publish'}]];
+ try{
+  for(const lookup of cases){
+   const calls:string[]=[];
+   globalThis.fetch=async(_url,opts)=>{
+    calls.push(opts?.method??'GET');
+    return Response.json(lookup);
+   };
+   const response=await preview(request());
+   assert.equal(response.status,502);
+   assert.equal((await response.json()).error,'wordpress_lookup_not_confirmed');
+   assert.deepEqual(calls,['GET']);
+  }
+ }finally{globalThis.fetch=original;}
+});
+test('a nonpositive WordPress ID cannot confirm a newly created draft',async()=>{
+ const original=globalThis.fetch;
+ try{
+  for(const id of [0,-1]){
+   const calls:string[]=[];
+   globalThis.fetch=async(_url,opts)=>{
+    calls.push(opts?.method??'GET');
+    return Response.json(opts?.method==='GET'?[]:{id,slug:candidate.slug,status:'draft'});
+   };
+   const response=await preview(request());
+   assert.equal(response.status,502);
+   assert.equal((await response.json()).error,'wordpress_draft_not_confirmed');
+   assert.deepEqual(calls,['GET','POST']);
+  }
+ }finally{globalThis.fetch=original;}
+});

@@ -41,8 +41,15 @@ export default async function(request:Request):Promise<Response>{
       if(auth)query.set('status','any');
       const res=await requestWP('/wp-json/wp/v2/posts?'+query.toString(),{method:'GET',headers:auth?{authorization:auth}:{}});
       if(!res.ok)return Response.json({error:'wordpress_lookup_failed',status:res.status,results},{status:502});
-      found=await res.json() as RemotePost[];
-      if(!Array.isArray(found))throw new Error('invalid_wordpress_response');
+      const lookup:unknown=await res.json();
+      // An unexpected or partial lookup cannot prove absence of a post.
+      // Fail closed instead of creating a draft alongside an editor's work.
+      if(!Array.isArray(lookup)||lookup.length>1||
+         !lookup.every(post=>post&&typeof post==='object'&&
+          Number.isSafeInteger(post.id)&&post.id>0&&post.slug===candidate.slug&&
+          typeof post.status==='string'&&post.status.trim().length>0))
+       return Response.json({error:'wordpress_lookup_not_confirmed',results},{status:502});
+      found=lookup as RemotePost[];
     }catch{return Response.json({error:'wordpress_unreachable',results},{status:502});}
     const plan=planCandidate(candidate,found);
     if(!writeRequested||plan.action==='skip_existing'){
@@ -54,7 +61,7 @@ export default async function(request:Request):Promise<Response>{
       if(!res.ok)return Response.json({error:'wordpress_draft_failed',status:res.status,results},{status:502});
       const created=await res.json() as {id?:number;slug?:string;status?:string};
       // A WordPress success HTTP status does not prove the exact requested draft was created.
-      if(!Number.isSafeInteger(created?.id)||created.slug!==candidate.slug||created.status!=='draft')return Response.json({error:'wordpress_draft_not_confirmed',results},{status:502});
+      if(!Number.isSafeInteger(created?.id)||(created.id as number)<=0||created.slug!==candidate.slug||created.status!=='draft')return Response.json({error:'wordpress_draft_not_confirmed',results},{status:502});
       results.push({slug:candidate.slug,action:'created_draft',id:created.id});
     }catch{return Response.json({error:'wordpress_draft_unreachable',results},{status:502});}
   }

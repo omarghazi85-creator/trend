@@ -446,3 +446,37 @@ test('block-level word boundaries expose split excluded labels before archive or
   assert.deepEqual(filterTrendObservations([...rejected,...admitted]),admitted,country);
  }
 });
+
+
+test('hidden title attributes and CSS cannot manufacture visible archive or draft headlines',async()=>{
+ const {isEditorialTitleAllowed,isEditorialObservationAllowed}=await import('../src/trend-policy.mts');
+ const countries=['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر'];
+ for(const country of countries){
+  const rejected=[
+   '<span hidden>'+country+'</span>',
+   '<b HIDDEN="false">'+country+'</b>',
+   '<span title="safe > label"hidden>'+country+'</span>',
+   '<span style="color:red; display: none !important">'+country+'</span>',
+   '<span style="visibility: collapse">'+country+'</span>',
+   '<span style="content-visibility:hidden">'+country+'</span>',
+   '<span style="dis/**/play:none">'+country+'</span>',
+   '<span style="d\\69 splay:none">'+country+'</span>',
+   '&lt;span hidden&gt;'+country+'&lt;/span&gt;'
+  ];
+  const safe=[
+   country,'<b>'+country+'</b>','<span title="hidden">'+country+'</span>',
+   '<span data-hidden="true">'+country+'</span>',
+   '<span style="--display:none;color:red">'+country+'</span>',
+   '<span style="display:inline;visibility:visible">'+country+'</span>'
+  ];
+  for(const title of rejected){
+   assert.equal(isEditorialTitleAllowed(title),false,title);
+   assert.equal(isEditorialObservationAllowed({title,source:'google'}),false,title);
+   assert.equal(isEditorialObservationAllowed({title:country,name:title,source:'google'}),false,title);
+  }
+  for(const title of safe){
+   assert.equal(isEditorialTitleAllowed(title),true,title);
+   assert.equal(isEditorialObservationAllowed({title,source:'google'}),true,title);
+  }
+ }
+});

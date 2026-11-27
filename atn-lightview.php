@@ -43,7 +43,7 @@ function atn_lightview_archive_link_allowed($url) {
  */
 function atn_lightview_archive_period($slug, $published) {
     if (!is_string($slug) || !is_string($published) ||
-        !preg_match('~^[a-z]{2}-(?:search|music|week)-(\\d{4})-(\\d{2})-(\\d{2})(?:-[a-z0-9]+)?$~D', $slug, $matches)) {
+        !preg_match('~^[a-z]{2}-(?:search|music|week)-(\\d{4})-(\\d{2})-(\\d{2})(?:-[a-z0-9]+)*$~D', $slug, $matches)) {
         return $published;
     }
     if (!checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
@@ -324,7 +324,7 @@ function atn_lightview_archive_focus_linked_card($entry, $detail) {
 function atn_lightview_archive_focus_post($post) {
     return $post instanceof WP_Post && $post->post_type === 'page' &&
         $post->post_status === 'publish' && (int) $post->post_parent === 61269 &&
-        preg_match('~^[a-z]{2}-(?:search|music|week)-\d{4}-\d{2}-\d{2}(?:-[a-z0-9]+)?$~D',
+        preg_match('~^[a-z]{2}-(?:search|music|week)-\d{4}-\d{2}-\d{2}(?:-[a-z0-9]+)*$~D',
             $post->post_name) && !atn_lightview_archive_detail_blocked($post);
 }
 function atn_lightview_archive_focus_key() {
@@ -842,7 +842,7 @@ function atn_lightview_native_topic_url($url) {
     if (isset($parts['query']) || isset($parts['fragment'])) { return ''; }
     $countries = atn_lightview_country_codes();
     $pattern = '~^' . preg_quote($base, '~') .
-        '/trend-archive/([a-z]{2})-(search|music|week)-(\d{4})-(\d{2})-(\d{2})(?:-[a-z0-9]+)?$~D';
+        '/trend-archive/([a-z]{2})-(search|music|week)-(\d{4})-(\d{2})-(\d{2})(?:-[a-z0-9]+)*$~D';
     if (preg_match($pattern, $path, $m) && isset($countries[$m[1]]) &&
         checkdate((int) $m[4], (int) $m[5], (int) $m[3]) &&
         atn_lightview_archive_link_allowed($url)) { return $url; }
@@ -1002,7 +1002,7 @@ add_action('wp_footer', function () {
           // Country cards can already contain a real internal archive action.
           // Reuse only its verified permalink; leave thumbnails and source
           // buttons untouched, even for Sudan, Somalia, Djibouti and Comoros.
-          var m=/^\/trend-archive\/([a-z]{2})-(search|music|week)-(\d{4})-(\d{2})-(\d{2})(?:-[a-z0-9]+)?$/.exec(path);
+          var m=/^\/trend-archive\/([a-z]{2})-(search|music|week)-(\d{4})-(\d{2})-(\d{2})(?:-[a-z0-9]+)*$/.exec(path);
           if(m&&!u.search&&!u.hash&&' sa ae eg kw qa bh om jo lb iq sy sd ps ye ly tn dz ma mr so dj km '.indexOf(' '+m[1]+' ')!==-1){
             var day=m[3]+'-'+m[4]+'-'+m[5];
             if(new Date(day+'T00:00:00Z').toISOString().slice(0,10)===day)return u.href;

@@ -41,6 +41,16 @@ function normalizeArabic(value){
   .replace(/œ/g,'oe').replace(/æ/g,'ae')
   .replace(/[\u0660-\u0669\u06f0-\u06f9]/gu,digit=>String(digit.charCodeAt(0)&15));
 }
+// Match common alternate country labels in archive searches only. Never
+// rewrite the original country label, archive permalink or selected filter.
+const countryAliases=new Map([
+ ['السعودية',['saudi','arabia','arabie','saoudite']],
+ ['مصر',['egypt','égypte']],
+ ['السودان',['sudan','soudan']],
+ ['الصومال',['somalia','somalie','صوماليا','سوماليا']],
+ ['جيبوتي',['djibouti','جیبوتی','دجيبوتي']],
+ ['جزر القمر',['comoros','comores','جزرالقمر']]
+].map(([name,aliases])=>[name,new Set(aliases.map(normalizeArabic))]));
 function render(){
  resultBox.replaceChildren();
  if(!loaded)return;
@@ -59,7 +69,7 @@ function render(){
   if((country&&item.country!==country)||(typeSelect.value&&item.kind!==typeSelect.value)||dates.some(date=>date!==item.date))return false;
   const title=normalizeArabic(item.title),name=normalizeArabic(item.country);
   const kind=normalizeArabic(kindLabels[item.kind]||'');
-  return searchTerms.every(term=>title.includes(term)||name.includes(term)||kind.includes(term));
+  return searchTerms.every(term=>title.includes(term)||name.includes(term)||kind.includes(term)||countryAliases.get(item.country)?.has(term));
  });
  for(const item of selected)resultBox.append(itemNode(item));
  const resultStatus=selected.length?'عدد الحصائل المطابقة ضمن أحدث البيانات المحمّلة: '+selected.length+'؛ افتح الأرشيف الأصلي لاستعراض المزيد.':'لا توجد نتائج مطابقة ضمن أحدث الحصائل المحمّلة. استخدم الأرشيف الأصلي للبحث الأوسع.';

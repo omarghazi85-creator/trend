@@ -67,6 +67,25 @@ function atn_lightview_archive_title_allowed($title) {
         // Feed aggregators can leave literal JSON or hex escapes in archived labels.
         // Resolve before the CSS scanner can consume their leading backslashes.
         if (strpos($decoded, '\\') !== false) {
+            // Resolve bounded Unicode scalar escapes before the CSS scanner.
+            // Invalid or unfinished braced escapes fail closed, as in the worker.
+            $invalid_scalar = false;
+            $decoded = preg_replace_callback(
+                '~\\\\u\{([0-9a-f]{1,6})\}~i',
+                static function ($m) use (&$invalid_scalar) {
+                    $point = hexdec($m[1]);
+                    if ($point < 1 || $point > 0x10ffff || ($point >= 0xd800 && $point <= 0xdfff)) {
+                        $invalid_scalar = true;
+                        return $m[0];
+                    }
+                    if ($point < 128) { return chr($point); }
+                    $entity = '&#' . $point . ';';
+                    $value = html_entity_decode($entity, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                    if ($value === $entity) { $invalid_scalar = true; }
+                    return $value;
+                }, $decoded
+            );
+            if ($invalid_scalar || !is_string($decoded)) { return false; }
             $decoded = preg_replace_callback(
                 '~\\\\(?:u([0-9a-f]{4})|x([0-9a-f]{2}))~i',
                 static function ($m) {
@@ -87,7 +106,7 @@ function atn_lightview_archive_title_allowed($title) {
     }
     if (preg_match('/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i', $title) ||
         preg_match('/%[0-9a-f]{2}/i', $title) ||
-        preg_match('~\\\\(?:u[0-9a-f]{4}|x[0-9a-f]{2})~i', $title)) { return false; }
+        preg_match('~\\\\(?:u\{|u[0-9a-f]{4}|x[0-9a-f]{2})~i', $title)) { return false; }
     $raw_title = $title;
     // CSS escapes such as \6a avascript: or ur\6c(...) are resolved by
     // browsers inside style attributes. Scan their decoded form as well.

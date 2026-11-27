@@ -168,3 +168,26 @@ test('draft creation requests only the fields needed to confirm the exact draft'
   assert.deepEqual(calls,['GET','POST']);
  }finally{globalThis.fetch=original;}
 });
+
+test('oversized declared preview requests cancel without reading or waiting for cancellation',{timeout:1000},async()=>{
+ const old=globalThis.fetch;let calls=0;
+ globalThis.fetch=async()=>{calls++;throw Error('unexpected WordPress request');};
+ try{
+  for(const declared of ['120001','99999999999999999999','1e6']){
+   for(const cancel of [()=>undefined,()=>Promise.reject(new Error('cancel failed')),()=>new Promise<void>(()=>{})]){
+    let reads=0,cancellations=0;
+    const body=new ReadableStream<Uint8Array>({
+     pull(c){reads++;c.enqueue(new Uint8Array(1));},
+     cancel(){cancellations++;return cancel();}
+    },{highWaterMark:0});
+    const req=new Request(endpoint,{method:'POST',duplex:'half',headers:{'content-type':'application/json','x-atn-worker-secret':config.ATN_WORKER_SECRET,'content-length':declared},body} as RequestInit);
+    const response=await preview(req);
+    assert.equal(response.status,413);
+    assert.deepEqual(await response.json(),{error:'payload_too_large'});
+    assert.equal(reads,0);
+    assert.equal(cancellations,1);
+   }
+  }
+  assert.equal(calls,0);
+ }finally{globalThis.fetch=old;}
+});

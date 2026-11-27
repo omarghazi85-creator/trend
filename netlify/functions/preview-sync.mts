@@ -15,7 +15,6 @@ async function requestWP(path:string,options:RequestInit):Promise<Response>{
 export default async function(request:Request):Promise<Response>{
   if(request.method!=='POST') return Response.json({error:'method_not_allowed'},{status:405});
   if(!authorized(request)) return Response.json({error:'unauthorized'},{status:401});
-  if(Number(request.headers.get('content-length')||0)>120000) return Response.json({error:'payload_too_large'},{status:413});
   let body:unknown;
   try{body=await readBoundedJson(request,120000);}catch(error){
     const tooLarge=error instanceof Error&&error.message==='payload_too_large';

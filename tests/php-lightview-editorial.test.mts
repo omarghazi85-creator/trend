@@ -346,3 +346,33 @@ test('PHP archive matches extended Arabic marks and explicit French descriptors 
  assert.equal(result.status,0,result.stderr);
  assert.deepEqual(JSON.parse(result.stdout),[...blocked.map(()=>false),...allowed.map(()=>true)]);
 });
+
+
+test('PHP archive decodes bounded braced Unicode escapes before editorial and source checks',t=>{
+ const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
+ if(runtime.error){t.skip('PHP CLI unavailable');return;}
+ const guard=php.match(/function atn_lightview_archive_title_allowed\(\$title\) \{[\s\S]*?\n\}/)?.[0];
+ assert.ok(guard);
+ const countries=['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر'];
+ const bad=countries.flatMap(country=>[
+  'حصيلة '+country+' p\\u{6f}rnographic',
+  'حصيلة '+country+' only\\u{000066}ans',
+  'حصيلة '+country+' p\\u{110000}orn',
+  'حصيلة '+country+' p\\u{D800}orn',
+  'حصيلة '+country+' p\\u{6f',
+  'حصيلة '+country+' p\\u{0}orn',
+  'حصيلة '+country+' p\\u{0000000}orn',
+  'حصيلة '+country+' p%255Cu%257B6f%257Drn',
+  'حصيلة '+country+' <a href="https://example.com/ref/only%5Cu%7B66%7Dans">خبر</a>'
+ ]);
+ const good=countries.flatMap(country=>[
+  country+' Weather \\u{1F324}',country+' Local \\u{73}ports',
+  country+' Développement économique',country+' أخبار الأسواق',
+  country+' <a href="https://example.com/sports">المصدر الأصلي</a>'
+ ]);
+ const script='function wp_strip_all_tags($s){return strip_tags($s);}\n'+guard+
+  '\necho json_encode(array_map("atn_lightview_archive_title_allowed",json_decode(stream_get_contents(STDIN),true)));';
+ const result=spawnSync('php',['-r',script],{input:JSON.stringify([...bad,...good]),encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[...bad.map(()=>false),...good.map(()=>true)]);
+});

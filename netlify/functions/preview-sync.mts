@@ -52,6 +52,13 @@ export default async function(request:Request):Promise<Response>{
           Number.isSafeInteger(post.id)&&post.id>0&&post.slug===candidate.slug&&
           typeof post.status==='string'&&post.status.trim().length>0))
        return Response.json({error:'wordpress_lookup_not_confirmed',results},{status:502});
+      // WordPress collection headers, when present, must corroborate an empty
+      // lookup before a draft can be created. A positive or malformed total
+      // means the empty response cannot establish absence. No extra request.
+      if(lookup.length===0&&['x-wp-total','x-wp-totalpages'].some(name=>{
+        const value=res.headers.get(name);
+        return value!==null&&value!=='0';
+      }))return Response.json({error:'wordpress_lookup_not_confirmed',results},{status:502});
       found=lookup as RemotePost[];
     }catch{return Response.json({error:'wordpress_unreachable',results},{status:502});}
     const plan=planCandidate(candidate,found);

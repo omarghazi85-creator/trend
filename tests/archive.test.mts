@@ -645,3 +645,25 @@ test('proxy rejects invisible clipped labels before they can reserve valid prior
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test('malformed complete dates cannot masquerade as legacy archive slugs across six countries',async()=>{
+ const original=globalThis.fetch;
+ const countries=['sa','eg','sd','so','dj','km'];
+ const make=(country:string,suffix:string)=> {
+  const slug=country+'-search-'+suffix;
+  return {...payload.posts[0],slug,URL:'https://arabiatrend.com/trend-archive/'+slug,title:'حصيلة البحث المحلية',date:'2026-11-25T10:00:00Z'};
+ };
+ const bad=countries.flatMap(c=>['2026-1-09','2026-11-9','2026-011-09','2026-11-009-2'].map(s=>make(c,s)));
+ const good=countries.flatMap(c=>['2026-11-09-local-update','2026-11','legacy'].map(s=>make(c,s)));
+ let calls=0;
+ globalThis.fetch=async()=>{calls++;return Response.json({found:bad.length+good.length,posts:[...bad,...good]});};
+ try{
+  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+  assert.equal(response.status,200);
+  const data=await response.json();
+  assert.deepEqual(data.items.map((x:{link:string})=>x.link),good.map(x=>x.URL));
+  assert.deepEqual(data.items.map((x:{date:string})=>x.date),countries.flatMap(()=>['2026-11-09','2026-11-25','2026-11-25']));
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=original;}
+});

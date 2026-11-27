@@ -1,8 +1,10 @@
-import {readBoundedJson} from '../../src/bounded-json.mts';
+import {readBoundedJson,readBoundedJsonStream} from '../../src/bounded-json.mts';
 import {planCandidate,validateCandidate,wordpressPayload,type RemotePost} from '../../src/core.mts';
 declare const Netlify:{env:{get(name:string):string|undefined}};
 const ORIGIN='https://arabiatrend.com';
 const MAX_ITEMS=3;
+// Only id, slug and status are required; cap the decoded upstream response.
+const MAX_WP_RESPONSE_BYTES=65536;
 function authorized(request:Request):boolean {
   const secret=Netlify.env.get('ATN_WORKER_SECRET');
   return !!secret && secret.length>=24 && request.headers.get('x-atn-worker-secret')===secret;
@@ -41,7 +43,9 @@ export default async function(request:Request):Promise<Response>{
       if(auth)query.set('status','any');
       const res=await requestWP('/wp-json/wp/v2/posts?'+query.toString(),{method:'GET',headers:auth?{authorization:auth}:{}});
       if(!res.ok)return Response.json({error:'wordpress_lookup_failed',status:res.status,results},{status:502});
-      const lookup:unknown=await res.json();
+      let lookup:unknown;
+      try{lookup=await readBoundedJsonStream(res.body,res.headers.get('content-length'),MAX_WP_RESPONSE_BYTES);}
+      catch{return Response.json({error:'wordpress_lookup_not_confirmed',results},{status:502});}
       // An unexpected or partial lookup cannot prove absence of a post.
       // Fail closed instead of creating a draft alongside an editor's work.
       if(!Array.isArray(lookup)||lookup.length>1||
@@ -57,9 +61,11 @@ export default async function(request:Request):Promise<Response>{
       continue;
     }
     try{
-      const res=await requestWP('/wp-json/wp/v2/posts',{method:'POST',headers:{authorization:auth!,'content-type':'application/json'},body:JSON.stringify(wordpressPayload(candidate))});
+      const res=await requestWP('/wp-json/wp/v2/posts?_fields=id,slug,status',{method:'POST',headers:{authorization:auth!,'content-type':'application/json'},body:JSON.stringify(wordpressPayload(candidate))});
       if(!res.ok)return Response.json({error:'wordpress_draft_failed',status:res.status,results},{status:502});
-      const created=await res.json() as {id?:number;slug?:string;status?:string};
+      let created:{id?:number;slug?:string;status?:string};
+      try{created=await readBoundedJsonStream(res.body,res.headers.get('content-length'),MAX_WP_RESPONSE_BYTES) as typeof created;}
+      catch{return Response.json({error:'wordpress_draft_not_confirmed',results},{status:502});}
       // A WordPress success HTTP status does not prove the exact requested draft was created.
       if(!Number.isSafeInteger(created?.id)||(created.id as number)<=0||created.slug!==candidate.slug||created.status!=='draft')return Response.json({error:'wordpress_draft_not_confirmed',results},{status:502});
       results.push({slug:candidate.slug,action:'created_draft',id:created.id});

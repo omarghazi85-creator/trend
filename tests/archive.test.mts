@@ -694,3 +694,27 @@ test('archive display preserves block word boundaries and inline continuity for 
   assert.equal(calls,1);
  }finally{globalThis.fetch=original;}
 });
+
+
+test('archive rejects noncanonical pagination cache keys without an upstream request',async()=>{
+ const original=globalThis.fetch;
+ const calls:string[]=[];
+ globalThis.fetch=async(input:RequestInfo|URL)=>{calls.push(String(input));return Response.json(payload);};
+ try{
+  const base='https://preview.example/.netlify/functions/archive';
+  for(const query of ['?page=1&page=2','?page=1&page=1','?page=2&','?page=%32','?%70age=2','?page=2&nonce=123','?nonce=123&page=2','?nonce=123','?page=2&Page=2','?page=2;nonce=123','?page=0','?page=11','?page=02','?page=','?page=2%0A']){
+   const r=await archive(new Request(base+query));
+   assert.equal(r.status,400,query);
+   assert.equal(r.headers.get('cache-control'),'no-store',query);
+   assert.equal((await r.json()).error,'invalid_page',query);
+  }
+  assert.deepEqual(calls,[]);
+  for(const [query,page] of [['',1],...Array.from({length:10},(_,i)=>['?page='+(i+1),i+1])] as [string,number][]){
+   const r=await archive(new Request(base+query));
+   assert.equal(r.status,200,query);
+   assert.equal((await r.json()).page,page,query);
+   assert.equal(new URL(calls[calls.length-1]).searchParams.get('offset'),String((page-1)*100),query);
+  }
+  assert.equal(calls.length,11);
+ }finally{globalThis.fetch=original;}
+});

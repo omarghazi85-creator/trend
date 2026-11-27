@@ -576,3 +576,28 @@ test('archive day-first dates resolve exact internal detail links for six countr
  }
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
 });
+
+test('date-only natural Arabic queries ignore the connector without losing literal searches',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.flatMap(([code,name])=>['2026-11-26','2026-11-25'].map(date=>
+  item(code+'-search-'+date,'حصيلة الأسواق',name)));
+ const topic={...item('topic-ab12','في المدينة','','topic'),date:'2026-11-25'};
+ const {nodes,requests}=setup([page(1,[...rows,topic],false)]);
+ await flush();
+ const search=(query,expected)=>{
+  nodes.query.value=query;
+  nodes.searchBtn.dispatch('click');
+  assert.deepEqual(nodes.results.children.map(n=>n.href),expected,query);
+ };
+ const dayLinks=rows.filter(row=>row.date==='2026-11-26').map(row=>row.link);
+ for(const query of ['في 26/11/2026','في ٢٦-١١-٢٠٢٦','في ۲۶/۱۱/۲۰۲۶','في 2026-11-26','26/11/2026 في','26/11/2026']){
+  search(query,dayLinks);
+ }
+ for(const [,name] of entries){
+  search(name+' في 26/11/2026',rows.filter(row=>row.country===name&&row.date==='2026-11-26').map(row=>row.link));
+ }
+ search('في',[topic.link]);
+ search('في 26/11/2026 25/11/2026',[]);
+ search('في في',[topic.link]);
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

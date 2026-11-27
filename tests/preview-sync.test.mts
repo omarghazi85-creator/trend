@@ -128,3 +128,43 @@ test('a nonpositive WordPress ID cannot confirm a newly created draft',async()=>
   }
  }finally{globalThis.fetch=original;}
 });
+
+test('oversized or malformed WordPress responses fail closed without additional requests',async()=>{
+ const original=globalThis.fetch;
+ const invalidResponses=[
+  ()=>new Response('[]',{headers:{'content-length':'65537'}}),
+  ()=>new Response(JSON.stringify('ا'.repeat(33000))),
+  ()=>new Response(JSON.stringify('ا'.repeat(33000)),{headers:{'content-length':'1'}}),
+  ()=>new Response(new Uint8Array([0xff,0xfe])),
+  ()=>new Response('{unfinished')
+ ];
+ try{
+  for(const stage of ['GET','POST'])for(const invalid of invalidResponses){
+   const calls:string[]=[];
+   globalThis.fetch=async(_url,opts)=>{
+    const method=opts?.method??'GET';calls.push(method);
+    return method===stage?invalid():Response.json([]);
+   };
+   const response=await preview(request());
+   assert.equal(response.status,502);
+   assert.equal((await response.json()).error,stage==='GET'?'wordpress_lookup_not_confirmed':'wordpress_draft_not_confirmed');
+   assert.deepEqual(calls,stage==='GET'?['GET']:['GET','POST']);
+  }
+ }finally{globalThis.fetch=original;}
+});
+test('draft creation requests only the fields needed to confirm the exact draft',async()=>{
+ const original=globalThis.fetch;const calls:string[]=[];
+ try{
+  globalThis.fetch=async(url,opts)=>{
+   const method=opts?.method??'GET';calls.push(method);
+   assert.equal(new URL(String(url)).searchParams.get('_fields'),'id,slug,status');
+   if(method==='GET')return Response.json([]);
+   assert.equal(JSON.parse(String(opts?.body)).status,'draft');
+   return Response.json({id:991,slug:candidate.slug,status:'draft'});
+  };
+  const response=await preview(request());
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).results[0].action,'created_draft');
+  assert.deepEqual(calls,['GET','POST']);
+ }finally{globalThis.fetch=original;}
+});

@@ -83,10 +83,11 @@ const terms=[
  'nude','nudity','erotica','erotic','gay','lesbian','explicit sex',
  'مثلي','مثليه','المثليه','شذوذ جنسي','محتوى اباحي','محتوي اباحي',
 ];
-export function normalizeTrendText(raw:string,keepMarkup=false):string {
+export function normalizeTrendText(raw:string,keepMarkup=false,preserveBlockBoundaries=false):string {
  const decoded=decodeEditorialText(raw);
  if(decoded===null)return '';
- return (keepMarkup?decoded:decoded.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'')).normalize('NFKC').toLowerCase()
+ return (keepMarkup?decoded:decoded.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,tag=>
+   preserveBlockBoundaries&&/^<\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|footer|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|tbody|td|tfoot|th|thead|tr|ul)(?=[\s/>])/iu.test(tag)?' ':'')).normalize('NFKC').toLowerCase()
   // Do not erase an unresolved nested &amp; layer: the gate must fail closed.
   .replace(/&(?:nbsp|lt|gt|quot);/gi,' ')
   // Remove Arabic-script combining marks beyond the common harakat block.
@@ -184,15 +185,17 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
  // HTML href/src attribute disappears when tags are stripped, allowing a
  // harmless-looking headline or draft body to conceal a prohibited source.
  const normalized=normalizeTrendText(title);
+ // HTML block boundaries separate visible words; preserve inline continuity
+ // as well so an excluded word cannot hide between adjacent paragraphs.
+ const blockText=normalizeTrendText(title,false,true);
  const decoded=decodeEditorialText(title);
  const markup=normalizeTrendText(decoded===null?'':decodeCssEscapes(decoded),true);
  // Match the visible-label admission rule before observations reach any adapter.
  return /[^\s\p{Default_Ignorable_Code_Point}\p{Mark}\p{Cc}\u0640]/u.test(normalized) &&
   !hasUnsafeEmbeddedScheme(title) &&
   !/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(normalized) &&
-  !patterns.some(p=>p.test(normalized)||p.test(markup)) &&
-  !explicitArabicPattern.test(normalized) && !explicitArabicPattern.test(markup) &&
-  !hasObfuscatedBrand(normalized) && !hasObfuscatedBrand(markup);
+  ![normalized,markup,blockText].some(value=>
+   patterns.some(p=>p.test(value))||explicitArabicPattern.test(value)||hasObfuscatedBrand(value));
 }
 /**
  * Source destinations must be HTTPS and safe after URL and percent decoding.

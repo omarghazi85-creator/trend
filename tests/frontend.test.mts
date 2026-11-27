@@ -497,3 +497,38 @@ test('archive-day search matches exact dates in three digit scripts across six c
  assert.deepEqual(nodes.results.children.map(n=>n.href),rows.map(row=>row.link));
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
 });
+
+test('multilingual country aliases preserve original internal archive links without additional requests',async()=>{
+ const entries=[
+  ['sa','السعودية',['Saudi Arabia','Arabie saoudite']],
+  ['eg','مصر',['Egypt','Égypte']],
+  ['sd','السودان',['Sudan','Soudan']],
+  ['so','الصومال',['Somalia','Somalie','صوماليا','سوماليا']],
+  ['dj','جيبوتي',['Djibouti','دجيبوتي','جیبوتی']],
+  ['km','جزر القمر',['Comoros','Comores','جزرالقمر']]
+ ] as const;
+ const rows=entries.map(([code,name])=>{
+  const row=item(code+'-search-2026-11-26','مؤشرات الأسواق',name);
+  return {...row,link:row.link+'/'};
+ });
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ for(const [i,[,name,aliases]] of entries.entries()){
+  for(const query of [name,...aliases,...aliases.map(alias=>alias+' مؤشرات الأسواق')]){
+   nodes.query.value=query;
+   nodes.searchBtn.dispatch('click');
+   assert.deepEqual(nodes.results.children.map(n=>n.href),[rows[i].link],query);
+   assert.equal(nodes.results.children[0].children[1].textContent,rows[i].title);
+  }
+ }
+ nodes.query.value='Somalia';
+ nodes.countrySelect.value='مصر';
+ nodes.countrySelect.dispatch('change');
+ assert.equal(nodes.results.children.length,0);
+ nodes.countrySelect.value='';
+ nodes.countrySelect.dispatch('change');
+ nodes.query.value='sud';
+ nodes.searchBtn.dispatch('click');
+ assert.equal(nodes.results.children.length,0);
+ assert.equal(requests.length,1);
+});

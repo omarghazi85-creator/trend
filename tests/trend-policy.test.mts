@@ -419,3 +419,30 @@ test('Arabic-script combining marks beyond common harakat cannot hide excluded l
    assert.equal(isEditorialTrendAllowed(label),true,label);
  }
 });
+
+
+test('block-level word boundaries expose split excluded labels before archive or observation admission',()=>{
+ const blocked=[
+  '<p>news</p><p>po<b>rn</b></p><p>today</p>',
+  '<div>خبر</div><div>س<span>ك</span>س</div><div>اليوم</div>',
+  '<td>actualité</td><td>porno<span>graphie</span></td><td>locale</td>',
+  '<div>news</div><div>Only<b>Fans</b></div><div>today</div>',
+  'خبر<br>إبا<b>حي</b><br>اليوم',
+  '<li>news</li><li>p<span>orn</span></li><li>today</li>'
+ ];
+ const safe=[
+  '<p>Essex</p><p>county</p>',
+  '<p>Économie</p><p>locale</p>',
+  '<div>مؤشرات</div><div>الأسواق</div>',
+  '<p>Somali cafés</p><p>today</p>',
+  '<p>only family</p><p>news</p>',
+  '<p>5 &lt; 10</p><p>today</p>'
+ ];
+ for(const country of ['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر']){
+  for(const value of blocked)assert.equal(isEditorialTrendAllowed(country+value),false,country+value);
+  for(const value of safe)assert.equal(isEditorialTrendAllowed(country+value),true,country+value);
+  const admitted=safe.map(description=>({title:country+' – الأسواق',description}));
+  const rejected=blocked.map(description=>({title:country+' – الأسواق',description}));
+  assert.deepEqual(filterTrendObservations([...rejected,...admitted]),admitted,country);
+ }
+});

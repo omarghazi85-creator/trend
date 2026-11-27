@@ -93,3 +93,23 @@ test('technology word minimum excludes hidden comments and punctuation-only padd
  assert.equal(countEditorialWords('AI 2026: 25% نمو'),4);
  assert.equal(validateCandidate({...base,categoryIds:[101],content:'خبر تقني '.repeat(250)}).categoryIds?.[0],101);
 });
+
+
+test('technology count ignores quoted attributes and nested non-visible containers',async()=>{
+ const {countEditorialWords}=await import('../src/core.mts');
+ const short='خبر تقني '.repeat(200);
+ const filler='كلمات مخفية '.repeat(100);
+ for(const padding of [
+  '<p data-description="> '+filler+'"> </p>',
+  '<template>'+filler+'</template>',
+  '<template><template>'+filler+'</template>'+filler+'</template>',
+  '<noscript>'+filler+'</noscript>',
+  '<template>'+filler,
+  '<style data-info=">">'+filler+'</style>'
+ ]){
+  assert.equal(countEditorialWords(short+padding),400);
+  assert.throws(()=>validateCandidate({...base,categoryIds:[101],content:short+padding}),/technology_article_below_500_words/);
+ }
+ assert.equal(countEditorialWords('<p title="a > b">أخبار السودان</p><template>hidden</template><p>جيبوتي</p>'),3);
+ assert.equal(countEditorialWords('<p>مقارنة 5 < 10</p>'),3);
+});

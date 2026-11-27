@@ -601,3 +601,14 @@ test('date-only natural Arabic queries ignore the connector without losing liter
  search('في في',[topic.link]);
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
 });
+
+
+test('malformed complete archive dates cannot reserve or display misleading country links',async()=>{
+ const countries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const bad=countries.flatMap(([c,name])=>['2026-1-09','2026-11-9','2026-011-09','2026-11-009-2'].map(s=>item(c+'-search-'+s,'حصيلة '+name,name)));
+ const good=countries.flatMap(([c,name])=>['2026-11-09-local-update','2026-11','legacy'].map(s=>item(c+'-search-'+s,'حصيلة '+name,name)));
+ const {nodes,requests}=setup([page(1,[...bad,...good],false)]);
+ await flush();
+ assert.deepEqual(nodes.results.children.map(x=>x.href),good.map(x=>x.link));
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

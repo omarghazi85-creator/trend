@@ -2,7 +2,11 @@
  * Shared by authenticated preview requests and the read-only archive transport.
  */
 export async function readBoundedJsonStream(body:ReadableStream<Uint8Array>|null,declared:string|null,maxBytes:number):Promise<unknown>{
- if(declared!==null&&(!/^\d+$/.test(declared)||Number(declared)>maxBytes))throw new Error('payload_too_large');
+ if(declared!==null&&(!/^\d+$/.test(declared)||Number(declared)>maxBytes)){
+  // Request cancellation but never wait for an uncooperative upstream.
+  if(body)void body.cancel('payload_too_large').catch(()=>{});
+  throw new Error('payload_too_large');
+ }
  if(!body)throw new Error('invalid_json');
  const reader=body.getReader();
  const chunks:Uint8Array[]=[];
@@ -14,7 +18,8 @@ export async function readBoundedJsonStream(body:ReadableStream<Uint8Array>|null
    if(!value)continue;
    size+=value.byteLength;
    if(size>maxBytes){
-    await reader.cancel('payload_too_large');
+    // Cancellation may reject or remain pending; preserve the size-limit error.
+    void reader.cancel('payload_too_large').catch(()=>{});
     throw new Error('payload_too_large');
    }
    chunks.push(value);

@@ -72,3 +72,24 @@ test('draft title admission rejects hidden and incomplete markup before synchron
   assert.equal(validateCandidate({...base,title}).title,title);
  }
 });
+
+
+test('technology word minimum excludes hidden comments and punctuation-only padding',async()=>{
+ const {countEditorialWords}=await import('../src/core.mts');
+ const short='خبر تقني '.repeat(200);
+ for(const padding of [
+  '<!-- > '+'كلمات مخفية '.repeat(100)+'-->',
+  '! ؟ ، — '.repeat(100),
+  '<!-- > '+'كلمات مخفية '.repeat(100)
+ ]){
+  assert.equal(countEditorialWords(short+padding),400);
+  assert.throws(()=>validateCandidate({...base,categoryIds:[101],content:short+padding}),/technology_article_below_500_words/);
+ }
+ assert.equal(countEditorialWords('<p>Actualités des Comores</p> — 2026'),4);
+ assert.equal(countEditorialWords('أخبار السودان والصومال وجيبوتي ومصر والسعودية'),6);
+ assert.equal(countEditorialWords('خبر تقني '.repeat(250)),500);
+ assert.equal(countEditorialWords('<p>خبر&nbsp;تقني</p>'),2);
+ assert.equal(countEditorialWords('\u200b \u0301 ! ؟'),0);
+ assert.equal(countEditorialWords('AI 2026: 25% نمو'),4);
+ assert.equal(validateCandidate({...base,categoryIds:[101],content:'خبر تقني '.repeat(250)}).categoryIds?.[0],101);
+});

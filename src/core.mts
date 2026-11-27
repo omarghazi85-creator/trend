@@ -1,5 +1,5 @@
 /** Pure, side-effect-free WordPress synchronization planning. */
-import {isEditorialTrendAllowed,isEditorialSourceUrlAllowed} from './trend-policy.mts';
+import {isEditorialTrendAllowed,isEditorialTitleAllowed,isEditorialSourceUrlAllowed} from './trend-policy.mts';
 export interface Candidate {
   title: string;
   slug: string;
@@ -35,7 +35,7 @@ export function validateCandidate(input:unknown):Candidate {
   if(typeof x.content!=='string' || normalizeText(x.content).length<120 || x.content.length>35000) throw new Error('invalid_content');
   // Prevent even draft-sync candidates from bypassing the shared trend editorial gate.
   // Reject the entire batch before any WordPress read or write in preview-sync.
-  if(!isEditorialTrendAllowed(x.title)) throw new Error('editorial_title_blocked');
+  if(!isEditorialTitleAllowed(x.title)) throw new Error('editorial_title_blocked');
   // A draft slug is retained in WordPress and may later become a public URL.
   if(!isEditorialTrendAllowed(x.slug)) throw new Error('editorial_slug_blocked');
   if(!isEditorialTrendAllowed(x.content)) throw new Error('editorial_content_blocked');

@@ -67,11 +67,24 @@ const countryAliases=new Map([
  ['جيبوتي',['djibouti','جیبوتی','دجيبوتي']],
  ['جزر القمر',['comoros','comores','جزرالقمر']]
 ].map(([name,aliases])=>[name,new Set(aliases.map(normalizeArabic))]));
+// Official names are recognized only as complete phrases, never as generic
+// aliases such as "republic", "union" or "جمهورية". Search-only normalization.
+const officialCountryNames=[
+ ["السعودية",["Kingdom of Saudi Arabia","Royaume d’Arabie saoudite","المملكة العربية السعودية"]],
+ ["مصر",["Arab Republic of Egypt","République arabe d’Égypte","جمهورية مصر العربية"]],
+ ["السودان",["Republic of the Sudan","République du Soudan","جمهورية السودان"]],
+ ["الصومال",["Federal Republic of Somalia","République fédérale de Somalie","جمهورية الصومال الفيدرالية"]],
+ ["جيبوتي",["Republic of Djibouti","République de Djibouti","جمهورية جيبوتي"]],
+ ["جزر القمر",["Union of the Comoros","Union des Comores","اتحاد جزر القمر"]]
+].flatMap(([name,aliases])=>aliases.map(alias=>[
+ new RegExp('(?<![\\p{L}\\p{N}])'+normalizeArabic(alias).split(/[\s\p{P}]+/u).join('[\\s\\p{P}]+')+'(?![\\p{L}\\p{N}])','gu'),
+ normalizeArabic(name)
+]));
 function render(){
  resultBox.replaceChildren();
  if(!loaded)return;
  if(currentPage===0&&loadError){statusBox.textContent=loadError;return;}
- const normalizedQuery=normalizeArabic(queryInput.value)
+ const normalizedQuery=officialCountryNames.reduce((query,[pattern,name])=>query.replace(pattern,name),normalizeArabic(queryInput.value))
   // Recognize complete multiword UAE names without treating generic words
   // such as "arab" or "united" as country aliases by themselves.
   .replace(/\bunited[\s\p{P}]+arab[\s\p{P}]+emirates\b|\bemirats[\s\p{P}]+arabes[\s\p{P}]+unis\b/gu,'uae');

@@ -251,18 +251,26 @@ test('archive transport bounds streamed upstream JSON even with missing or under
  }finally{globalThis.fetch=old;}
 });
 
-test('archive rejects oversized declared upstream JSON without reading the body',async()=>{
+test('archive rejects oversized declared upstream JSON without reading or awaiting cancellation',{timeout:1000},async()=>{
  const old=globalThis.fetch;
  try{
-  let cancelled=false,reads=0;
-  globalThis.fetch=async()=>new Response(new ReadableStream<Uint8Array>({
-   pull(controller){reads++;controller.enqueue(new Uint8Array(1));},
-   cancel(){cancelled=true;}
-  },{highWaterMark:0}),{headers:{'content-length':'8000001'}});
-  const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
-  assert.equal(response.status,503);
-  assert.equal(reads,0);
-  assert.equal(cancelled,false);
+  for(const cancel of [()=>undefined,()=>Promise.reject(new Error('cancel failed')),()=>new Promise<void>(()=>{})]){
+   let cancelled=0,reads=0,calls=0;
+   globalThis.fetch=async()=>{
+    calls++;
+    return new Response(new ReadableStream<Uint8Array>({
+     pull(controller){reads++;controller.enqueue(new Uint8Array(1));},
+     cancel(){cancelled++;return cancel();}
+    },{highWaterMark:0}),{headers:{'content-length':'8000001'}});
+   };
+   const response=await archive(new Request('https://preview.example/.netlify/functions/archive'));
+   assert.equal(response.status,503);
+   assert.equal(response.headers.get('cache-control'),'no-store');
+   assert.deepEqual(await response.json(),{error:'archive_temporarily_unavailable',items:[]});
+   assert.equal(reads,0);
+   assert.equal(cancelled,1);
+   assert.equal(calls,1);
+  }
  }finally{globalThis.fetch=old;}
 });
 

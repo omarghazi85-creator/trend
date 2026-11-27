@@ -100,9 +100,13 @@ function classify(page:PublicPage){
 }
 export default async(request:Request):Promise<Response>=>{
  if(request.method!=='GET')return new Response('method_not_allowed',{status:405});
- const rawPage=new URL(request.url).searchParams.get('page') ?? '1';
- if(!/^[1-9][0-9]{0,1}$/.test(rawPage)||Number(rawPage)>MAX_PAGE)return Response.json({error:'invalid_page'},{status:400,headers:{'cache-control':'no-store'}});
- const page=Number(rawPage);
+ // Accept only the canonical pagination query used by the frontend.
+ // Duplicate, encoded or extra parameters otherwise create alternate cache
+ // keys for the same upstream request, bypassing the bounded archive cache.
+ const query=new URL(request.url).search;
+ const match=/^\?page=([1-9][0-9]?)$/u.exec(query);
+ const page=query===''?1:match?Number(match[1]):0;
+ if(page<1||page>MAX_PAGE)return Response.json({error:'invalid_page'},{status:400,headers:{'cache-control':'no-store'}});
  const u=new URL(API);u.searchParams.set('type','page');u.searchParams.set('parent_id',String(ARCHIVE_PARENT_ID));u.searchParams.set('number',String(PAGE_SIZE));u.searchParams.set('offset',String((page-1)*PAGE_SIZE));
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8500);
  try{

@@ -45,3 +45,30 @@ test('draft slug gate preserves legitimate country URLs and unrelated substrings
   }
  }
 });
+
+
+test('draft title admission rejects hidden and incomplete markup before synchronization',()=>{
+ for(const title of [
+  "خبر محلي <template>نص مخفي</template>",
+  "خبر محلي <style>hidden</style>",
+  "خبر محلي <iframe src=\"https://bbc.com\"></iframe>",
+  "خبر محلي <textarea>نص مخفي</textarea>",
+  "خبر محلي <noscript>نص مخفي</noscript>",
+  "خبر محلي <b",
+  "خبر محلي &lt;template&gt;نص مخفي&lt;/template&gt;"
+]){
+  assert.throws(()=>validateCandidate({...base,title}),/editorial_title_blocked/);
+ }
+ for(const title of [
+  "خبر تقني مؤكد ومراجع تحريرياً",
+  "أخبار <b>السودان</b> اليوم",
+  "مقارنة 5 < 10 في دراسة حديثة",
+  "AI: خبر تقني من جيبوتي",
+  "Actualités des Comores",
+  "أخبار الصومال اليوم",
+  "تحديث الأسواق في مصر",
+  "أخبار السعودية اليوم"
+]){
+  assert.equal(validateCandidate({...base,title}).title,title);
+ }
+});

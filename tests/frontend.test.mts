@@ -532,3 +532,24 @@ test('multilingual country aliases preserve original internal archive links with
  assert.equal(nodes.results.children.length,0);
  assert.equal(requests.length,1);
 });
+
+test('country aliases cover every remaining Arab country without modifying detail URLs',async()=>{
+ const entries=[["ae","الإمارات",["United Arab Emirates","Émirats arabes unis","UAE","Emirates","Émirats"]],["kw","الكويت",["Kuwait","Koweït"]],["qa","قطر",["Qatar"]],["bh","البحرين",["Bahrain","Bahreïn"]],["om","عُمان",["Oman"]],["jo","الأردن",["Jordan","Jordanie"]],["lb","لبنان",["Lebanon","Liban"]],["iq","العراق",["Iraq","Irak"]],["sy","سوريا",["Syria","Syrie","سورية"]],["ps","فلسطين",["Palestine"]],["ye","اليمن",["Yemen","Yémen"]],["ly","ليبيا",["Libya","Libye"]],["tn","تونس",["Tunisia","Tunisie"]],["dz","الجزائر",["Algeria","Algérie"]],["ma","المغرب",["Morocco","Maroc"]],["mr","موريتانيا",["Mauritania","Mauritanie"]]] as const;
+ const rows=entries.map(([code,name])=>({...item(code+'-search-2026-11-26','مؤشرات الأسواق',name),link:'https://arabiatrend.com/trend-archive/'+code+'-search-2026-11-26/'}));
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ for(const [i,[,name,aliases]] of entries.entries()){
+  for(const query of [name,...aliases,...aliases.map(alias=>alias+' مؤشرات الأسواق')]){
+   nodes.query.value=query;
+   nodes.searchBtn.dispatch('click');
+   assert.deepEqual(nodes.results.children.map(n=>n.href),[rows[i].link],query);
+   assert.equal(nodes.results.children[0].children[1].textContent,rows[i].title);
+  }
+ }
+ for(const query of ['united','arab','unis']){
+  nodes.query.value=query;
+  nodes.searchBtn.dispatch('click');
+  assert.equal(nodes.results.children.length,0,query);
+ }
+ assert.equal(requests.length,1);
+});

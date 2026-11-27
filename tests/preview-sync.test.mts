@@ -191,3 +191,49 @@ test('oversized declared preview requests cancel without reading or waiting for 
   assert.equal(calls,0);
  }finally{globalThis.fetch=old;}
 });
+
+test('empty WordPress lookup must agree with available collection totals before creating a draft',async()=>{
+ const original=globalThis.fetch;
+ const cases:Array<Record<string,string>>=[
+  {'x-wp-total':'1','x-wp-totalpages':'1'},
+  {'x-wp-total':'2'},
+  {'x-wp-totalpages':'1'},
+  {'x-wp-total':'invalid'},
+  {'x-wp-total':'-1'},
+  {'x-wp-total':'0, 1'},
+  {'x-wp-totalpages':'00'}
+ ];
+ try{
+  for(const headers of cases){
+   const calls:string[]=[];
+   globalThis.fetch=async(_url,opts)=>{
+    calls.push(opts?.method??'GET');
+    return Response.json([],{headers});
+   };
+   const response=await preview(request());
+   assert.equal(response.status,502);
+   assert.equal((await response.json()).error,'wordpress_lookup_not_confirmed');
+   assert.deepEqual(calls,['GET']);
+  }
+  for(const headers of [{'x-wp-total':'0','x-wp-totalpages':'0'},{}] as Array<Record<string,string>>){
+   const calls:string[]=[];
+   globalThis.fetch=async(_url,opts)=>{
+    const method=opts?.method??'GET';calls.push(method);
+    return method==='GET'?Response.json([],{headers}):Response.json({id:991,slug:candidate.slug,status:'draft'});
+   };
+   const response=await preview(request());
+   assert.equal(response.status,200);
+   assert.equal((await response.json()).results[0].action,'created_draft');
+   assert.deepEqual(calls,['GET','POST']);
+  }
+  const calls:string[]=[];
+  globalThis.fetch=async(_url,opts)=>{
+   calls.push(opts?.method??'GET');
+   return Response.json([{id:998,slug:candidate.slug,status:'draft'}],{headers:{'x-wp-total':'1','x-wp-totalpages':'1'}});
+  };
+  const response=await preview(request());
+  assert.equal(response.status,200);
+  assert.equal((await response.json()).results[0].action,'skip_existing');
+  assert.deepEqual(calls,['GET']);
+ }finally{globalThis.fetch=original;}
+});

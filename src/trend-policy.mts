@@ -315,10 +315,14 @@ function hasUnusableTitleMarkup(value:string):boolean {
  const stripped=decoded.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'');
  return /<\s*(?:[a-z]|\/\s*[a-z]|!|\?)/iu.test(stripped);
 }
+/** Apply the same visible-title and markup admission rule to archive and draft inputs. */
+export function isEditorialTitleAllowed(title:unknown):title is string {
+ return isEditorialTrendAllowed(title)&&!hasUnusableTitleMarkup(title);
+}
 export function isEditorialObservationAllowed(item:EditorialObservation):boolean {
  if(!item||typeof item!=='object')return false;
  const title=item.title??item.name??item.term;
- if(!isEditorialTrendAllowed(title))return false;
+ if(!isEditorialTitleAllowed(title))return false;
  for(const field of ['title','name','term'] as const){
   const value=item[field];
   if(typeof value==='string'&&hasUnusableTitleMarkup(value))return false;

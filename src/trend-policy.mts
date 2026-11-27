@@ -1,3 +1,5 @@
+import {domainToUnicode} from 'node:url';
+
 /**
  * Pure, side-effect-free editorial gate for external trend observations.
  * Call before persistence, index updates, or public archive responses.
@@ -137,6 +139,20 @@ function hasObfuscatedBrand(value:string):boolean {
  const probe=value.normalize('NFKD').replace(/\p{Mark}|\p{Cc}/gu,'');
  return obfuscatedBrandPatterns.some(pattern=>pattern.test(value)||pattern.test(probe));
 }
+/** Decode bounded IDNA labels before editorial matching. A provider may
+ * expose only the ASCII hostname, including inside an HTML source attribute.
+ * Keep legitimate internationalized domains and never dereference a URL. */
+function hasExcludedLabel(value:string):boolean {
+ return patterns.some(p=>p.test(value))||explicitArabicPattern.test(value)||hasObfuscatedBrand(value);
+}
+function hasExcludedIdnLabel(value:string):boolean {
+ if(!value.includes('xn--'))return false;
+ for(const match of value.matchAll(/(?:^|[^a-z0-9-])(xn--[a-z0-9-]{1,59})(?=$|[^a-z0-9-])/gu)){
+  const label=domainToUnicode(match[1]);
+  if(label&&hasExcludedLabel(normalizeTrendText(label)))return true;
+ }
+ return false;
+}
 function hasUnsafeEmbeddedScheme(raw:string):boolean {
  const decoded=decodeEditorialText(raw);
  if(decoded===null)return true;
@@ -195,7 +211,7 @@ export function isEditorialTrendAllowed(title:unknown):title is string {
   !hasUnsafeEmbeddedScheme(title) &&
   !/&(?:amp;?|#(?:x[0-9a-f]{1,6}|[0-9]{1,7});?)/i.test(normalized) &&
   ![normalized,markup,blockText].some(value=>
-   patterns.some(p=>p.test(value))||explicitArabicPattern.test(value)||hasObfuscatedBrand(value));
+   hasExcludedLabel(value)||hasExcludedIdnLabel(value));
 }
 /**
  * Source destinations must be HTTPS and safe after URL and percent decoding.

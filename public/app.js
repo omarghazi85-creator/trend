@@ -114,6 +114,8 @@ function validArchiveItem(item){
  const day=new Date(item.date+'T00:00:00Z');
  if(!Number.isFinite(day.getTime())||day.toISOString().slice(0,10)!==item.date)return false;
  const archiveDay=/^[a-z]{2}-(?:search|music|week)-(\d{4}-\d{2}-\d{2})(?:-[a-z0-9]+)*$/u.exec(slug)?.[1];
+ // A malformed complete date must not fall back to the publication day as a legacy slug.
+ if(!archiveDay&&/^[a-z]{2}-(?:search|music|week)-\d{4}-\d+-\d+(?:-|$)/u.test(slug))return false;
  if(archiveDay&&archiveDay!==item.date)return false;
  if(/^topic-[a-f0-9]+$/u.test(slug))return item.country===''&&item.kind==='topic';
  const match=/^([a-z]{2})-(search|music|week)-/u.exec(slug);

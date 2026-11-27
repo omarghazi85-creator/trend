@@ -44,6 +44,22 @@ function normalizeArabic(value){
 // Match common alternate country labels in archive searches only. Never
 // rewrite the original country label, archive permalink or selected filter.
 const countryAliases=new Map([
+ ["الإمارات",["UAE","Emirates","Émirats"]],
+ ["الكويت",["Kuwait","Koweït"]],
+ ["قطر",["Qatar"]],
+ ["البحرين",["Bahrain","Bahreïn"]],
+ ["عُمان",["Oman"]],
+ ["الأردن",["Jordan","Jordanie"]],
+ ["لبنان",["Lebanon","Liban"]],
+ ["العراق",["Iraq","Irak"]],
+ ["سوريا",["Syria","Syrie","سورية"]],
+ ["فلسطين",["Palestine"]],
+ ["اليمن",["Yemen","Yémen"]],
+ ["ليبيا",["Libya","Libye"]],
+ ["تونس",["Tunisia","Tunisie"]],
+ ["الجزائر",["Algeria","Algérie"]],
+ ["المغرب",["Morocco","Maroc"]],
+ ["موريتانيا",["Mauritania","Mauritanie"]],
  ['السعودية',['saudi','arabia','arabie','saoudite']],
  ['مصر',['egypt','égypte']],
  ['السودان',['sudan','soudan']],
@@ -55,7 +71,10 @@ function render(){
  resultBox.replaceChildren();
  if(!loaded)return;
  if(currentPage===0&&loadError){statusBox.textContent=loadError;return;}
- const normalizedQuery=normalizeArabic(queryInput.value);
+ const normalizedQuery=normalizeArabic(queryInput.value)
+  // Recognize complete multiword UAE names without treating generic words
+  // such as "arab" or "united" as country aliases by themselves.
+  .replace(/\bunited[\s\p{P}]+arab[\s\p{P}]+emirates\b|\bemirats[\s\p{P}]+arabes[\s\p{P}]+unis\b/gu,'uae');
  // A full ISO-style date refers to the archive day, not arbitrary title fragments.
  // Accept Arabic/ Persian digits and either slash or hyphen without altering links.
  const datePattern=/\b(\d{4})([-/])(\d{2})\2(\d{2})\b/gu;

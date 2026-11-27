@@ -16,12 +16,14 @@ export const TECHNOLOGY_CATEGORY_ID = 101;
 export const TECHNOLOGY_MIN_WORDS = 500;
 export const TECHNOLOGY_TARGET_WORDS = {minimum: 550,maximum: 700} as const;
 export function countEditorialWords(html:string):number {
- const text=html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
+ // HTML comments may include > and arbitrary text; do not count either.
+ const text=html.replace(/<!--[\s\S]*?(?:-->|$)/g,' ')
+ .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
  .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
  .replace(/<[^>]+>/g,' ')
  .replace(/&(?:nbsp|amp|lt|gt|quot|#\d+|#x[0-9a-f]+);/gi,' ')
  .normalize('NFKC').trim();
- return text ? text.split(/\s+/u).filter(Boolean).length : 0;
+ return text ? text.split(/\s+/u).filter(word=>/[\p{L}\p{N}]/u.test(word)).length : 0;
 }
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,178}[a-z0-9])?$/;
 export function normalizeText(s:string):string {

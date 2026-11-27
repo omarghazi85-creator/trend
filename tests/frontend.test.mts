@@ -612,3 +612,29 @@ test('malformed complete archive dates cannot reserve or display misleading coun
  assert.deepEqual(nodes.results.children.map(x=>x.href),good.map(x=>x.link));
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
 });
+
+test('official country names match the six priority countries without generic aliases or new requests',async()=>{
+ const entries=[["sa","السعودية",["Kingdom of Saudi Arabia","Royaume d’Arabie saoudite","المملكة العربية السعودية"]],["eg","مصر",["Arab Republic of Egypt","République arabe d’Égypte","جمهورية مصر العربية"]],["sd","السودان",["Republic of the Sudan","République du Soudan","جمهورية السودان"]],["so","الصومال",["Federal Republic of Somalia","République fédérale de Somalie","جمهورية الصومال الفيدرالية"]],["dj","جيبوتي",["Republic of Djibouti","République de Djibouti","جمهورية جيبوتي"]],["km","جزر القمر",["Union of the Comoros","Union des Comores","اتحاد جزر القمر"]]];
+ const rows=entries.map(([code,name])=>item(code+'-search-2026-11-26','مؤشرات الأسواق',name));
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ for(const [i,[,name,aliases]] of entries.entries()){
+  for(const alias of aliases){
+   for(const query of [alias,alias+' مؤشرات الأسواق',alias+' في 26/11/2026']){
+    nodes.query.value=query;
+    nodes.searchBtn.dispatch('click');
+    assert.deepEqual(nodes.results.children.map(n=>n.href),[rows[i].link],query);
+   }
+  }
+ }
+ for(const query of ['republic','union','kingdom','république','جمهورية','اتحاد','المملكة','federal']){
+  nodes.query.value=query;
+  nodes.searchBtn.dispatch('click');
+  assert.equal(nodes.results.children.length,0,query);
+ }
+ nodes.query.value='Union des Comores';
+ nodes.countrySelect.value='مصر';
+ nodes.countrySelect.dispatch('change');
+ assert.equal(nodes.results.children.length,0);
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

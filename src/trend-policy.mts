@@ -315,6 +315,20 @@ function hasUnusableTitleMarkup(value:string):boolean {
  const decoded=decodeEditorialText(value);
  if(decoded===null)return true;
  if(/<\s*\/?\s*(?:style|template|noscript|head|title|textarea|iframe)\b/iu.test(decoded))return true;
+ // A hidden element is not a visible headline. Reject it rather than
+ // flattening its contents into a different label in the public archive.
+ // Consume complete quoted values before examining attribute names.
+ for(const match of decoded.replace(/<!--[\s\S]*?-->/gu,'').matchAll(/<[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu)){
+  const attributes=match[0].replace(/^<[a-z][^\s/>]*/iu,'');
+  for(const attr of attributes.matchAll(/([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/gu)){
+   const name=attr[1].toLowerCase();
+   if(name==='hidden')return true;
+   if(name==='style'){
+    const style=decodeCssEscapes(attr[2]??attr[3]??attr[4]??'').replace(/\/\*[\s\S]*?\*\//gu,'');
+    if(/(?:^|;)\s*(?:display\s*:\s*none|visibility\s*:\s*(?:hidden|collapse)|content-visibility\s*:\s*hidden)\s*(?:!\s*important\s*)?(?=;|$)/iu.test(style))return true;
+   }
+  }
+ }
  const stripped=decoded.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'');
  return /<\s*(?:[a-z]|\/\s*[a-z]|!|\?)/iu.test(stripped);
 }

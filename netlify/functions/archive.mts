@@ -60,7 +60,7 @@ function classify(page:PublicPage){
  // non-visible HTML comments. The policy above already screens raw markup.
  // Remove invisible direction overrides and normalize layout controls before
  // measuring or displaying the label. Keep Arabic letters, emoji and joiners.
- const title=decodedTitle.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'')
+ const title=decodedTitle.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,tag=>/^<\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|footer|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|tbody|td|tfoot|th|thead|tr|ul)(?=[\s/>])/iu.test(tag)?' ':'')
   .replace(/\p{Bidi_Control}/gu,'')
   .replace(/[\u0000-\u001f\u007f-\u009f]/gu,' ')
   .replace(/\s+/gu,' ').trim();

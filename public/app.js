@@ -85,8 +85,8 @@ function render(){
  const terms=normalizedQuery.replace(datePattern,' ').trim().split(/[\s\p{P}]+/u).filter(Boolean);
  // A standalone Arabic preposition in a multiword query is usually a
  // connector between the topic and country, not part of either label.
- const meaningful=terms.length>1?terms.filter(term=>term!=='في'):terms;
- const searchTerms=meaningful.length?meaningful:terms;
+ const meaningful=terms.length>1||dates.length?terms.filter(term=>term!=='في'):terms;
+ const searchTerms=meaningful.length||dates.length?meaningful:terms;
  const selected=allItems.filter(item=>{
   if((country&&item.country!==country)||(typeSelect.value&&item.kind!==typeSelect.value)||dates.some(date=>date!==item.date))return false;
   const title=normalizeArabic(item.title),name=normalizeArabic(item.country);

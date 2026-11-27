@@ -376,3 +376,27 @@ test('PHP archive decodes bounded braced Unicode escapes before editorial and so
  assert.equal(result.status,0,result.stderr);
  assert.deepEqual(JSON.parse(result.stdout),[...bad.map(()=>false),...good.map(()=>true)]);
 });
+
+
+test('native archive routes and focus accept canonical compound suffixes across six countries',t=>{
+ const runtime=spawnSync('php',['-v'],{encoding:'utf8'});
+ if(runtime.error){t.skip('PHP CLI unavailable');return;}
+ const names=['atn_lightview_country_codes','atn_lightview_archive_link_allowed','atn_lightview_archive_period','atn_lightview_native_topic_url','atn_lightview_archive_focus_post'];
+ const helpers=names.map(name=>php.match(new RegExp('function '+name+'\\([^\\n]*\\) \\{[\\s\\S]*?\\n\\}'))?.[0]);
+ assert.ok(helpers.every(Boolean));
+ const route=php.match(/function nativeUrl\(value\)\{[\s\S]*?\n      \}/)?.[0];
+ assert.ok(route);
+ const nativeUrl=new Function('location',route+'; return nativeUrl;')(new URL('https://arabiatrend.com/arab-trends-now/'));
+ const countries=['sa','eg','sd','so','dj','km'];
+ const good=countries.flatMap(code=>['search','music','week'].flatMap(kind=>['','-2','-updated-2'].map(suffix=>code+'-'+kind+'-2026-11-19'+suffix)));
+ const malformed=countries.flatMap(code=>['--2','-updated-','/nested','?q=2','#section'].map(suffix=>code+'-search-2026-11-19'+suffix));
+ const origin='https://arabiatrend.com/trend-archive/';
+ for(const slug of good)assert.equal(nativeUrl(origin+slug+'/'),origin+slug+'/');
+ for(const slug of malformed)assert.equal(nativeUrl(origin+slug),'');
+ const stubs='function home_url($p){return "https://arabiatrend.com".$p;} function wp_parse_url($u){return parse_url($u);} class WP_Post { public $post_type="page"; public $post_status="publish"; public $post_parent=61269; public $post_name=""; } function atn_lightview_archive_detail_blocked($p){return false;}';
+ const script=stubs+'\n'+helpers.join('\n')+'\n'+
+  '$input=json_decode(stream_get_contents(STDIN),true);$out=[];foreach($input as $slug){$p=new WP_Post();$p->post_name=$slug;$url=home_url("/trend-archive/".$slug."/");$out[]=[atn_lightview_native_topic_url($url),atn_lightview_archive_period($slug,"2026-11-21"),atn_lightview_archive_focus_post($p)];}echo json_encode($out);';
+ const result=spawnSync('php',['-r',script],{input:JSON.stringify([...good,...malformed]),encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(JSON.parse(result.stdout),[...good.map(slug=>[origin+slug+'/','2026-11-19',true]),...malformed.map(()=>['','2026-11-21',false])]);
+});

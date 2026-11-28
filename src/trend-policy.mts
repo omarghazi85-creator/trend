@@ -348,8 +348,10 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   // joiner can otherwise prevent the word boundary from being recognized.
   const normalizedKey=decodedKey.normalize('NFKC')
    .replace(/[\p{Cc}\p{Default_Ignorable_Code_Point}]/gu,'');
+  // Separate acronym prefixes as well as ordinary camelCase: RSSNews and
+  // APIPublisher must not hide a distinctive excluded source after decoding.
   for(const candidateKey of new Set([key,normalizedKey])){
-   const spacedKey=candidateKey.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[_.-]+/g,' ');
+   const spacedKey=candidateKey.replace(/([A-Z])([A-Z][a-z])/g,'$1 $2').replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[_.-]+/g,' ');
    const compactKey=spacedKey.replace(/\s+/gu,'');
    if(!isEditorialTrendAllowed(spacedKey)||
       (compactKey!==spacedKey&&!isEditorialTrendAllowed(compactKey)))return false;

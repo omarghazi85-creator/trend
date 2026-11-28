@@ -356,13 +356,19 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   }
   // Recognize common snake-case and camelCase destination keys.
   // Unknown feed metadata must not smuggle source URLs into observations.
-  if(/(?:url|href|src|link|uri|permalink)$/iu.test(key)){
+  const decodedKey=decodeEditorialText(key);
+  if(decodedKey===null)return false;
+  // Apply the same destination rule to encoded, invisible or compatibility
+  // variants of metadata keys; otherwise a relative URL can look like prose.
+  const destinationKey=decodedKey.normalize('NFKC')
+   .replace(/[\s\p{Cc}\p{Default_Ignorable_Code_Point}]/gu,'');
+  if(/(?:url|href|src|link|uri|permalink)$/iu.test(destinationKey)){
    if(typeof entry==='string')return isEditorialSourceUrlAllowed(entry);
    // Optional destinations can be absent, but a scalar URL field must not
    // bypass HTTPS validation by wrapping a relative path in an array or object.
    // Atom/RSS link objects are legitimate containers; their own href is screened.
    if(entry!==undefined&&entry!==null&&
-      (!/^link$/iu.test(key)||typeof entry!=='object'||Array.isArray(entry)))return false;
+      (!/^link$/iu.test(destinationKey)||typeof entry!=='object'||Array.isArray(entry)))return false;
   }
   const isRootLabel=depth===0&&/^(?:title|name|term|description|excerpt|summary|caption|content|subtitle|body|text)$/u.test(key);
   return isEditorialStructuredFeedFieldAllowed(entry,budget,depth+1,isRootLabel);

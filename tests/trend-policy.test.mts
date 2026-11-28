@@ -507,3 +507,31 @@ test('ASCII IDNA labels cannot conceal excluded source names in six-country obse
   }
  }
 });
+
+
+test('named Latin HTML entities cannot conceal excluded brands and preserve French display',async()=>{
+ const {decodeEditorialText,isEditorialSourceUrlAllowed}=await import('../src/trend-policy.mts');
+ const blocked=['p&ograve;rnhub','p&Oacute;rnhub','onlyf&aacute;ns','xv&iuml;deos','r&eacute;dtube','youp&ocirc;rn','p&amp;ouml;rnhub'];
+ const safe=[
+  ['&Eacute;conomie locale','Économie locale'],
+  ['M&eacute;t&eacute;o du jour','Météo du jour'],
+  ['C&ocirc;te d’Ivoire','Côte d’Ivoire'],
+  ['&AElig;ther','Æther'],['&OElig;uvre','Œuvre'],
+  ['مؤشرات الأسواق','مؤشرات الأسواق'],['5 &lt; 10','5 < 10']
+ ];
+ for(const country of ['السعودية','مصر','السودان','الصومال','جيبوتي','جزر القمر']){
+  const baseline={title:country+' – مؤشرات الأسواق',source:'google'};
+  for(const term of blocked){
+   const url='https://news.example.com/'+term;
+   assert.equal(isEditorialTrendAllowed(country+' '+term),false,term);
+   assert.equal(isEditorialSourceUrlAllowed(url),false,url);
+   assert.deepEqual(filterTrendObservations([baseline,{...baseline,title:country+' '+term},{...baseline,description:term},{...baseline,sourceUrl:url}]),[baseline],country+' '+term);
+  }
+  for(const [encoded,display] of safe){
+   assert.equal(decodeEditorialText(encoded),display,encoded);
+   assert.equal(isEditorialTrendAllowed(country+' '+encoded),true,encoded);
+   const row={...baseline,title:country+' '+encoded};
+   assert.deepEqual(filterTrendObservations([row]),[row],encoded);
+  }
+ }
+});

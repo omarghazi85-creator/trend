@@ -379,3 +379,27 @@ test('encoded metadata word boundaries are screened before six-country snapshots
   assert.equal(await snapshotDigest(mixed),await snapshotDigest(baseline),country);
  }
 });
+
+
+test('acronym-prefixed provider metadata keys are screened before six-country snapshots',async()=>{
+ const blocked=['RSSPornhubChannel','JSONPornHubCampaign','APIOnlyFansCampaign','RSSXvideosChannel',
+  'XML%50ornhubChannel','RSSＰornhubChannel','RSS\u200BPornhubChannel',
+  'RSS\\u0050ornhubChannel','RSS&#80;ornhubChannel'];
+ const allowed=['RSSPortChannel','JSONPortHubCampaign','APIOrderFlowCampaign','RSSXylophoneChannel',
+  'XML%50ortChannel','RSSＰortChannel','RSS\u200BPortChannel',
+  'RSS\\u0050ortChannel','RSS&#80;ortChannel','RSSNewsChannel','BBCNewsChannel'];
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'الأسواق المحلية',source:'google',observedAt:'2026-11-28T08:00:00Z'};
+  const rows=(keys:string[])=>keys.flatMap(key=>[
+   {...base,extra:{[key]:'Économie locale'}},
+   {...base,extra:{nested:{[key]:'نشرة الأسواق'}}}
+  ]);
+  const safe=rows(allowed),bad=rows(blocked);
+  assert.deepEqual(filterTrendObservations([...bad,...safe]),safe,country);
+  const baseline=makeTrendSnapshot(country,'2026-11-28',safe);
+  const mixed=makeTrendSnapshot(country,'2026-11-28',[...bad.map(row=>({...row,score:999})),...safe]);
+  assert.equal(baseline.terms.length,1,country);
+  assert.deepEqual(mixed,baseline,country);
+  assert.equal(await snapshotDigest(mixed),await snapshotDigest(baseline),country);
+ }
+});

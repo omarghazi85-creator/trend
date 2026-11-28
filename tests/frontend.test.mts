@@ -638,3 +638,24 @@ test('official country names match the six priority countries without generic al
  assert.equal(nodes.results.children.length,0);
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
 });
+
+test('year-first dates with unpadded month and day resolve actual archive dates rather than title numbers',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.flatMap(([code,name])=>['2026-01-03','2026-01-04','2026-11-26'].map(date=>
+  item(code+'-search-'+date,date==='2026-01-04'?'حصيلة 2026 1 3':'حصيلة الأسواق',name)));
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ const search=(query,expected)=>{
+  nodes.query.value=query;
+  nodes.searchBtn.dispatch('click');
+  assert.deepEqual(nodes.results.children.map(n=>n.href),expected,query);
+ };
+ for(const [,name] of entries){
+  const expected=rows.filter(row=>row.country===name&&row.date==='2026-01-03').map(row=>row.link);
+  for(const query of ['2026/1/3','2026-1-3','٢٠٢٦/١/٣','۲۰۲۶-۱-۳','2026/01/3','2026-1-03','2026-01-03','3/1/2026'])search(name+' '+query,expected);
+  search(name+' 2026-11-26',rows.filter(row=>row.country===name&&row.date==='2026-11-26').map(row=>row.link));
+  search(name+' 2026-1-32',[]);
+ }
+ search('2026/1/3 2026/1/4',[]);
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

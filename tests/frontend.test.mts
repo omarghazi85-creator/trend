@@ -676,3 +676,23 @@ test('standalone regional Arabia words do not masquerade as Saudi archive countr
  for(const row of rows.slice(1))search(row.country+' مؤشرات الأسواق',[row.link]);
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
 });
+
+test('dot-separated dates select archive dates instead of matching unrelated headline numbers',async()=>{
+ const entries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=entries.flatMap(([code,name])=>['2026-01-03','2026-01-04'].map(date=>
+  item(code+'-search-'+date,date==='2026-01-04'?'حصيلة 2026 1 3':'حصيلة الأسواق',name)));
+ const {nodes,requests}=setup([page(1,rows,false)]);
+ await flush();
+ for(const [,name] of entries){
+  const expected=rows.filter(row=>row.country===name&&row.date==='2026-01-03').map(row=>row.link);
+  for(const query of ['2026.1.3','2026.01.03','3.1.2026','03.01.2026','٢٠٢٦.١.٣','۳.۱.۲۰۲۶','2026/1/3','3-1-2026']){
+   nodes.query.value=name+' '+query;
+   nodes.searchBtn.dispatch('click');
+   assert.deepEqual(nodes.results.children.map(n=>n.href),expected,query);
+  }
+  nodes.query.value=name+' 2026.1.32';
+  nodes.searchBtn.dispatch('click');
+  assert.deepEqual(nodes.results.children.map(n=>n.href),[],name);
+ }
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

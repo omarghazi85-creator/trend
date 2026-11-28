@@ -535,3 +535,25 @@ test('named Latin HTML entities cannot conceal excluded brands and preserve Fren
   }
  }
 });
+
+
+test('ordinary root headline prefixes remain prose without relaxing destination validation across six countries',()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'أخبار الأسواق المحلية',source:'google'};
+  const labels=['Weather: local forecast','COVID-19: latest figures','Economy: Météo du jour','Sports: local fixtures'];
+  for(const label of labels){
+   for(const field of ['term','description','caption']){
+    const row={...base,[field]:label};
+    assert.deepEqual(filterTrendObservations([row]),[row],country+' '+field+' '+label);
+   }
+  }
+  const blocked=[
+   {...base,term:'javascript: alert(1)'},{...base,term:'data: text/html'},
+   {...base,description:'ftp: files'},{...base,caption:'https: //news.example.com'},
+   {...base,term:'Weather: OnlyFans'},{...base,description:'News: p&ograve;rnhub'},
+   {...base,sourceUrl:'custom: value'},{...base,extra:{label:'custom: value'}},
+   {...base,extra:{destinationUrl:'Weather: today'}},{...base,extra:{caption:'javascript: alert(1)'}}
+  ];
+  assert.deepEqual(filterTrendObservations([base,...blocked]),[base],country);
+ }
+});

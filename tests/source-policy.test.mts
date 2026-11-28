@@ -331,3 +331,25 @@ test('invisible Unicode cannot hide unsafe destinations in markup or unknown fee
    makeTrendSnapshot(country,'2026-11-24',[base,safe]),country);
  }
 });
+
+
+test('encoded metadata destination keys cannot bypass scalar HTTPS checks across six countries',async()=>{
+ const keys=['sourceU%72l','sourceU&#114;l','sourceU\\u0072l','sourceU\u200Brl',
+  'sourceＵＲＬ','sourceU&ZeroWidthSpace;rl','mediaH%72ef','imageS\u2060rc',
+  'canonicalU\uFE0Fri','perma%6cink','source url','sourceUrl '];
+ const values=['/relative/story','news/story',42,['/relative/story'],{label:'Local news'}];
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'الأسواق المحلية',source:'google',observedAt:'2026-11-28T08:00:00Z',
+   extra:{caption:'Économie locale',note:'نشرة الأسواق'}};
+  const bad=keys.flatMap(key=>values.map(value=>({...base,extra:{[key]:value}})));
+  assert.deepEqual(filterTrendObservations(bad),[],country);
+  const expected=makeTrendSnapshot(country,'2026-11-28',[base]);
+  const actual=makeTrendSnapshot(country,'2026-11-28',[...bad,base]);
+  assert.deepEqual(actual,expected,country);
+  assert.equal(await snapshotDigest(actual),await snapshotDigest(expected),country);
+  for(const key of keys){
+   const safe={...base,extra:{[key]:'https://example.com/news'}};
+   assert.deepEqual(filterTrendObservations([safe]),[safe],country+' '+key);
+  }
+ }
+});

@@ -90,8 +90,8 @@ function render(){
   .replace(/\bunited[\s\p{P}]+arab[\s\p{P}]+emirates\b|\bemirats[\s\p{P}]+arabes[\s\p{P}]+unis\b/gu,'uae');
  // A full ISO-style date refers to the archive day, not arbitrary title fragments.
  // Accept year-first or unambiguous day-first dates in Arabic, Persian or Latin digits.
- // Slash or hyphen separators are search-only; preserve original links.
- const datePattern=/\b(?:(\d{4})([-/])(\d{1,2})\2(\d{1,2})|(\d{1,2})([-/])(\d{1,2})\6(\d{4}))\b/gu;
+ // Slash, hyphen or dot separators are search-only; preserve original links.
+ const datePattern=/\b(?:(\d{4})([-/.])(\d{1,2})\2(\d{1,2})|(\d{1,2})([-/.])(\d{1,2})\6(\d{4}))\b/gu;
  const dates=Array.from(normalizedQuery.matchAll(datePattern),m=>m[1]
   ?m[1]+'-'+m[3].padStart(2,'0')+'-'+m[4].padStart(2,'0')
   :m[8]+'-'+m[7].padStart(2,'0')+'-'+m[5].padStart(2,'0'));

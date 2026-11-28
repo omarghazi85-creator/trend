@@ -342,22 +342,28 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   // also catch "x_videos_channel" without stripping the trailing boundary.
   // Limit the window to four tokens and the key to 100 characters.
   if(key.length>100)return false;
-  const spacedKey=key.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[_.-]+/g,' ');
-  const compactKey=spacedKey.replace(/\s+/gu,'');
-  if(!isEditorialTrendAllowed(spacedKey)||
-     (compactKey!==spacedKey&&!isEditorialTrendAllowed(compactKey)))return false;
-  const pieces=spacedKey.trim().split(/\s+/u);
-  for(let i=0;i<pieces.length;i++){
-   let joined=pieces[i];
-   for(let j=i+1;j<Math.min(i+4,pieces.length);j++){
-    joined+=pieces[j];
-    if(!isEditorialTrendAllowed(joined))return false;
+  const decodedKey=decodeEditorialText(key);
+  if(decodedKey===null)return false;
+  // Split camelCase after decoding too: an encoded capital or invisible
+  // joiner can otherwise prevent the word boundary from being recognized.
+  const normalizedKey=decodedKey.normalize('NFKC')
+   .replace(/[\p{Cc}\p{Default_Ignorable_Code_Point}]/gu,'');
+  for(const candidateKey of new Set([key,normalizedKey])){
+   const spacedKey=candidateKey.replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[_.-]+/g,' ');
+   const compactKey=spacedKey.replace(/\s+/gu,'');
+   if(!isEditorialTrendAllowed(spacedKey)||
+      (compactKey!==spacedKey&&!isEditorialTrendAllowed(compactKey)))return false;
+   const pieces=spacedKey.trim().split(/\s+/u);
+   for(let i=0;i<pieces.length;i++){
+    let joined=pieces[i];
+    for(let j=i+1;j<Math.min(i+4,pieces.length);j++){
+     joined+=pieces[j];
+     if(!isEditorialTrendAllowed(joined))return false;
+    }
    }
   }
   // Recognize common snake-case and camelCase destination keys.
   // Unknown feed metadata must not smuggle source URLs into observations.
-  const decodedKey=decodeEditorialText(key);
-  if(decodedKey===null)return false;
   // Apply the same destination rule to encoded, invisible or compatibility
   // variants of metadata keys; otherwise a relative URL can look like prose.
   const destinationKey=decodedKey.normalize('NFKC')

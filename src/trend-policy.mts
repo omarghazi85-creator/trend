@@ -304,6 +304,14 @@ export type EditorialObservation={
  * traversal budget so malformed feeds cannot exhaust a serverless worker.
  * This is validation only; it does not fetch or persist feed data.
  */
+// A structured Atom/RSS link must carry an actual validated destination.
+// Do not treat arbitrary objects with only a relative path or label as links.
+function isEditorialFeedLinkObjectAllowed(value:unknown):boolean {
+ if(!value||typeof value!=='object'||Array.isArray(value))return false;
+ const record=value as Record<string,unknown>;
+ const keys=['href','url'].filter(key=>Object.hasOwn(record,key));
+ return keys.length>0&&keys.every(key=>isEditorialSourceUrlAllowed(record[key]));
+}
 function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:number}, depth=0, allowLabelPrefix=false):boolean {
  if(++budget.nodes>128||depth>4)return false;
  if(value===undefined||value===null)return true;
@@ -376,7 +384,7 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
    // bypass HTTPS validation by wrapping a relative path in an array or object.
    // Atom/RSS link objects are legitimate containers; their own href is screened.
    if(entry!==undefined&&entry!==null&&
-      (!/^link$/iu.test(destinationKey)||typeof entry!=='object'||Array.isArray(entry)))return false;
+      (!/^link$/iu.test(destinationKey)||!isEditorialFeedLinkObjectAllowed(entry)))return false;
   }
   const isRootLabel=depth===0&&/^(?:title|name|term|description|excerpt|summary|caption|content|subtitle|body|text)$/u.test(key);
   return isEditorialStructuredFeedFieldAllowed(entry,budget,depth+1,isRootLabel);
@@ -436,7 +444,8 @@ export function isEditorialObservationAllowed(item:EditorialObservation):boolean
    'permalink','canonicalUrl','thumbnailUrl','videoUrl','postUrl',
    'source_url','media_url','image_url','original_url','video_url','thumbnail_url'] as const){
   const value=item[field];
-  if(value!==undefined&&!isEditorialSourceUrlAllowed(value))return false;
+  if(value!==undefined&&!isEditorialSourceUrlAllowed(value)&&
+     !(field==='link'&&isEditorialFeedLinkObjectAllowed(value)))return false;
  }
  // Feed libraries expose media links as arrays/objects, not just flat URLs.
  // Unknown nested markup or source destinations must fail closed as well.

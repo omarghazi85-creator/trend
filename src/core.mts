@@ -1,5 +1,5 @@
 /** Pure, side-effect-free WordPress synchronization planning. */
-import {isEditorialTrendAllowed,isEditorialTitleAllowed,isEditorialSourceUrlAllowed} from './trend-policy.mts';
+import {decodeHtmlEntities,isEditorialTrendAllowed,isEditorialTitleAllowed,isEditorialSourceUrlAllowed} from './trend-policy.mts';
 export interface Candidate {
   title: string;
   slug: string;
@@ -37,9 +37,13 @@ export function countEditorialWords(html:string):number {
   }else hidden.push(name);
  }
  if(hidden.length===0)chunks.push(html.slice(cursor));
- const text=chunks.join('')
- .replace(/&(?:nbsp|amp|lt|gt|quot|#\d+|#x[0-9a-f]+);/gi,' ')
- .normalize('NFKC').trim();
+ // Decode actual characters after removing HTML tags. Numeric references
+ // can occur inside words; converting every reference to a space inflated
+ // the count. Named whitespace still separates words, but unresolved
+ // reference syntax and invisible formatting cannot provide word padding.
+ const text=decodeHtmlEntities(chunks.join('').replace(/&(?:ensp|emsp|emsp13|emsp14|numsp|puncsp|thinsp|hairsp|MediumSpace|VeryThinSpace|ThickSpace);/gi,' '))
+ .replace(/&(?:[a-z][a-z0-9]{1,31}|#(?:x[0-9a-f]+|[0-9]+));/gi,'')
+ .normalize('NFKC').replace(/\p{Default_Ignorable_Code_Point}/gu,'').trim();
  return text ? text.split(/\s+/u).filter(word=>/[\p{L}\p{N}]/u.test(word)).length : 0;
 }
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,178}[a-z0-9])?$/;

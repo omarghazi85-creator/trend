@@ -353,3 +353,29 @@ test('encoded metadata destination keys cannot bypass scalar HTTPS checks across
   }
  }
 });
+
+
+test('encoded metadata word boundaries are screened before six-country snapshots',async()=>{
+ const blocked=['local%50ornhub%43ampaign','newsＰornhubCampaign','local\u200BPornhubCampaign',
+  'local\\u0050ornhub\\u0043ampaign','local&#80;ornhub&#67;ampaign','local%4fnly%46ansCampaign',
+  'newsＯnlyFansCampaign','local\u2060OnlyFansCampaign'];
+ const allowed=['local%50ort%43ampaign','newsＰortCampaign','local\u200BPortCampaign',
+  'local\\u0050ort\\u0043ampaign','local&#80;ort&#67;ampaign','local%4frder%46lowCampaign',
+  'newsＯrderFlowCampaign','local\u2060OrderFlowCampaign','EssexCampaign','caption'];
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'الأسواق المحلية',source:'google',observedAt:'2026-11-28T08:00:00Z'};
+  const rows=(keys:string[])=>keys.flatMap(key=>[
+   {...base,extra:{[key]:'Économie locale'}},
+   {...base,extra:{nested:{[key]:'نشرة الأسواق'}}}
+  ]);
+  const safe=rows(allowed),bad=rows(blocked);
+  assert.deepEqual(filterTrendObservations([...bad,...safe]),safe,country);
+  const baseline=makeTrendSnapshot(country,'2026-11-28',safe);
+  // Give rejected observations a higher score so any accidental admission
+  // changes the aggregate and the digest, even with identical trend labels.
+  const mixed=makeTrendSnapshot(country,'2026-11-28',[...bad.map(row=>({...row,score:999})),...safe]);
+  assert.equal(baseline.terms.length,1,country);
+  assert.deepEqual(mixed,baseline,country);
+  assert.equal(await snapshotDigest(mixed),await snapshotDigest(baseline),country);
+ }
+});

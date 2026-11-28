@@ -608,3 +608,26 @@ test('named HTML spaces cannot conceal excluded sources and preserve legitimate 
  }
  assert.equal(decodeEditorialText('&notAnEntity123;'),'&notAnEntity123;');
 });
+
+
+test('nested scalar destination fields cannot bypass URL admission through non-string values',()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'Météo locale',source:'google'};
+  for(const key of ['targetUrl','href','media_src','canonicalUri','permalink','trackingLink']){
+   for(const value of [['/relative'],{path:'/relative'},42,true,'/relative','http://news.example.com/markets']){
+    const row={...base,extra:{[key]:value}};
+    assert.deepEqual(filterTrendObservations([row]),[],country+' '+key+' '+JSON.stringify(value));
+   }
+   for(const value of ['https://news.example.com/markets',null]){
+    const row={...base,extra:{[key]:value}};
+    assert.deepEqual(filterTrendObservations([row]),[row],country+' '+key);
+   }
+  }
+  const atom={...base,extra:{link:{href:'https://news.example.com/markets'}}};
+  assert.deepEqual(filterTrendObservations([atom]),[atom],country);
+  for(const href of ['/relative',['/relative'],42]){
+   const row={...base,extra:{link:{href}}};
+   assert.deepEqual(filterTrendObservations([row]),[],country);
+  }
+ }
+});

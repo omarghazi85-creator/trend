@@ -659,3 +659,20 @@ test('year-first dates with unpadded month and day resolve actual archive dates 
  search('2026/1/3 2026/1/4',[]);
  assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
 });
+
+test('standalone regional Arabia words do not masquerade as Saudi archive country aliases',async()=>{
+ const countries=[['sa','السعودية'],['eg','مصر'],['sd','السودان'],['so','الصومال'],['dj','جيبوتي'],['km','جزر القمر']];
+ const rows=countries.map(([code,name])=>item(code+'-search-2026-11-26','مؤشرات الأسواق',name));
+ const regional=item('topic-ab12','Arabia and Arabie — regional markets','','topic');
+ const {nodes,requests}=setup([page(1,[...rows,regional],false)]);
+ await flush();
+ const search=(query,expected)=>{
+  nodes.query.value=query;
+  nodes.searchBtn.dispatch('click');
+  assert.deepEqual(nodes.results.children.map(n=>n.href),expected,query);
+ };
+ for(const query of ['Arabia','Arabie','arabia regional','Arabie markets'])search(query,[regional.link]);
+ for(const query of ['Saudi Arabia','Arabie saoudite','Saudi','saoudite','Saudi-Arabia','Kingdom of Saudi Arabia','Royaume d’Arabie saoudite','Saudi Arabia مؤشرات الأسواق','Arabie saoudite في 26/11/2026'])search(query,[rows[0].link]);
+ for(const row of rows.slice(1))search(row.country+' مؤشرات الأسواق',[row.link]);
+ assert.deepEqual(requests,['/.netlify/functions/archive?page=1']);
+});

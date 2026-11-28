@@ -22,6 +22,15 @@ const NAMED_ENTITIES:Record<string,string>={
  colon:':',sol:'/',bsol:'\\',period:'.',lowbar:'_',hyphen:'-',
  lpar:'(',rpar:')'
 };
+// Common named Latin letter references occur in French-language feeds.
+// Preserve the original letter case for display; existing brand matching
+// folds accents for screening. Keep the table bounded and case-correct.
+const NAMED_LATIN_ENTITIES:Record<string,string>={
+ agrave:'à',aacute:'á',acirc:'â',atilde:'ã',auml:'ä',aring:'å',aelig:'æ',ccedil:'ç',
+ egrave:'è',eacute:'é',ecirc:'ê',euml:'ë',igrave:'ì',iacute:'í',icirc:'î',iuml:'ï',
+ ntilde:'ñ',ograve:'ò',oacute:'ó',ocirc:'ô',otilde:'õ',ouml:'ö',oslash:'ø',
+ ugrave:'ù',uacute:'ú',ucirc:'û',uuml:'ü',yacute:'ý',yuml:'ÿ',oelig:'œ',scaron:'š'
+};
 export function decodeHtmlEntities(raw:string):string {
  // Consume the complete numeric reference, including arbitrary leading zeros.
  // A fixed digit cap can decode a prefix and hide the remaining character.
@@ -30,6 +39,12 @@ export function decodeHtmlEntities(raw:string):string {
   return Number.isFinite(n)&&n>0&&n<=0x10ffff&&(n<0xd800||n>0xdfff)?String.fromCodePoint(n):match;
  }).replace(/&([a-z]{2,24});/gi,(match,name:string)=>{
   const key=name.toLowerCase();
+  if(Object.hasOwn(NAMED_LATIN_ENTITIES,key)){
+   const letter=NAMED_LATIN_ENTITIES[key];
+   if(name===key)return letter;
+   const upperName=key==='aelig'?'AElig':key==='oelig'?'OElig':key[0].toUpperCase()+key.slice(1);
+   if(name===upperName)return letter.toUpperCase();
+  }
   return Object.hasOwn(NAMED_ENTITIES,key)?NAMED_ENTITIES[key]:match;
  // HTML parsers also recognize these two legacy references without a semicolon.
  // In particular, a soft hyphen can split a prohibited brand in plain feed text.

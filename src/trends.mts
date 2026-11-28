@@ -21,8 +21,9 @@ function cleanTrendDisplay(value:string):string {
  if(decoded===null)return '';
  // Match the archive display policy: never retain hidden document fragments.
  if(/<\s*\/?\s*(?:style|template|noscript|head)\b/iu.test(decoded))return '';
+ // Preserve visible block boundaries, but join words split by inline markup.
  // Strip complete quoted tags and comments before deriving display and digest.
- return decoded.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,'').normalize('NFKC')
+ return decoded.replace(/<!--[\s\S]*?-->|<\/?[a-z](?:"[^"]*"|'[^']*'|[^<>"'])*>/giu,tag=>/^<\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|footer|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|tbody|td|tfoot|th|thead|tr|ul)(?=[\s/>])/iu.test(tag)?' ':'').normalize('NFKC')
   // Match the editorial key's invisible-character coverage to avoid retaining
   // visually identical variants and generating unnecessary snapshot writes.
   .replace(/\p{Default_Ignorable_Code_Point}/gu,'')

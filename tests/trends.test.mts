@@ -287,3 +287,26 @@ test('shadow snapshots normalize quoted markup and comments without duplicate ke
   }
  }
 });
+
+
+test('preserve block boundaries in shadow snapshot labels and digests across six countries',async()=>{
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,source:'google',observedAt:'2026-11-28T07:00:00Z'};
+  for(const [label,variants] of [
+   ['الطقس اليوم',['الطقس<br>اليوم','<p>الطقس</p><p>اليوم</p>','الطقس<div>اليوم</div>','الطقس<hr/>اليوم','الطق<span>س</span> اليوم','الطقس&lt;br&gt;اليوم']],
+   ['March weather',['March<br/>weather','<div>March</div><div>weather</div>','Mar<span>ch</span> weather']],
+   ['Météo du jour',['Météo<BR />du jour','<p>Météo</p><p>du jour</p>','Mé<span>téo</span> du jour']]
+  ] as [string,string[]][]){
+   const expected=makeTrendSnapshot(country,'2026-11-28',[{...base,term:label}]);
+   assert.equal(expected.terms.length,1,country+' '+label);
+   const digest=await snapshotDigest(expected);
+   for(const term of variants){
+    const actual=makeTrendSnapshot(country,'2026-11-28',[{...base,term}]);
+    assert.deepEqual(actual,expected,country+' '+term);
+    assert.equal(await snapshotDigest(actual),digest,country+' '+term);
+   }
+   const combined=makeTrendSnapshot(country,'2026-11-28',[{...base,term:label},...variants.map(term=>({...base,term}))]);
+   assert.deepEqual(combined,expected,country);
+  }
+ }
+});

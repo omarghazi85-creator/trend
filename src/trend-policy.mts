@@ -17,6 +17,11 @@ const NAMED_ENTITIES:Record<string,string>={
  negativemediumspace:'\u200b',negativethickspace:'\u200b',
  applyfunction:'\u2061',invisibletimes:'\u2062',invisiblecomma:'\u2063',
  af:'\u2061',it:'\u2062',ic:'\u2063',
+ // HTML space entities are visible separators, including in French feeds.
+ ensp:'\u2002',emsp:'\u2003',emsp13:'\u2004',emsp14:'\u2005',
+ numsp:'\u2007',puncsp:'\u2008',thinsp:'\u2009',thinspace:'\u2009',
+ hairsp:'\u200a',verythinspace:'\u200a',mediumspace:'\u205f',
+ thickspace:'\u205f\u200a',nonbreakingspace:'\u00a0',
  // HTML5 named punctuation is interpreted by browsers inside attributes.
  // Decode before source and executable-scheme checks, not after admission.
  colon:':',sol:'/',bsol:'\\',period:'.',lowbar:'_',hyphen:'-',
@@ -50,7 +55,7 @@ export function decodeHtmlEntities(raw:string):string {
  return raw.replace(/&#(?:x([0-9a-f]+)|([0-9]+));?/gi,(match,hex:string|undefined,decimal:string|undefined)=>{
   const n=parseInt(hex??decimal??'',hex?16:10);
   return Number.isFinite(n)&&n>0&&n<=0x10ffff&&(n<0xd800||n>0xdfff)?String.fromCodePoint(n):match;
- }).replace(/&([a-z]{2,24});/gi,(match,name:string)=>{
+ }).replace(/&([a-z][a-z0-9]{1,23});/gi,(match,name:string)=>{
   const key=name.toLowerCase();
   if(Object.hasOwn(NAMED_LATIN_ENTITIES,key)){
    const letter=NAMED_LATIN_ENTITIES[key];

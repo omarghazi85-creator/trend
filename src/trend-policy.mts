@@ -312,6 +312,12 @@ function isEditorialFeedLinkObjectAllowed(value:unknown):boolean {
  const keys=['href','url'].filter(key=>Object.hasOwn(record,key));
  return keys.length>0&&keys.every(key=>isEditorialSourceUrlAllowed(record[key]));
 }
+// A plural Atom link field must contain destinations, not arbitrary labels.
+function isEditorialFeedLinksAllowed(value:unknown):boolean {
+ if(value===undefined||value===null)return true;
+ const allowed=(entry:unknown)=>isEditorialSourceUrlAllowed(entry)||isEditorialFeedLinkObjectAllowed(entry);
+ return Array.isArray(value)?value.length<=24&&value.every(allowed):allowed(value);
+}
 function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:number}, depth=0, allowLabelPrefix=false):boolean {
  if(++budget.nodes>128||depth>4)return false;
  if(value===undefined||value===null)return true;
@@ -378,6 +384,7 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   // variants of metadata keys; otherwise a relative URL can look like prose.
   const destinationKey=decodedKey.normalize('NFKC')
    .replace(/[\s\p{Cc}\p{Default_Ignorable_Code_Point}]/gu,'');
+  if(/^links$/iu.test(destinationKey)&&!isEditorialFeedLinksAllowed(entry))return false;
   if(/(?:url|href|src|link|uri|permalink)$/iu.test(destinationKey)){
    if(typeof entry==='string')return isEditorialSourceUrlAllowed(entry);
    // Optional destinations can be absent, but a scalar URL field must not

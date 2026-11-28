@@ -631,3 +631,29 @@ test('nested scalar destination fields cannot bypass URL admission through non-s
   }
  }
 });
+
+
+test('Atom link objects require real HTTPS destinations at root and nested levels in six countries',()=>{
+ const good=[
+  {href:'https://news.example.com/markets',rel:'alternate'},
+  {url:'https://news.example.com/markets'},
+  {href:'https://news.example.com/markets',url:'https://news.example.com/weather'},
+  'https://news.example.com/markets'
+ ];
+ const bad=[
+  {},{rel:'alternate'},{path:'/relative'},{href:'/relative'},{url:'/relative'},
+  {href:null},{url:[]},{href:'https://news.example.com/markets',url:'http://news.example.com/weather'},
+  {href:'https://news.example.com/markets',label:'OnlyFans'},['/relative'],true,42
+ ];
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'Météo locale',source:'google'};
+  for(const link of good){
+   for(const row of [{...base,link},{...base,extra:{link}}])
+    assert.deepEqual(filterTrendObservations([row]),[row],country+' '+JSON.stringify(link));
+  }
+  for(const link of bad){
+   for(const row of [{...base,link},{...base,extra:{link}}])
+    assert.deepEqual(filterTrendObservations([row]),[],country+' '+JSON.stringify(link));
+  }
+ }
+});

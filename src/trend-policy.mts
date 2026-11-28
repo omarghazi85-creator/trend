@@ -31,6 +31,19 @@ const NAMED_LATIN_ENTITIES:Record<string,string>={
  ntilde:'ñ',ograve:'ò',oacute:'ó',ocirc:'ô',otilde:'õ',ouml:'ö',oslash:'ø',
  ugrave:'ù',uacute:'ú',ucirc:'û',uuml:'ü',yacute:'ý',yuml:'ÿ',oelig:'œ',scaron:'š'
 };
+// HTML text parsers also accept a limited, case-sensitive set of Latin
+// references without semicolons. Use only the HTML legacy names, not newer
+// entities such as OElig or Scaron (which require their semicolon).
+const LEGACY_LATIN_ENTITIES:Record<string,string>={};
+for(const [key,letter] of Object.entries(NAMED_LATIN_ENTITIES)){
+ if(key==='oelig'||key==='scaron')continue;
+ LEGACY_LATIN_ENTITIES[key]=letter;
+ if(key!=='yuml'){
+  const upper=key==='aelig'?'AElig':key[0].toUpperCase()+key.slice(1);
+  LEGACY_LATIN_ENTITIES[upper]=letter.toUpperCase();
+ }
+}
+const LEGACY_LATIN_PATTERN=new RegExp('&('+Object.keys(LEGACY_LATIN_ENTITIES).join('|')+')','g');
 export function decodeHtmlEntities(raw:string):string {
  // Consume the complete numeric reference, including arbitrary leading zeros.
  // A fixed digit cap can decode a prefix and hide the remaining character.
@@ -49,7 +62,8 @@ export function decodeHtmlEntities(raw:string):string {
  // HTML parsers also recognize these two legacy references without a semicolon.
  // In particular, a soft hyphen can split a prohibited brand in plain feed text.
  // Decode only these legacy separators, not arbitrary entity-like substrings.
- }).replace(/&shy(?!;)/g,'\u00ad').replace(/&nbsp(?!;)/g,' ');
+ }).replace(/&shy(?!;)/g,'\u00ad').replace(/&nbsp(?!;)/g,' ')
+  .replace(LEGACY_LATIN_PATTERN,(_match,name:string)=>LEGACY_LATIN_ENTITIES[name]);
 }
 
 /** Resolve literal JSON/JavaScript \uNNNN and \xNN escapes sometimes

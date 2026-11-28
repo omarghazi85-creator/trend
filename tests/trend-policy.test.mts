@@ -578,3 +578,33 @@ test('legacy semicolonless Latin references cannot conceal excluded brands',asyn
   }
  }
 });
+
+
+test('named HTML spaces cannot conceal excluded sources and preserve legitimate labels',async()=>{
+ const {decodeEditorialText,normalizeTrendText}=await import('../src/trend-policy.mts');
+ const entities=[['ensp','\u2002'],['emsp','\u2003'],['emsp13','\u2004'],['emsp14','\u2005'],
+  ['numsp','\u2007'],['puncsp','\u2008'],['thinsp','\u2009'],['ThinSpace','\u2009'],
+  ['hairsp','\u200a'],['VeryThinSpace','\u200a'],['MediumSpace','\u205f'],
+  ['ThickSpace','\u205f\u200a'],['NonBreakingSpace','\u00a0']];
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'مؤشرات الأسواق',source:'google'};
+  for(const [entity,space] of entities){
+   const sep='&'+entity+';';
+   for(const field of ['term','description','publisher']){
+    for(const label of ['only'+sep+'fans','porn'+sep+'hub','x'+sep+'videos']){
+     assert.deepEqual(filterTrendObservations([{...base,[field]:label}]),[],country+' '+field+' '+label);
+    }
+   }
+   for(const [label,expected] of [['Météo'+sep+'locale','Météo'+space+'locale'],
+    ['الطقس'+sep+'اليوم','الطقس'+space+'اليوم'],['March'+sep+'weather','March'+space+'weather']]){
+    for(const raw of [label,label.replace('&','&amp;')]){
+     assert.equal(decodeEditorialText(raw),expected);
+     assert.equal(normalizeTrendText(raw),normalizeTrendText(expected));
+     const row={...base,term:raw};
+     assert.deepEqual(filterTrendObservations([row]),[row],country+' '+raw);
+    }
+   }
+  }
+ }
+ assert.equal(decodeEditorialText('&notAnEntity123;'),'&notAnEntity123;');
+});

@@ -557,3 +557,24 @@ test('ordinary root headline prefixes remain prose without relaxing destination 
   assert.deepEqual(filterTrendObservations([base,...blocked]),[base],country);
  }
 });
+
+
+test('legacy semicolonless Latin references cannot conceal excluded brands',async()=>{
+ const {decodeEditorialText}=await import('../src/trend-policy.mts');
+ const blocked=["p&ogravernhub","P&OgraveRNHUB","onlyf&aacutens","xv&iumldeos","r&eacutedtube","youp&ocircrn","p&amp;oumlrnhub"];
+ const safe=[["&Eacuteconomie locale","Économie locale"],["M&eacutet&eacuteo du jour","Météo du jour"],["C&ocircte d’Ivoire","Côte d’Ivoire"],["&AEligther","Æther"],["&OEliguvre","&OEliguvre"],["&Scaronova","&Scaronova"],["مؤشرات الأسواق","مؤشرات الأسواق"],["5 &lt; 10","5 < 10"]];
+ for(const country of ["sa","eg","sd","so","dj","km"]){
+  const base={country,term:'مؤشرات الأسواق',source:'google'};
+  for(const term of blocked){
+   for(const field of ['term','description','publisher']){
+    const row={...base,[field]:term};
+    assert.deepEqual(filterTrendObservations([row]),[],country+' '+field+' '+term);
+   }
+  }
+  for(const [encoded,display] of safe){
+   assert.equal(decodeEditorialText(encoded),display,encoded);
+   const row={...base,term:encoded};
+   assert.deepEqual(filterTrendObservations([row]),[row],country+' '+encoded);
+  }
+ }
+});

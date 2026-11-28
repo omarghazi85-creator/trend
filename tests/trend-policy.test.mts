@@ -657,3 +657,22 @@ test('Atom link objects require real HTTPS destinations at root and nested level
   }
  }
 });
+
+
+test('plural Atom links require actual HTTPS destinations, including encoded nested keys',()=>{
+ const safe='https://news.example.com/markets',other='https://news.example.com/weather';
+ const good=[[],null,safe,{href:safe},[safe,{href:other,rel:'alternate'}],[{url:safe},{href:other,url:safe}]];
+ const bad=[['/relative'],[{}],[{rel:'alternate'}],[true],[42],[null],[''],[[safe]],[{path:'/relative'}],
+  {},true,'/relative',[safe,{href:'/relative'}],[{href:safe,url:'http://news.example.com/markets'}],
+  [{href:safe,label:'OnlyFans'}],Array(25).fill(safe)];
+ for(const country of ['sa','eg','sd','so','dj','km']){
+  const base={country,term:'Météo locale',source:'google'};
+  for(const [values,expected] of [[good,true],[bad,false]] as const){
+   for(const links of values){
+    for(const row of [{...base,links},{...base,extra:{links}},{...base,extra:{'l\u200binks':links}}]){
+     assert.deepEqual(filterTrendObservations([row]),expected?[row]:[],country+' '+JSON.stringify(row));
+    }
+   }
+  }
+ }
+});

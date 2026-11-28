@@ -113,3 +113,22 @@ test('technology count ignores quoted attributes and nested non-visible containe
  assert.equal(countEditorialWords('<p title="a > b">أخبار السودان</p><template>hidden</template><p>جيبوتي</p>'),3);
  assert.equal(countEditorialWords('<p>مقارنة 5 < 10</p>'),3);
 });
+
+
+test('technology word count preserves inline continuity and block boundaries',async()=>{
+ const {countEditorialWords}=await import('../src/core.mts');
+ for(const word of ['السعودية','مصر','السودان','الصومال','جيبوتي','جزر','Comores']){
+  const chars=Array.from(word);
+  assert.equal(countEditorialWords(chars[0]+'<em>'+chars.slice(1).join('')+'</em>'),1);
+ }
+ for(const [html,count] of [
+  ['تق<b>ني</b>',1],['tech<em>nology</em>',1],['inno<!--note-->vation',1],
+  ['خبر<template>ignored</template>تقني',1],
+  ['<p>خبر</p><p>تقني</p>',2],['خبر<br>تقني',2],
+  ['<td>خبر</td><td>تقني</td>',2]
+ ] as const)assert.equal(countEditorialWords(html),count,html);
+ const padded='خبر تقني '.repeat(200)+'تق<b>ني</b> '.repeat(50);
+ assert.equal(countEditorialWords(padded),450);
+ assert.throws(()=>validateCandidate({...base,categoryIds:[101],content:padded}),/technology_article_below_500_words/);
+ assert.equal(countEditorialWords('خبر تقني '.repeat(250)),500);
+});

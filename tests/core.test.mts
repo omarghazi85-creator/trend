@@ -132,3 +132,27 @@ test('technology word count preserves inline continuity and block boundaries',as
  assert.throws(()=>validateCandidate({...base,categoryIds:[101],content:padded}),/technology_article_below_500_words/);
  assert.equal(countEditorialWords('خبر تقني '.repeat(250)),500);
 });
+
+
+test('technology count decodes character references without creating artificial words',async()=>{
+ const {countEditorialWords}=await import('../src/core.mts');
+ for(const name of ['السعودية','مصر','السودان','الصومال','جيبوتي','Comores']){
+  const chars=Array.from(name);
+  const encoded=chars.map((ch,i)=>i===1?'&#'+ch.codePointAt(0)+';':ch).join('');
+  assert.equal(countEditorialWords(encoded),1,encoded);
+  assert.equal(countEditorialWords(chars.map(ch=>'&#'+ch.codePointAt(0)+';').join('')),1);
+ }
+ for(const [html,count] of [
+  ['تق&#1606;ي',1],['tech&#110;ology',1],['d&#233;veloppement',1],
+  ['خبر&nbsp;تقني',2],['خبر&#32;تقني',2],['خبر&thinsp;تقني',2],
+  ['&mdash; &copy; &hellip; &reg;',0],['تق&shy;ني',1],['تق&#8203;ني',1],
+  ['<p>خبر</p><p>تقني</p>',2],['<p>مقارنة 5 < 10</p>',3],
+  ['AI 2026: 25% نمو',4],['Actualités des Comores',3]
+ ] as const)assert.equal(countEditorialWords(html),count,html);
+ const short='خبر تقني '.repeat(200);
+ for(const [padding,expected] of [['تق&#1606;ي '.repeat(50),450],['&copy; '.repeat(100),400]] as const){
+  assert.equal(countEditorialWords(short+padding),expected);
+  assert.throws(()=>validateCandidate({...base,categoryIds:[101],content:short+padding}),/technology_article_below_500_words/);
+ }
+ assert.equal(validateCandidate({...base,categoryIds:[101],content:'خبر تقني '.repeat(250)}).categoryIds?.[0],101);
+});

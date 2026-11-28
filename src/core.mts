@@ -19,6 +19,9 @@ export function countEditorialWords(html:string):number {
  // Scan complete tags (quoted attributes may contain angle brackets), and
  // never count the contents of non-visible containers, even when nested.
  const hiddenTags=new Set(['script','style','template','noscript','head','title','textarea','iframe']);
+ // Inline formatting and comments do not create a word boundary. Only
+ // block layout and explicit line breaks separate adjacent visible words.
+ const blockTags=new Set(['address','article','aside','blockquote','br','dd','div','dl','dt','figcaption','figure','footer','h1','h2','h3','h4','h5','h6','header','hr','li','main','nav','ol','p','pre','section','table','tbody','td','tfoot','th','thead','tr','ul']);
  const hidden:string[]=[];
  const chunks:string[]=[];
  let cursor=0;
@@ -27,13 +30,14 @@ export function countEditorialWords(html:string):number {
   if(hidden.length===0)chunks.push(html.slice(cursor,start));
   cursor=start+token[0].length;
   const name=token[1]?.toLowerCase();
+  if(name&&hidden.length===0&&blockTags.has(name))chunks.push(' ');
   if(!name||!hiddenTags.has(name))continue;
   if(token[0].startsWith('</')){
    if(hidden[hidden.length-1]===name)hidden.pop();
   }else hidden.push(name);
  }
  if(hidden.length===0)chunks.push(html.slice(cursor));
- const text=chunks.join(' ')
+ const text=chunks.join('')
  .replace(/&(?:nbsp|amp|lt|gt|quot|#\d+|#x[0-9a-f]+);/gi,' ')
  .normalize('NFKC').trim();
  return text ? text.split(/\s+/u).filter(word=>/[\p{L}\p{N}]/u.test(word)).length : 0;

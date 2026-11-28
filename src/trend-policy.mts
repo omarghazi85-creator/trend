@@ -285,7 +285,7 @@ export type EditorialObservation={
  * traversal budget so malformed feeds cannot exhaust a serverless worker.
  * This is validation only; it does not fetch or persist feed data.
  */
-function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:number}, depth=0):boolean {
+function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:number}, depth=0, allowLabelPrefix=false):boolean {
  if(++budget.nodes>128||depth>4)return false;
  if(value===undefined||value===null)return true;
  if(typeof value==='string'){
@@ -299,7 +299,11 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   if(decoded===null)return false;
   const schemeProbe=decoded.normalize('NFKC')
    .replace(/[\u0000-\u0020\u007f]|\p{Default_Ignorable_Code_Point}/gu,'');
-  const looksLikeDestination=/^(?:[a-z][a-z0-9+.-]*:|\/\/)/iu.test(value)||
+  // A root editorial label such as "Weather: today" is prose, not an URI.
+  // Keep explicit destinations and unknown nested fields fail-closed, and
+  // always screen known schemes even in a label with spaces after the colon.
+  const prosePrefix=allowLabelPrefix&&/^[a-z][a-z0-9+.-]*:\s+\S/iu.test(value);
+  const looksLikeDestination=(!prosePrefix&&/^(?:[a-z][a-z0-9+.-]*:|\/\/)/iu.test(value))||
    /^(?:(?:https?|javascript|vbscript|data|file|blob|ftp|mailto):|\/\/)/iu.test(schemeProbe);
   return looksLikeDestination
    ? isEditorialSourceUrlAllowed(value) : isEditorialTrendAllowed(value);
@@ -336,7 +340,8 @@ function isEditorialStructuredFeedFieldAllowed(value:unknown, budget:{nodes:numb
   if(typeof entry==='string' &&
     /(?:url|href|src|link|uri|permalink)$/iu.test(key))
    return isEditorialSourceUrlAllowed(entry);
-  return isEditorialStructuredFeedFieldAllowed(entry,budget,depth+1);
+  const isRootLabel=depth===0&&/^(?:title|name|term|description|excerpt|summary|caption|content|subtitle|body|text)$/u.test(key);
+  return isEditorialStructuredFeedFieldAllowed(entry,budget,depth+1,isRootLabel);
  });
 }
 /** Titles are labels, not documents. Fail closed on hidden or unfinished

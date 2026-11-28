@@ -60,7 +60,7 @@ const countryAliases=new Map([
  ["الجزائر",["Algeria","Algérie"]],
  ["المغرب",["Morocco","Maroc"]],
  ["موريتانيا",["Mauritania","Mauritanie"]],
- ['السعودية',['saudi','arabia','arabie','saoudite']],
+ ['السعودية',['saudi','saoudite']],
  ['مصر',['egypt','égypte']],
  ['السودان',['sudan','soudan']],
  ['الصومال',['somalia','somalie','صوماليا','سوماليا']],
@@ -70,7 +70,7 @@ const countryAliases=new Map([
 // Official names are recognized only as complete phrases, never as generic
 // aliases such as "republic", "union" or "جمهورية". Search-only normalization.
 const officialCountryNames=[
- ["السعودية",["Kingdom of Saudi Arabia","Royaume d’Arabie saoudite","المملكة العربية السعودية"]],
+ ["السعودية",["Kingdom of Saudi Arabia","Royaume d’Arabie saoudite","المملكة العربية السعودية","Saudi Arabia","Arabie saoudite"]],
  ["مصر",["Arab Republic of Egypt","République arabe d’Égypte","جمهورية مصر العربية"]],
  ["السودان",["Republic of the Sudan","République du Soudan","جمهورية السودان"]],
  ["الصومال",["Federal Republic of Somalia","République fédérale de Somalie","جمهورية الصومال الفيدرالية"]],
